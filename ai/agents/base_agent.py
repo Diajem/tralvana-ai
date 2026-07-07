@@ -7,6 +7,7 @@ from typing import Any
 class AgentContext:
     session_id: str
     traveller_id: str | None = None
+    traveller_profile: dict[str, Any] | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
