@@ -6,11 +6,24 @@ export interface TravellerIdentity {
 }
 
 export interface TravellerPreferences {
+  // Travel basics
+  home_airport: string;
+  preferred_currency: string;
+  preferred_language: string;
+  budget_style: "backpacker" | "budget" | "balanced" | "comfort" | "luxury";
+  travel_interests: string[];
+
+  // Flight
   seat: "window" | "aisle" | "no_preference";
   cabin_class: "economy" | "business" | "first";
   meal: string;
+
+  // Accommodation
   accommodation_type: string;
-  budget_tier: "budget" | "mid" | "luxury";
+  hotel_preferences: string[];
+
+  // Accessibility
+  accessibility_needs: string[];
 }
 
 export interface AirlineLoyalty {

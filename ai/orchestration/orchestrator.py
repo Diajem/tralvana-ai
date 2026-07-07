@@ -39,8 +39,8 @@ class Orchestrator:
         context = self.new_context(traveller_id)
 
         if traveller_id:
-            from ai.memory.memory_service import memory_service
-            context.traveller_profile = memory_service.retrieve_profile(traveller_id)
+            from ai.memory.traveller_intelligence_service import traveller_intelligence_service
+            context.traveller_profile = traveller_intelligence_service.build_context_data(traveller_id)
 
         agent = agent_class(context)
         return await agent.run(input_data)

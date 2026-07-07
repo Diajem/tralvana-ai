@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import StepIdentity from "@/components/onboarding/StepIdentity";
+import StepTravelStyle from "@/components/onboarding/StepTravelStyle";
 import StepPreferences from "@/components/onboarding/StepPreferences";
 import StepLoyalty from "@/components/onboarding/StepLoyalty";
 import { createProfile } from "@/lib/api";
@@ -12,7 +13,7 @@ import type {
   TravellerLoyalty,
 } from "@/types/traveller";
 
-const STEPS = ["Identity", "Preferences", "Loyalty"];
+const STEPS = ["Identity", "Travel Style", "Comfort", "Loyalty"];
 
 const defaultIdentity: TravellerIdentity = {
   name: "",
@@ -22,11 +23,17 @@ const defaultIdentity: TravellerIdentity = {
 };
 
 const defaultPreferences: TravellerPreferences = {
+  home_airport: "",
+  preferred_currency: "USD",
+  preferred_language: "en",
+  budget_style: "balanced",
+  travel_interests: [],
   seat: "no_preference",
   cabin_class: "economy",
   meal: "standard",
   accommodation_type: "hotel",
-  budget_tier: "mid",
+  hotel_preferences: [],
+  accessibility_needs: [],
 };
 
 const defaultLoyalty: TravellerLoyalty = {
@@ -51,7 +58,9 @@ export default function OnboardingPage() {
       const profile = await createProfile({ identity, preferences, loyalty });
       router.push(`/profile/${profile.id}`);
     } catch {
-      setError("Failed to create profile. Make sure the API is running on port 8000.");
+      setError(
+        "Failed to create profile. Make sure the API is running on port 8000."
+      );
       setSubmitting(false);
     }
   };
@@ -65,14 +74,17 @@ export default function OnboardingPage() {
           <h1 className="text-2xl font-bold text-gray-900 mt-1">
             Create your Traveller Profile
           </h1>
+          <p className="text-sm text-gray-400 mt-1">
+            Step {step + 1} of {STEPS.length}
+          </p>
         </div>
 
         {/* Step indicator */}
-        <div className="flex items-center mb-8">
+        <div className="flex items-center mb-8 gap-1">
           {STEPS.map((label, i) => (
             <div key={label} className="flex items-center flex-1 last:flex-none">
               <div
-                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${
+                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 transition-colors ${
                   i < step
                     ? "bg-indigo-600 text-white"
                     : i === step
@@ -83,14 +95,16 @@ export default function OnboardingPage() {
                 {i < step ? "✓" : i + 1}
               </div>
               <span
-                className={`ml-2 text-sm ${
-                  i === step ? "text-gray-900 font-medium" : "text-gray-400"
+                className={`ml-1.5 text-xs hidden sm:inline ${
+                  i === step
+                    ? "text-gray-900 font-medium"
+                    : "text-gray-400"
                 }`}
               >
                 {label}
               </span>
               {i < STEPS.length - 1 && (
-                <div className="flex-1 mx-3 h-px bg-gray-200" />
+                <div className="flex-1 mx-2 h-px bg-gray-200" />
               )}
             </div>
           ))}
@@ -101,9 +115,12 @@ export default function OnboardingPage() {
           <StepIdentity value={identity} onChange={setIdentity} />
         )}
         {step === 1 && (
-          <StepPreferences value={preferences} onChange={setPreferences} />
+          <StepTravelStyle value={preferences} onChange={setPreferences} />
         )}
         {step === 2 && (
+          <StepPreferences value={preferences} onChange={setPreferences} />
+        )}
+        {step === 3 && (
           <StepLoyalty value={loyalty} onChange={setLoyalty} />
         )}
 
