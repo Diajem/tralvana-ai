@@ -1,19 +1,18 @@
 import uuid
-from typing import Any, Type
+from typing import Any
 
-from ai.agents.base_agent import AgentContext, AgentResult, BaseAgent
-from ai.agents.travel_manager_agent import TravelManagerAgent
-
-AGENT_REGISTRY: dict[str, Type[BaseAgent]] = {
-    "travel_manager": TravelManagerAgent,
-}
+from ai.agents.base_agent import AgentContext, AgentResult
+from ai.orchestration.agent_registry import AgentRegistry, default_registry
 
 
 class Orchestrator:
     """
-    Routes incoming requests to the appropriate agent.
+    Routes incoming requests to the appropriate agent via the AgentRegistry.
     Manages session context for each run.
     """
+
+    def __init__(self, registry: AgentRegistry | None = None) -> None:
+        self._registry = registry or default_registry
 
     def new_context(self, traveller_id: str | None = None) -> AgentContext:
         return AgentContext(
@@ -27,13 +26,12 @@ class Orchestrator:
         input_data: dict[str, Any],
         traveller_id: str | None = None,
     ) -> AgentResult:
-        agent_class = AGENT_REGISTRY.get(agent_name)
+        agent_class = self._registry.get(agent_name)
         if agent_class is None:
-            from ai.agents.base_agent import AgentResult
             return AgentResult(
                 success=False,
                 output=None,
-                error=f"Unknown agent: {agent_name}",
+                error=f"Unknown agent: '{agent_name}'. Available: {self._registry.list_agents()}",
             )
 
         context = self.new_context(traveller_id)
@@ -46,4 +44,7 @@ class Orchestrator:
         return await agent.run(input_data)
 
     def list_agents(self) -> list[str]:
-        return list(AGENT_REGISTRY.keys())
+        return self._registry.list_agents()
+
+
+default_orchestrator = Orchestrator()
