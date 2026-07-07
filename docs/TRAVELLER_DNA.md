@@ -1,96 +1,122 @@
 # Traveller DNA
 
-Traveller DNA is TravelOS's system for inferring a traveller's core travel archetype from their Traveller Intelligence Profile (TIP). DNA informs every AI agent recommendation — from destination selection to hotel tier to experience curation.
+Traveller DNA is TravelOS's system for inferring a traveller's primary travel archetype from their Traveller Intelligence Profile (TIP). DNA shapes every AI agent recommendation — from destination selection to hotel tier to experience curation to safety context.
 
-## The 10 DNA Types
+## The 12 DNA Types
 
-| DNA Type | Primary Signals | What TravelOS Does |
+| DNA Type | Primary Signals | TravelOS Behaviour |
 |----------|----------------|-------------------|
-| **Explorer** | Many diverse interests (3+), open itinerary | Suggests off-beaten-path destinations, multi-city routes |
-| **Luxury** | First/business cabin, luxury budget, luxury interests | Recommends 5-star hotels, private transfers, exclusive experiences |
-| **Budget** | Backpacker/budget style, hostel accommodation | Finds free activities, budget airlines, hostel options |
-| **Football Traveller** | Sport interests, follows leagues | Plans trips around match schedules, flags stadiums |
-| **Family Traveller** | Resort accommodation, beach/wellness interests | Child-friendly venues, resort stays, minimal long transfers |
-| **Business Traveller** | Business cabin, business interests, airline loyalty | Airport lounge access, city-centre hotels, fast Wi-Fi |
-| **Adventure Traveller** | Adventure/nature interests, backpacker style | National parks, trekking, extreme sports |
-| **Food Traveller** | food_drink interests, specific meal requirements | Curates restaurants, food tours, culinary events |
-| **Photography Traveller** | Nature/culture/city interests | Golden-hour spots, viewpoints, photography-friendly venues |
-| **Digital Nomad** | City interests, balanced budget, apartment accommodation | Co-working spaces, long-stay apartments, reliable Wi-Fi |
+| **Explorer** | 3+ diverse interests, broad curiosity | Multi-city routes, off-the-beaten-path destinations |
+| **Luxury Traveller** | First/business cabin, luxury budget | 5-star hotels, private transfers, exclusive experiences |
+| **Budget Traveller** | Backpacker/budget style, hostel accommodation | Budget airlines, free attractions, hostel options |
+| **Football Traveller** | Sport interests | Match schedules, stadium tours, fan zones |
+| **Food Traveller** | food_drink interests, dietary preferences | Michelin restaurants, food tours, market visits |
+| **Photography Traveller** | Nature/culture/city interests | Golden-hour spots, iconic backdrops, photography tours |
+| **Family Traveller** | Resort accommodation, beach/wellness | Child-friendly venues, resort stays, low-risk routes |
+| **Business Traveller** | Business cabin, business interests, airline loyalty | Airport lounges, city-centre hotels, fast Wi-Fi |
+| **Adventure Traveller** | Adventure/nature interests | National parks, trekking, diving, extreme sports |
+| **Digital Nomad** | City interests, apartment accommodation | Co-working spaces, long-stay apartments, monthly rentals |
+| **Pilgrimage Traveller** | Religious/pilgrimage/spiritual interests | Sacred sites, holy cities, religious events |
+| **Diaspora Traveller** | Heritage/diaspora/roots interests | Cultural heritage, homecoming trips, ancestral towns |
 
 ## Inference Algorithm
 
-DNA inference is deterministic and runs in two phases:
+### Input: TIP Profile
 
-### Phase 1: Trait Scoring
+```json
+{
+  "id": "traveller_abc",
+  "preferences": {
+    "budget_style": "balanced",
+    "cabin_class": "economy",
+    "travel_interests": ["food_drink", "culture", "heritage"],
+    "accommodation_type": "hotel",
+    "meal": "halal"
+  },
+  "loyalty": {
+    "airline_programs": []
+  }
+}
+```
 
-10 trait scores (0.0–1.0) are derived from TIP fields:
+### Phase 1 — 12 Trait Scores (0.0–1.0)
 
 | Trait | Primary TIP Signals |
 |-------|---------------------|
-| `adventure_seeking` | travel_interests: adventure, nature, sport |
-| `luxury_orientation` | cabin_class: first/business; budget_style: luxury/comfort |
-| `budget_consciousness` | budget_style: backpacker/budget; accommodation: hostel |
-| `cultural_curiosity` | travel_interests: culture, history; many diverse interests |
-| `food_focus` | travel_interests: food_drink; meal preferences |
-| `sport_focus` | travel_interests: sport, adventure |
-| `business_orientation` | cabin_class: business; airline loyalty programs |
-| `family_orientation` | accommodation: resort; interests: beach, wellness |
-| `digital_mobility` | accommodation: apartment; city interests; balanced budget |
-| `photography_tendency` | interests: nature, culture, city |
+| `adventure_seeking` | adventure, nature, sport interests |
+| `luxury_orientation` | first/business cabin; luxury/comfort budget |
+| `budget_consciousness` | backpacker/budget style; hostel accommodation |
+| `cultural_curiosity` | culture, history interests; breadth of interests |
+| `food_focus` | food_drink interest; dietary requirements |
+| `sport_focus` | sport, adventure interests |
+| `business_orientation` | business cabin; airline loyalty; business interest |
+| `family_orientation` | resort accommodation; beach/wellness interests |
+| `digital_mobility` | city interests; apartment accommodation |
+| `photography_tendency` | nature/culture/city interests (proxy) |
+| `spiritual_orientation` | religious, pilgrimage, spiritual interests |
+| `heritage_connection` | heritage, diaspora, roots, family interests |
 
-### Phase 2: DNA Type Scoring
+### Phase 2 — DNA Type Scores
 
-Each DNA type receives a weighted score derived from relevant trait scores. The highest-scoring type becomes the **primary DNA**. Types scoring above 0.15 become **secondary types**.
+Each DNA type receives a weighted score derived from relevant trait scores. The highest-scoring type is the **primary DNA**. Types scoring above 0.15 become **secondary types**.
+
+### Output: TravellerDNA
 
 ```python
-from knowledge.ontology.dna_classifier import dna_inference_service
-
-profile = {
-    "id": "traveller_123",
-    "preferences": {
-        "budget_style": "balanced",
-        "cabin_class": "economy",
-        "travel_interests": ["adventure", "nature", "food_drink"],
-        "accommodation_type": "hotel",
-    }
-}
+from ai.intelligence import dna_inference_service
 
 dna = dna_inference_service.infer(profile)
-print(dna.primary_type)       # "Adventure Traveller"
-print(dna.secondary_types)    # ["Food Traveller", "Explorer"]
-print(dna.confidence)         # 0.76
-print(dna.traits)             # {"adventure_seeking": 0.75, "food_focus": 0.5, ...}
+
+dna.primary_type       # "Diaspora Traveller"
+dna.secondary_types    # ["Food Traveller", "Explorer"]
+dna.confidence         # 0.73
+dna.traits             # {"heritage_connection": 0.85, "food_focus": 0.50, ...}
+dna.inferred_at        # "2026-07-07T14:32:00Z"
 ```
 
-## TravellerDNA Entity
+## DNA Ontology
 
-```python
-@dataclass
-class TravellerDNA:
-    traveller_id: str
-    primary_type: str              # e.g. "Adventure Traveller"
-    secondary_types: list[str]     # e.g. ["Food Traveller", "Explorer"]
-    confidence: float              # 0.0–1.0
-    traits: dict[str, float]       # trait_name → score
-    inferred_at: str               # ISO 8601 UTC timestamp
+```
+TravellerDNA (abstract)
+├── Independent (self-directed)
+│   ├── Explorer
+│   ├── Budget Traveller
+│   ├── Adventure Traveller
+│   └── Digital Nomad
+├── Culture-Led
+│   ├── Photography Traveller
+│   ├── Food Traveller
+│   ├── Pilgrimage Traveller
+│   └── Diaspora Traveller
+├── Comfort-Led
+│   ├── Luxury Traveller
+│   └── Family Traveller
+└── Purpose-Led
+    ├── Business Traveller
+    └── Football Traveller
 ```
 
-## Usage in Agents
+## TIP Field to DNA Mapping
 
-The DNA inference service is called by `TravellerIntelligenceService` (in `ai/memory/`) when enriching a TIP. The resulting `TravellerDNA` is included in the agent context passed to all specialist agents.
-
-Example agent personalisation:
-
-- **BudgetAgent**: uses `luxury_orientation` trait to adjust cost estimates up or down
-- **ExperienceAgent**: uses `primary_type` to prioritise experience categories
-- **HotelAgent**: uses `family_orientation` and `luxury_orientation` to filter accommodation
-- **VisaAgent**: unchanged — visa rules are objective, not personalised
+| TIP Field | DNA Types Influenced |
+|-----------|---------------------|
+| `budget_style: luxury` | Luxury Traveller, Business Traveller |
+| `budget_style: backpacker` | Budget Traveller, Adventure Traveller |
+| `cabin_class: first` | Luxury Traveller |
+| `cabin_class: business` | Business Traveller, Luxury Traveller |
+| `travel_interests: sport` | Football Traveller, Adventure Traveller |
+| `travel_interests: food_drink` | Food Traveller |
+| `travel_interests: religious` | Pilgrimage Traveller |
+| `travel_interests: heritage` | Diaspora Traveller |
+| `accommodation_type: hostel` | Budget Traveller |
+| `accommodation_type: resort` | Family Traveller, Luxury Traveller |
+| `accommodation_type: apartment` | Digital Nomad |
 
 ## Evolution Roadmap
 
 | Sprint | Enhancement |
 |--------|-------------|
-| Sprint 1 | Deterministic rule-based inference (current) |
-| Sprint 2 | Infer DNA from past trips once booking history is added |
-| Sprint 3 | ML model trained on anonymised trip patterns |
-| Sprint 4 | Real-time DNA drift detection (DNA evolves as traveller preferences change) |
+| 1 | Deterministic rule-based inference (current) |
+| 2 | Infer secondary DNA from past trip destination history |
+| 3 | ML model trained on anonymised trip patterns |
+| 4 | Real-time DNA drift detection as preferences evolve |

@@ -1,6 +1,6 @@
 # Travel Ontology
 
-The TravelOS Travel Ontology defines the conceptual vocabulary of the knowledge graph — entity types, relationship semantics, and the controlled vocabularies (tag lists, enums) used throughout the system.
+The TravelOS Travel Ontology defines the conceptual vocabulary of the Travel Intelligence Layer — entity types, relationship semantics, and the controlled vocabularies used throughout the system.
 
 ## Entity Hierarchy
 
@@ -8,34 +8,40 @@ The TravelOS Travel Ontology defines the conceptual vocabulary of the knowledge 
 TravelEntity (abstract)
 ├── GeographicEntity
 │   ├── Country
+│   ├── Region
 │   ├── City
-│   └── Airport
+│   ├── Airport
+│   └── RailStation
 ├── AccommodationEntity
 │   └── Hotel
 ├── TransportEntity
 │   ├── Airline
 │   └── Transport
-├── ExperienceEntity
-│   ├── Attraction
+├── CulinaryEntity
 │   ├── Restaurant
+│   └── Cuisine
+├── CulturalEntity
+│   ├── Attraction
 │   ├── Museum
-│   ├── Event
-│   └── Sport
+│   └── Event
 ├── SportEntity
-│   └── FootballClub
+│   ├── FootballClub
+│   └── SportsVenue
+├── EnvironmentalEntity
+│   ├── Weather
+│   └── TravelSeason
+├── SocioeconomicEntity
+│   ├── Currency
+│   └── Language
 ├── RegulatoryEntity
 │   └── VisaRequirement
-├── EconomicEntity
-│   └── Currency
-├── EnvironmentalEntity
-│   └── Weather
 └── ProfileEntity
     └── TravellerDNA
 ```
 
 ## Controlled Vocabularies
 
-### budget_style (TIP)
+### TIP: `budget_style`
 | Value | Meaning |
 |-------|---------|
 | `backpacker` | Hostel, street food, free activities |
@@ -44,85 +50,89 @@ TravelEntity (abstract)
 | `comfort` | 4-star hotels, fine dining |
 | `luxury` | 5-star hotels, first-class, private experiences |
 
-### cabin_class (TIP)
+### TIP: `cabin_class`
 `economy` | `business` | `first`
 
-### accommodation_type (TIP)
+### TIP: `accommodation_type`
 `hotel` | `apartment` | `hostel` | `resort`
 
-### travel_interests (TIP)
-`beach` | `city` | `adventure` | `culture` | `food_drink` | `wellness` | `sport` | `nature` | `luxury` | `business` | `history`
+### TIP: `travel_interests`
+`beach` | `city` | `adventure` | `culture` | `food_drink` | `wellness` | `sport` | `nature` | `luxury` | `business` | `history` | `religious` | `pilgrimage` | `spiritual` | `heritage` | `diaspora` | `roots` | `family`
 
-### Hotel price_tier
+### Hotel / Restaurant: `price_tier`
 `budget` | `mid-range` | `luxury`
 
-### Airline tier
+### Airline: `tier`
 `economy` | `premium` | `luxury`
 
-### Attraction attraction_type
+### Airline: `alliance`
+`Star Alliance` | `OneWorld` | `SkyTeam` | `""` (independent)
+
+### Attraction: `attraction_type`
 `landmark` | `natural` | `cultural` | `entertainment` | `sport` | `religious` | `historic`
 
-### Museum category
+### Museum: `category`
 `art` | `history` | `science` | `sport` | `natural` | `military` | `cultural`
 
-### Event event_type
-`festival` | `conference` | `sport` | `concert` | `cultural` | `exhibition`
+### SportsVenue: `venue_type`
+`stadium` | `arena` | `circuit` | `court` | `velodrome` | `ground`
 
-### Transport transport_type
-`rail` | `metro` | `bus` | `ferry` | `taxi` | `rideshare` | `tram` | `cable-car`
+### Event: `event_type`
+`festival` | `conference` | `sport` | `concert` | `cultural` | `exhibition` | `pilgrimage`
 
-### VisaRequirement requirement
+### Transport: `transport_type`
+`rail` | `metro` | `bus` | `ferry` | `taxi` | `rideshare` | `tram` | `cable-car` | `monorail`
+
+### VisaRequirement: `requirement`
 `visa-free` | `visa-on-arrival` | `evisa` | `required`
 
-### Country safety_level
+### Country: `safety_level`
 `low` | `medium` | `high` | `critical`
 
-### Weather condition
-`sunny` | `partly-cloudy` | `cloudy` | `rainy` | `snowy` | `hot` | `humid` | `cold` | `mild`
+### Weather: `condition`
+`sunny` | `partly-cloudy` | `cloudy` | `rainy` | `snowy` | `hot` | `humid` | `cold` | `mild` | `harmattan`
 
-### Weather season
-`spring` | `summer` | `autumn` | `winter` | `dry` | `wet`
+### Weather / TravelSeason: `season`
+`spring` | `summer` | `autumn` | `winter` | `dry` | `wet` | `harmattan`
+
+### TravelSeason: `season_type`
+`peak` | `shoulder` | `off-peak` | `festival` | `dry` | `wet` | `harmattan`
+
+### Region: `region_type`
+`state` | `province` | `territory` | `emirate` | `county` | `district`
 
 ## Relationship Semantics
 
-| Relationship | Cardinality | Notes |
-|-------------|-------------|-------|
-| `LOCATED_IN` | Many→One | A city is in one country; an airport serves one city |
-| `BELONGS_TO` | Many→One | Hotels, restaurants, clubs belong to a city |
-| `OPERATES_FROM` | Many→One | Airline has one hub airport |
-| `USES_CURRENCY` | One→One | Country uses one primary currency |
-| `HAS_WEATHER` | One→Many | City has many monthly weather records |
-| `NEAR` | Many→One | Attractions are near a city |
-| `PART_OF` | Many→One | Events are part of a city |
-| `HAS_DNA` | One→One | Traveller has one active DNA record |
-| `REQUIRES_VISA` | Many→Many | Multiple country pairs with visa rules |
-
-## DNA Type Ontology
-
-The 10 DNA archetypes form a hierarchy of travel motivations:
-
-```
-TravellerDNA (abstract)
-├── Independent (self-directed travel)
-│   ├── Explorer
-│   ├── Budget
-│   ├── Adventure Traveller
-│   └── Digital Nomad
-├── Culture-Led
-│   ├── Photography Traveller
-│   └── Food Traveller
-├── Comfort-Led
-│   ├── Luxury
-│   └── Family Traveller
-└── Purpose-Led
-    ├── Business Traveller
-    └── Football Traveller
-```
+| Relationship | Cardinality | Semantic |
+|-------------|-------------|----------|
+| `LOCATED_IN` | Many→One | Spatial containment (hotel in city, city in country) |
+| `BELONGS_TO` | Many→One | Membership (restaurant in city, transport in city) |
+| `SERVES` | Many→Many | Airport serves city; restaurant serves cuisine |
+| `PLAYS_IN` | Many→One | Football club plays home games in city |
+| `PLAYS_AT` | Many→One | Football club plays at sports venue |
+| `HOSTS` | One→Many | City hosts sports venues |
+| `OPERATES_FROM` | Many→One | Airline's hub airport |
+| `USES_CURRENCY` | One→One | Country's primary currency |
+| `SPEAKS` | Many→Many | Languages spoken in country |
+| `HAS_REGION` | One→Many | Country has administrative regions |
+| `IN_REGION` | Many→One | City is in a region |
+| `HAS_WEATHER` | One→Many | City has monthly weather records |
+| `HAS_SEASON` | Many→Many | City experiences travel seasons |
+| `NEAR` | Many→One | Attraction is near a city |
+| `PART_OF` | Many→One | Event is part of a city's calendar |
+| `CONNECTS` | Many→One | Rail station connects to a city |
+| `REQUIRES_VISA` | Many→Many | Passport country → destination visa rule |
+| `HAS_DNA` | One→One | Traveller's inferred DNA |
+| `VISITED` | Many→Many | Traveller has visited cities |
+| `PREFERS` | Many→Many | Traveller prefers airlines |
+| `VISITS` | Many→Many | Trip visits destinations |
+| `INTERESTED_IN` | Many→Many | Traveller interested in interests |
 
 ## Ontology Versioning
 
-The ontology version is stored in the `knowledge_graph` stats as `ontology_version`. Breaking changes (adding required fields, renaming entities, changing relationship semantics) require a version bump and a migration script in `scripts/migrations/`.
-
 | Version | Changes |
 |---------|---------|
-| 1.0 | Initial 16 entity types, 18 relationship types, 10 DNA archetypes |
+| 2.0 | 20 entity types, 22 relationship types, 12 DNA archetypes (current) |
+| 1.0 | 16 entity types, 18 relationship types, 10 DNA archetypes (superseded) |
+
+Breaking changes (field renames, relationship semantic changes) require a version bump and a migration script in `scripts/migrations/`.
