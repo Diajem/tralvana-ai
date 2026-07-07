@@ -2,131 +2,152 @@
 
 ## Overview
 
-The Agent Registry maps agent names (strings) to agent classes (Python types).
-It decouples the Orchestrator from any specific agent implementation —
-the Orchestrator never imports agent classes directly.
+The Agent Registry maps agent names (strings) to specialist agent classes (Python types).
+It decouples the TravelManager from any specific agent implementation.
 
-**File:** `ai/orchestration/agent_registry.py`
+The TravelManager never imports agent classes directly. It only queries the registry.
+
+**File:** `ai/registry/agent_registry.py`
 
 ---
 
-## Design
+## API
 
 ```python
 class AgentRegistry:
-    def register(self, name: str, agent_class: Type[BaseAgent]) -> None
-    def get(self, name: str) -> Type[BaseAgent] | None
+    def register(self, name: str, agent_class: Type) -> None
+    def get(self, name: str) -> Type | None
     def is_registered(self, name: str) -> bool
     def list_agents(self) -> list[str]
 ```
 
 A module-level `default_registry` singleton is pre-populated with all built-in agents.
-New agents are registered in `_build_default_registry()`.
 
 ---
 
 ## Registered Agents (Sprint 1)
 
-| Name | Class | Entry point |
-|------|-------|-------------|
-| `travel_concierge` | `TravelConciergeAgent` | Primary conversation entry point |
-| `travel_manager` | `TravelManagerAgent` | Trip planning coordinator |
+| Name | Class | Responsibility |
+|------|-------|---------------|
+| `budget_agent` | `BudgetAgent` | Estimate travel costs using traveller's budget style |
+| `experience_agent` | `ExperienceAgent` | Provide destination highlights and local tips |
+| `flight_agent` | `FlightAgent` | Search and recommend flights |
+| `hotel_agent` | `HotelAgent` | Search and recommend accommodation |
+| `visa_agent` | `VisaAgent` | Check visa requirements for the destination |
 
 ---
 
-## How the Orchestrator Uses the Registry
+## How TravelManager Uses the Registry
 
 ```python
-class Orchestrator:
+class TravelManager:
     def __init__(self, registry: AgentRegistry | None = None) -> None:
         self._registry = registry or default_registry
 
-    async def run(self, agent_name: str, input_data: dict, ...) -> AgentResult:
-        agent_class = self._registry.get(agent_name)
-        if agent_class is None:
-            return AgentResult(
-                success=False,
-                output=None,
-                error=f"Unknown agent: {agent_name}. Available: {self._registry.list_agents()}",
-            )
-        context = self.new_context(traveller_id)
-        agent = agent_class(context)
-        return await agent.run(input_data)
-```
+    async def execute(self, ...) -> list[AgentResult]:
+        for agent_name in decision.requires_agents:
+            agent_class = self._registry.get(agent_name)
+            if agent_class is None:
+                continue
+            agent = agent_class(context)
+            tasks.append(agent.run(input_data))
 
-The Orchestrator exposes a `default_orchestrator` module-level singleton.
-
----
-
-## Adding a New Agent
-
-1. Create your agent class in `ai/agents/`:
-
-```python
-class DestinationResearchAgent(BaseAgent):
-    name = "destination_research"
-    description = "Researches destination details and travel conditions."
-
-    async def run(self, input_data: dict[str, Any]) -> AgentResult:
+        raw = await asyncio.gather(*tasks, return_exceptions=True)
         ...
 ```
 
-2. Register it in `_build_default_registry()`:
+Agents run concurrently. One failure does not block the rest.
+
+---
+
+## AgentResult Contract
+
+Every agent must return an `AgentResult` (from `ai/shared/agent_result.py`):
+
+```python
+@dataclass
+class AgentResult:
+    agent_name: str
+    status: AgentStatus       # SUCCESS | NEEDS_INFORMATION | FAILED | PARTIAL | SKIPPED
+    confidence: float         # 0.0 – 1.0
+    data: dict
+    assumptions: list[str]
+    missing_information: list[str]
+    risks: list[str]
+    recommendations: list[str]
+    next_actions: list[str]
+```
+
+---
+
+## Adding a New Specialist Agent
+
+**Step 1 — Create the agent class in `ai/agents/`:**
+
+```python
+# ai/agents/weather_agent.py
+from ai.shared.agent_context import AgentContext
+from ai.shared.agent_result import AgentResult
+from ai.shared.agent_status import AgentStatus
+
+class WeatherAgent:
+    name = "weather_agent"
+
+    def __init__(self, context: AgentContext) -> None:
+        self.context = context
+
+    async def run(self, input_data: dict) -> AgentResult:
+        destination = input_data.get("destination", "")
+        return AgentResult(
+            agent_name=self.name,
+            status=AgentStatus.SUCCESS,
+            confidence=0.6,
+            data={"destination": destination, "forecast": "pending_live_data"},
+            assumptions=["Live weather data activates in Sprint 5."],
+            recommendations=["Pack for varied conditions."],
+        )
+```
+
+**Step 2 — Register it in `_build_default_registry()`:**
 
 ```python
 def _build_default_registry() -> AgentRegistry:
-    from ai.agents.travel_concierge_agent import TravelConciergeAgent
-    from ai.agents.travel_manager_agent import TravelManagerAgent
-    from ai.agents.destination_research_agent import DestinationResearchAgent
-
-    registry = AgentRegistry()
-    registry.register("travel_concierge", TravelConciergeAgent)
-    registry.register("travel_manager", TravelManagerAgent)
-    registry.register("destination_research", DestinationResearchAgent)
+    ...
+    from ai.agents.weather_agent import WeatherAgent
+    registry.register("weather_agent", WeatherAgent)
     return registry
 ```
 
-3. Dispatch to it from any existing agent or the ConversationEngine:
+**Step 3 — Add it to the DecisionEngine dispatch map (`_AGENT_MAP`) if needed:**
 
 ```python
-result = await default_orchestrator.run("destination_research", {"destination": "Lagos"})
+_AGENT_MAP: dict[Intent, list[str]] = {
+    Intent.DESTINATION_QUESTION: ["experience_agent", "weather_agent"],
+    ...
+}
 ```
 
----
-
-## Routing Table
-
-| Task Type | Agent Name | Sprint |
-|-----------|-----------|--------|
-| Conversation entry | `travel_concierge` | 1 |
-| Trip planning | `travel_manager` | 1 |
-| Destination research | `destination_research` | 4 |
-| Flight search | `flight_search` | 4 |
-| Hotel search | `hotel_search` | 4 |
-| Budget estimation | `budget_estimator` | 4 |
-| Itinerary generation | `itinerary_builder` | 4 |
-| Weather lookup | `weather_advisor` | 5 |
-| Visa check | `visa_advisor` | 5 |
+No other files change.
 
 ---
 
-## 3-Tier Model Routing
+## Full Agent Routing Table
 
-Future versions of the registry will carry a `model_tier` annotation per agent:
-
-| Tier | Model | Use cases |
-|------|-------|-----------|
-| 1 | Direct transform (no LLM) | Simple lookups, format conversions |
-| 2 | Haiku | Classification, extraction, short answers |
-| 3 | Sonnet / Opus | Reasoning, planning, multi-step tasks |
-
-The Orchestrator will select the model tier at dispatch time based on the agent's annotation.
+| Intent | Agents (Sprint 1) | Future Agents |
+|--------|------------------|--------------|
+| `PLAN_TRIP` | flight, hotel, budget, experience, visa | weather, itinerary, insurance |
+| `MODIFY_TRIP` | flight, hotel | rebooking |
+| `DESTINATION_QUESTION` | experience | weather, safety |
+| `TRAVEL_ADVICE` | experience | curated-content |
+| `BUDGET_ADVICE` | budget | currency, deals |
+| `VIEW_PROFILE` | (none) | — |
+| `UPDATE_PREFERENCES` | (none) | — |
+| `GENERAL_CONVERSATION` | (none) | — |
 
 ---
 
 ## Sprint 1 Constraints
 
-- Registry is populated once at module load (`_build_default_registry()`).
-- No hot-reload, no persistence.
-- Agents are stateless — new instance created per `Orchestrator.run()` call.
-- Model-tier routing is not yet implemented.
+- Registry populated once at module load — no hot-reload.
+- Agents are stateless — new instance created per `TravelManager.execute()` call.
+- Model-tier routing (Haiku / Sonnet / Opus) deferred to Sprint 3.

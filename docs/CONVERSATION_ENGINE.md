@@ -3,167 +3,168 @@
 ## Overview
 
 The Conversation Engine is the central state machine for all traveller interactions in TravelOS.
-Every message sent by a traveller passes through this layer before any AI or booking logic is
-invoked.
+Every message sent by a traveller passes through this layer. No code bypasses it.
 
-## Responsibility Boundaries
-
-| Layer | Responsibility |
-|-------|---------------|
-| **ConversationRouter** (`services/api/app/conversation/conversation_router.py`) | Receive HTTP requests, validate input, return HTTP responses |
-| **ConversationEngine** (`services/api/app/conversation/conversation_engine.py`) | Maintain session state, classify intent, dispatch work, compose reply |
-| **IntentClassifier** (`services/api/app/conversation/intent_classifier.py`) | Classify each message into one of 8 intents |
-| **ConversationStore** (`services/api/app/conversation/conversation_session.py`) | Store and retrieve conversation sessions (in-memory, Sprint 1) |
-| **ResponseComposer** (`services/api/app/conversation/response_composer.py`) | Assemble natural-language replies from agent outputs |
-| **TravelConciergeAgent** (`ai/agents/travel_concierge_agent.py`) | AI-side entry point; maps intent to structured agent output |
-| **Orchestrator** (`ai/orchestration/orchestrator.py`) | Route work to the correct specialist agent via AgentRegistry |
+**Business goal:** The traveller should feel they are speaking to an experienced travel consultant,
+not a generic chatbot.
 
 ---
 
-## Request Flow
+## Full Request Flow
 
 ```
-POST /conversation/{id}/message
+POST /conversation/message
        │
        ▼
-ConversationEngine.process_message(conversation_id, message)
+TravelConcierge.handle(message, traveller_id, conversation_id)
+       │  Single AI entry point — nothing calls below this directly
+       ▼
+ConversationEngine.process(message, traveller_id, conversation_id)
        │
-       ├─ ConversationStore.get(conversation_id)         → ConversationSession
-       ├─ IntentClassifier.classify(message)             → ClassifiedIntent
-       ├─ session.add_message("user", message, intent)
-       ├─ ConversationEngine._dispatch(session, classified)
-       │        │
-       │        ├── [plan_trip]    → _handle_plan_trip()
-       │        │       └─ Orchestrator.run("travel_manager", {...})
-       │        │               └─ TravelManagerAgent.run()
-       │        ├── [modify_trip]  → compose_clarification()
-       │        ├── [view_profile] → compose(intent, None)
-       │        └── [general]     → compose("general_conversation", None)
+       ├─ _SessionStore.get_or_create()             → ConversationSession
+       ├─ IntentClassifier.classify(message)        → ClassifiedIntent
+       ├─ _fetch_profile(traveller_id)              → dict | None (from MemoryService)
+       ├─ DecisionEngine.decide(intent, entities, profile)
+       │       ├── has_enough_information?
+       │       ├── requires_agents: [list]
+       │       ├── follow_up_questions: [list]
+       │       ├── is_safety_sensitive: bool
+       │       └── requires_live_data: bool
        │
-       ├─ session.add_message("assistant", reply)
-       ├─ ConversationStore.save(session)
-       └─ return {reply, intent, confidence, entities, active_goal, pending_questions}
+       ├─ [if has_enough_information]
+       │       └─ TravelManager.execute(intent, context, decision, input_data)
+       │               └─ AgentRegistry.get(name) → AgentClass
+       │                       └─ asyncio.gather(*[agent.run(...) for each agent])
+       │                               ├─ BudgetAgent.run()     → AgentResult
+       │                               ├─ FlightAgent.run()     → AgentResult
+       │                               ├─ HotelAgent.run()      → AgentResult
+       │                               ├─ ExperienceAgent.run() → AgentResult
+       │                               └─ VisaAgent.run()       → AgentResult
+       │
+       ├─ ResponseComposer.compose(intent, decision, results, name)
+       │       └─ Coherent traveller-facing answer
+       │
+       ├─ session.add_message("assistant", response)
+       ├─ _SessionStore.save(session)
+       └─ return structured output dict
 ```
 
 ---
 
-## ConversationSession State
+## Directory Structure
+
+```
+ai/
+├── concierge/
+│   ├── travel_concierge.py       ← Public API entry point
+│   ├── conversation_engine.py    ← State machine + session management
+│   ├── decision_engine.py        ← Decides agents + information requirements
+│   ├── intent_classifier.py      ← Classifies message intent
+│   └── response_composer.py      ← Composes traveller-facing answer
+├── manager/
+│   └── travel_manager.py         ← Dispatches to specialist agents concurrently
+├── registry/
+│   └── agent_registry.py         ← Maps names → agent classes
+├── agents/
+│   ├── budget_agent.py
+│   ├── experience_agent.py
+│   ├── flight_agent.py
+│   ├── hotel_agent.py
+│   └── visa_agent.py
+├── shared/
+│   ├── agent_context.py          ← Context passed to every agent
+│   ├── agent_result.py           ← Rich structured result from every agent
+│   └── agent_status.py           ← SUCCESS | NEEDS_INFORMATION | FAILED | PARTIAL | SKIPPED
+└── memory/
+    ├── memory_service.py
+    └── traveller_intelligence_service.py
+```
+
+---
+
+## ConversationSession
 
 ```python
 @dataclass
 class ConversationSession:
-    conversation_id: str          # UUID — permanent session identifier
-    traveller_id: str | None      # links session to a TIP (set at /start)
+    conversation_id: str          # UUID — permanent identifier
+    traveller_id: str | None      # links to TIP (set at start or on first message)
     trip_id: str | None           # set when an active trip is in scope
-    history: list[ConversationMessage]  # full turn-by-turn history
-    active_goal: str | None       # current traveller intent in scope
-    pending_questions: list[str]  # questions engine is waiting to resolve
-    context_summary: str          # rolling summary (populated in Sprint 3)
+    history: list[ConversationMessage]
+    active_goal: str | None       # current goal intent (plan_trip, view_profile, etc.)
+    pending_questions: list[str]  # questions waiting to be answered
+    context_summary: str          # rolling summary (Sprint 3+)
     created_at: str               # ISO 8601 UTC
     updated_at: str               # ISO 8601 UTC
 ```
 
-### Message Record
+---
+
+## AgentResult
+
+Every specialist agent returns a structured `AgentResult`:
 
 ```python
 @dataclass
-class ConversationMessage:
-    role: str        # "user" | "assistant" | "system"
-    content: str
-    timestamp: str
-    intent: str | None
+class AgentResult:
+    agent_name: str
+    status: AgentStatus           # SUCCESS | NEEDS_INFORMATION | FAILED | PARTIAL | SKIPPED
+    confidence: float             # 0.0 – 1.0
+    data: dict                    # agent-specific output
+    assumptions: list[str]        # what the agent assumed
+    missing_information: list[str]
+    risks: list[str]
+    recommendations: list[str]
+    next_actions: list[str]
 ```
 
 ---
 
-## Active Goal Tracking
-
-The engine sets `session.active_goal` whenever the classified intent is goal-forming:
-
-| Intent | active_goal |
-|--------|-------------|
-| `plan_trip` | `plan_trip` |
-| `modify_trip` | `modify_trip` |
-| `view_profile` | `view_profile` |
-| `update_preferences` | `update_preferences` |
-| Other intents | Unchanged |
-
-This allows follow-up turns to restore context without re-classifying.
-
----
-
-## Pending Questions
-
-When the engine needs information before it can proceed (e.g. no destination extracted
-for a plan_trip intent), it sets `session.pending_questions` and returns a
-`compose_clarification()` response. On the next turn, the engine checks whether the
-answers are now in the message text.
-
----
-
-## API Endpoints
-
-### POST /conversation/start
-
-Creates a new session. Optionally links it to a traveller profile.
+## POST /conversation/message
 
 **Request:**
 ```json
-{ "traveller_id": "uuid-or-null" }
-```
-
-**Response `201`:**
-```json
 {
-  "conversation_id": "uuid",
-  "greeting": "Hello, Peter! I'm Tralvana, your AI travel concierge. Where would you like to go?"
+  "traveller_id": "uuid-or-null",
+  "message": "I want to plan a trip to Lagos next month",
+  "conversation_id": "uuid-or-null"
 }
 ```
 
-### POST /conversation/{conversation_id}/message
-
-Send a message. Returns the engine reply and session state snapshot.
-
-**Request:**
-```json
-{ "message": "I want to plan a trip to Lagos next month" }
-```
-
-**Response `200`:**
+**Response:**
 ```json
 {
   "conversation_id": "uuid",
-  "reply": "I'll help you plan that trip. I'm arranging flights, accommodation, itinerary for Lagos.",
-  "intent": "plan_trip",
-  "confidence": 0.85,
-  "entities": { "destination": "Lagos", "date_hint": "next month" },
-  "active_goal": "plan_trip",
-  "pending_questions": []
+  "intent": "PLAN_TRIP",
+  "response": "Here's what I've put together for your trip. ...",
+  "confidence": 0.62,
+  "assumptions": ["Budget style: balanced", "Cabin preference: economy"],
+  "missing_information": [],
+  "next_actions": ["confirm_flight_budget", "confirm_travel_dates"],
+  "recommended_agents": ["flight_agent", "hotel_agent", "budget_agent", "experience_agent", "visa_agent"]
 }
 ```
-
-### GET /conversation/{conversation_id}
-
-Retrieve session metadata and message count.
 
 ---
 
-## Sprint 1 Constraints
+## Concurrent Agent Execution
 
-- Sessions stored in process memory. Lost on server restart.
-- IntentClassifier is rule-based (keyword matching).
-- ResponseComposer is template-based.
-- TravelConciergeAgent returns stub outputs (no live APIs).
-- No authentication — conversation ID is the only access control.
+Specialist agents run concurrently via `asyncio.gather()`. One failing agent does not block the rest — failures are caught and returned as `AgentStatus.FAILED` results.
 
-## Planned Extensions
+---
+
+## Sprint Roadmap
 
 | Feature | Sprint |
 |---------|--------|
-| Redis session store | 3 |
-| LLM-powered intent classification | 3 |
-| LLM-powered response generation | 3 |
-| Rolling context_summary via LLM | 3 |
-| Multi-turn goal resolution | 3 |
-| Trip ID linking | 4 |
+| Rule-based intent classification | 1 ✅ |
+| DecisionEngine (deterministic) | 1 ✅ |
+| Mock specialist agents | 1 ✅ |
+| Template-based ResponseComposer | 1 ✅ |
+| Redis session persistence | 3 |
+| LLM intent classification | 3 |
+| LLM response generation | 3 |
+| Live flight search | 4 |
+| Live hotel search | 4 |
+| Live visa data | 5 |
 | Authentication | 2 |

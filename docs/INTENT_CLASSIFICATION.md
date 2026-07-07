@@ -3,158 +3,188 @@
 ## Overview
 
 Every traveller message is classified into one of 8 intents before routing.
-Classification determines which agent or handler processes the request.
+Classification determines which specialist agents are invoked and whether
+additional information is needed before proceeding.
 
-**Sprint 1:** Rule-based keyword matching in `IntentClassifier`.
-**Sprint 3+:** LLM-powered classification with confidence scores and multi-intent detection.
+**File:** `ai/concierge/intent_classifier.py`
+
+**Sprint 1:** Rule-based keyword pattern matching.
+**Sprint 3+:** LLM-powered classification with calibrated confidence scores.
 
 ---
 
 ## Intent Catalogue
 
-| Intent | Trigger | Handler |
-|--------|---------|---------|
-| `plan_trip` | Traveller wants to arrange travel | `ConversationEngine._handle_plan_trip()` |
-| `modify_trip` | Traveller wants to change an existing trip | `ConversationEngine._dispatch()` → clarify |
-| `view_profile` | Traveller wants to see their TIP | `ConversationEngine._dispatch()` → compose |
-| `update_preferences` | Traveller wants to change preferences | `ConversationEngine._dispatch()` → compose |
-| `ask_destination` | Traveller wants info about a place | `ConversationEngine._dispatch()` → compose |
-| `travel_advice` | Traveller wants travel tips | `ConversationEngine._dispatch()` → compose |
-| `budget_advice` | Traveller wants cost/budget help | `ConversationEngine._dispatch()` → compose |
-| `general_conversation` | None of the above (fallback) | `ConversationEngine._dispatch()` → compose |
+| Intent | Enum Value | Description |
+|--------|-----------|-------------|
+| `PLAN_TRIP` | `Intent.PLAN_TRIP` | Traveller wants to arrange a trip |
+| `MODIFY_TRIP` | `Intent.MODIFY_TRIP` | Traveller wants to change an existing trip |
+| `VIEW_PROFILE` | `Intent.VIEW_PROFILE` | Traveller wants to see their TIP |
+| `UPDATE_PREFERENCES` | `Intent.UPDATE_PREFERENCES` | Traveller wants to change preferences |
+| `DESTINATION_QUESTION` | `Intent.DESTINATION_QUESTION` | Question about a specific place |
+| `TRAVEL_ADVICE` | `Intent.TRAVEL_ADVICE` | General travel tips or recommendations |
+| `BUDGET_ADVICE` | `Intent.BUDGET_ADVICE` | Questions about costs or budget |
+| `GENERAL_CONVERSATION` | `Intent.GENERAL_CONVERSATION` | Fallback — no pattern matched |
 
 ---
 
 ## Intent Detail
 
-### plan_trip
+### PLAN_TRIP
 
-The most important intent. Triggers the full trip-planning pipeline.
+Triggers the full trip-planning pipeline. Requires `destination` entity.
 
-**Trigger patterns:**
+**Keyword patterns:**
 ```
-plan a trip, book a flight, fly to, travel to, trip to,
-visit, going to, i want to go, i need to be in, arrange a trip, journey to
+plan a trip, book a flight, book flights, fly to,
+travel to, trip to, visit, going to,
+i want to go, i need to travel, arrange a trip, journey to
 ```
 
 **Required entities:** `destination`
 **Optional entities:** `date_hint`
-**Missing entity action:** Ask clarifying questions; set `pending_questions`.
 
-**Example turns:**
-- "I want to plan a trip to Lisbon"
-- "Book me a flight to Lagos next month"
-- "We're visiting Dubai this weekend"
+**If missing:** DecisionEngine sets `follow_up_questions` and engine returns a clarification.
+
+**Agents dispatched:** `flight_agent`, `hotel_agent`, `budget_agent`, `experience_agent`, `visa_agent`
 
 ---
 
-### modify_trip
+### MODIFY_TRIP
 
-Traveller wants to change something about an existing booking or plan.
+Traveller wants to change something about a planned or booked trip.
 
-**Trigger patterns:**
+**Keyword patterns:**
 ```
 change my trip, modify my trip, update my trip,
-reschedule, cancel my trip, different hotel, move my flight,
-change my flight, change my booking
+reschedule, cancel my trip, different hotel,
+move my flight, change my flight, change my booking
 ```
 
-**Sprint 1 behaviour:** Returns clarifying questions (no booking system yet).
+**Agents dispatched:** `flight_agent`, `hotel_agent`
+
+**Sprint 1 behaviour:** Returns structured clarification (booking system not yet live).
 
 ---
 
-### view_profile
+### VIEW_PROFILE
 
-Traveller wants to see the data stored in their Traveller Intelligence Profile.
+Traveller wants to see their stored Traveller Intelligence Profile (TIP).
 
-**Trigger patterns:**
+**Keyword patterns:**
 ```
 my profile, show profile, view profile,
-my settings, my account, show my preferences
+my settings, my account, show my preferences,
+what do you know about me
 ```
 
-**Behaviour:** If `traveller_id` is on the session, fetches enriched TIP from
-`TravellerIntelligenceService` and surfaces `preference_summary`.
+**Agents dispatched:** None — ResponseComposer renders profile from TravellerIntelligenceService.
 
 ---
 
-### update_preferences
+### UPDATE_PREFERENCES
 
-Traveller wants to change a preference (seat, cabin, meal, etc.).
+Traveller wants to update a stored preference (seat, cabin, meal, etc.).
 
-**Trigger patterns:**
+**Keyword patterns:**
 ```
 update my preferences, change my preferences,
 i prefer, i now prefer, set my preference,
-prefer window, prefer aisle
+prefer window, prefer aisle, change my seat
 ```
 
-**Sprint 1 behaviour:** Asks traveller to use the profile ID to update via API.
-**Sprint 3:** Live preference update via PATCH endpoint.
+**Agents dispatched:** None — Sprint 3 adds a PATCH preferences endpoint.
 
 ---
 
-### ask_destination
+### DESTINATION_QUESTION
 
-Traveller wants information about a specific place.
+Traveller wants information about a specific location.
 
-**Trigger patterns:**
+**Keyword patterns:**
 ```
 tell me about, what is it like, what's it like,
-destination info, weather in, best places in,
-what to do in, what to see in, how safe is
+weather in, best places in, what to do in,
+what to see in, how safe is, visa requirements for,
+is it safe to travel to
 ```
 
-**Entity:** `destination` (extracted from message context).
+**Agents dispatched:** `experience_agent`
 
 ---
 
-### travel_advice
+### TRAVEL_ADVICE
 
 General travel tips or recommendations.
 
-**Trigger patterns:**
+**Keyword patterns:**
 ```
 travel advice, travel tips, tips for travelling,
-recommend, suggest, should i visit, is it worth,
-best time to visit, best time to go, worth visiting
+recommend, suggest, should i visit,
+is it worth, best time to visit, best time to go, worth visiting
 ```
+
+**Agents dispatched:** `experience_agent`
 
 ---
 
-### budget_advice
+### BUDGET_ADVICE
 
-Questions about cost, pricing, or affordability.
+Questions about cost, price, or affordability.
 
-**Trigger patterns:**
+**Keyword patterns:**
 ```
 how much does it cost, how much will it cost, what does it cost,
 travel budget, cheap flights, affordable hotels,
 can i afford, price of, how expensive
 ```
 
+**Agents dispatched:** `budget_agent`
+
 ---
 
-### general_conversation
+### GENERAL_CONVERSATION
 
-Default fallback when no other intent matches.
+Default fallback when no pattern matches. Returns a greeting and helpful prompt.
 
-**Behaviour:** Returns a greeting / helpful prompt to guide the traveller.
+**Agents dispatched:** None
+
+---
+
+## ClassifiedIntent
+
+```python
+@dataclass
+class ClassifiedIntent:
+    intent: Intent        # Enum value
+    confidence: float     # 0.0 – 1.0
+    entities: dict[str, str]  # Extracted named entities
+```
+
+**Confidence values in Sprint 1:**
+
+| Source | Score |
+|--------|-------|
+| Keyword match found | 0.85 |
+| No match (GENERAL_CONVERSATION fallback) | 1.0 |
+
+Sprint 3 will produce calibrated probabilities from the LLM classifier.
 
 ---
 
 ## Entity Extraction
 
-The classifier extracts two entity types from every message:
+Two entity types extracted from every message:
 
 ### `destination`
 
-Extracted by scanning for positional markers (`to`, `in`, `visit`, `near`, `about`)
-and taking the first non-stopword token that follows.
+Scans for positional markers (`to`, `in`, `visit`, `near`, `about`) and takes the first
+non-stopword token following the marker.
 
 ```
-"I want to fly to Accra next month"  →  destination: "Accra"
-"Tell me about Paris"                →  destination: "Paris"
+"I want to fly to Accra"     → destination: "Accra"
+"Tell me about Paris"        → destination: "Paris"
+"What's it like in Lisbon"   → destination: "Lisbon"
 ```
 
 Stopwords excluded: `the`, `my`, `a`, `an`, `be`, `me`, `do`, `go`, `is`
@@ -165,49 +195,34 @@ Matched against a fixed set of natural-language date expressions:
 
 ```
 next week, next month, tomorrow, this weekend,
-next friday, next saturday, in january … in december
+next friday, next saturday,
+in january … in december
 ```
 
 ---
 
-## Confidence Scores
+## Agent Dispatch Map
 
-| Source | Score | Meaning |
-|--------|-------|---------|
-| Keyword match | 0.85 | Pattern found |
-| Fallback | 1.00 | No pattern found; defaulting to general |
-
-Sprint 3 will produce calibrated probabilities from the LLM classifier.
-
----
-
-## Classification Pipeline
-
-```
-User message (raw text)
-    │
-    ▼
-text.lower().strip()
-    │
-    ▼
-Iterate _INTENT_PATTERNS (priority order)
-    │
-    ├─ Pattern found?  →  ClassifiedIntent(intent, confidence=0.85, entities)
-    │
-    └─ No match       →  ClassifiedIntent("general_conversation", confidence=1.0, entities)
-    │
-    ▼
-_extract_entities(text)  →  {destination?, date_hint?}
-```
+| Intent | Agents |
+|--------|--------|
+| `PLAN_TRIP` | flight, hotel, budget, experience, visa |
+| `MODIFY_TRIP` | flight, hotel |
+| `DESTINATION_QUESTION` | experience |
+| `TRAVEL_ADVICE` | experience |
+| `BUDGET_ADVICE` | budget |
+| `VIEW_PROFILE` | (none) |
+| `UPDATE_PREFERENCES` | (none) |
+| `GENERAL_CONVERSATION` | (none) |
 
 ---
 
 ## Sprint 3 Upgrade Path
 
-The current `IntentClassifier` is a standalone class with a single public method:
+`IntentClassifier` exposes a single public method:
 
 ```python
 classifier.classify(message: str) -> ClassifiedIntent
 ```
 
-The Sprint 3 LLM classifier will implement the same interface. No other code needs to change.
+The Sprint 3 LLM classifier implements the same interface.
+No other code changes when the classifier is upgraded.
