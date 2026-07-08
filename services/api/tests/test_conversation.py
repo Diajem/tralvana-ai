@@ -1,0 +1,49 @@
+def test_conversation_returns_200(client):
+    res = client.post("/conversation/message", json={
+        "message": "I want to travel to Tokyo",
+    })
+    assert res.status_code == 200
+
+
+def test_conversation_detects_plan_trip_intent(client):
+    res = client.post("/conversation/message", json={
+        "message": "I want to plan a trip to Japan",
+    })
+    body = res.json()
+    assert body["intent"] == "PLAN_TRIP"
+    assert body["confidence"] > 0
+
+
+def test_conversation_returns_required_fields(client):
+    res = client.post("/conversation/message", json={
+        "message": "Hello, can you help me?",
+    })
+    body = res.json()
+    assert "conversation_id" in body
+    assert "intent" in body
+    assert "response" in body
+    assert "confidence" in body
+    assert "assumptions" in body
+    assert "missing_information" in body
+    assert "next_actions" in body
+    assert "recommended_agents" in body
+
+
+def test_conversation_general_intent_for_greeting(client):
+    res = client.post("/conversation/message", json={
+        "message": "Hello there",
+    })
+    assert res.json()["intent"] == "GENERAL_CONVERSATION"
+
+
+def test_conversation_preserves_session(client):
+    first = client.post("/conversation/message", json={
+        "message": "I want to visit London",
+    }).json()
+    conversation_id = first["conversation_id"]
+
+    second = client.post("/conversation/message", json={
+        "message": "What about the weather?",
+        "conversation_id": conversation_id,
+    }).json()
+    assert second["conversation_id"] == conversation_id
