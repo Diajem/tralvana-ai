@@ -1,5 +1,6 @@
 import type { CreateProfileRequest, TravellerProfile } from "@/types/traveller";
 import type { CreateGoalRequest, Goal } from "@/types/goal";
+import type { CreateTripPlanRequest, TripPlan } from "@/types/trip";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -58,6 +59,44 @@ export async function getTravellerGoals(travellerId: string): Promise<Goal[]> {
   });
   if (!res.ok) {
     throw new Error(`Failed to load goals: ${res.status}`);
+  }
+  return res.json();
+}
+
+// ------------------------------------------------------------------
+// Trip API
+// ------------------------------------------------------------------
+
+export async function createTripPlan(
+  data: CreateTripPlanRequest
+): Promise<TripPlan> {
+  const res = await fetch(`${BASE_URL}/trips/plan`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to create trip plan: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function getTripPlan(tripId: string): Promise<TripPlan> {
+  const res = await fetch(`${BASE_URL}/trips/${tripId}`, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`Trip not found: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function getTravellerTrips(
+  travellerId: string
+): Promise<TripPlan[]> {
+  const res = await fetch(`${BASE_URL}/traveller/${travellerId}/trips`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to load trips: ${res.status}`);
   }
   return res.json();
 }

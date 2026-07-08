@@ -118,6 +118,14 @@ class ConversationEngine:
             session.goal_id = self._create_goal(session, message, classified.entities)
 
         results: list[AgentResult] = []
+        # Generate a Trip Plan when destination + date are known
+        if (
+            classified.intent == Intent.PLAN_TRIP
+            and decision.has_enough_information
+            and not session.trip_id
+        ):
+            session.trip_id = self._create_trip(session, classified.entities, profile)
+
         if decision.has_enough_information and decision.requires_agents:
             ctx = AgentContext(
                 session_id=session.conversation_id,
@@ -179,6 +187,7 @@ class ConversationEngine:
             "next_actions": list(dict.fromkeys(all_next_actions)),  # deduplicate, preserve order
             "recommended_agents": decision.requires_agents,
             "goal_id": session.goal_id,
+            "trip_id": session.trip_id,
         }
 
     def _update_session(
@@ -198,6 +207,24 @@ class ConversationEngine:
         try:
             from ai.memory.traveller_intelligence_service import traveller_intelligence_service
             return traveller_intelligence_service.build_context_data(traveller_id)
+        except Exception:
+            return None
+
+    def _create_trip(
+        self,
+        session: ConversationSession,
+        entities: dict[str, str],
+        profile: dict[str, Any] | None,
+    ) -> str | None:
+        try:
+            from app.domains.trips.service import trip_planning_service
+            trip = trip_planning_service.plan_from_conversation(
+                traveller_id=session.traveller_id,
+                goal_id=session.goal_id,
+                entities=entities,
+                profile=profile,
+            )
+            return trip["trip_id"]
         except Exception:
             return None
 

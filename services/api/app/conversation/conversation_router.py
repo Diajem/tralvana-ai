@@ -100,6 +100,7 @@ class ConversationMessageResponse(BaseModel):
     next_actions: list[str]
     recommended_agents: list[str]
     goal_id: str | None = None
+    trip_id: str | None = None
 
 
 @router.post("/message", response_model=ConversationMessageResponse)
