@@ -30,6 +30,7 @@ class ConversationSession:
     updated_at: str
     traveller_id: str | None = None
     trip_id: str | None = None
+    goal_id: str | None = None
     history: list[ConversationMessage] = field(default_factory=list)
     active_goal: str | None = None
     pending_questions: list[str] = field(default_factory=list)
@@ -112,6 +113,10 @@ class ConversationEngine:
         decision = self._decision.decide(classified.intent, classified.entities, profile)
         self._update_session(session, classified.intent, decision)
 
+        # Attach a Goal to PLAN_TRIP conversations that don't yet have one
+        if classified.intent == Intent.PLAN_TRIP and not session.goal_id:
+            session.goal_id = self._create_goal(session, message, classified.entities)
+
         results: list[AgentResult] = []
         if decision.has_enough_information and decision.requires_agents:
             ctx = AgentContext(
@@ -173,6 +178,7 @@ class ConversationEngine:
             "missing_information": all_missing,
             "next_actions": list(dict.fromkeys(all_next_actions)),  # deduplicate, preserve order
             "recommended_agents": decision.requires_agents,
+            "goal_id": session.goal_id,
         }
 
     def _update_session(
@@ -192,6 +198,19 @@ class ConversationEngine:
         try:
             from ai.memory.traveller_intelligence_service import traveller_intelligence_service
             return traveller_intelligence_service.build_context_data(traveller_id)
+        except Exception:
+            return None
+
+    def _create_goal(
+        self,
+        session: ConversationSession,
+        message: str,
+        entities: dict[str, str],
+    ) -> str | None:
+        try:
+            from app.domains.goals.service import goal_service
+            goal = goal_service.create_from_conversation(session.traveller_id, message, entities)
+            return goal["goal_id"]
         except Exception:
             return None
 
