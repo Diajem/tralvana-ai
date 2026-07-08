@@ -1,4 +1,6 @@
 import type { CreateProfileRequest, TravellerProfile } from "@/types/traveller";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type DemoResponse = Record<string, any>;
 import type { CreateGoalRequest, Goal } from "@/types/goal";
 import type { CreateTripPlanRequest, TripPlan } from "@/types/trip";
 
@@ -97,6 +99,21 @@ export async function getTravellerTrips(
   });
   if (!res.ok) {
     throw new Error(`Failed to load trips: ${res.status}`);
+  }
+  return res.json();
+}
+
+// ------------------------------------------------------------------
+// Demo API
+// ------------------------------------------------------------------
+
+export async function runJapanDemo(): Promise<DemoResponse> {
+  const res = await fetch(`${BASE_URL}/demo/japan-football-food`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) {
+    throw new Error(`Demo failed: ${res.status}`);
   }
   return res.json();
 }
