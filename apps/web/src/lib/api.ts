@@ -2,6 +2,7 @@ import type { CreateProfileRequest, TravellerProfile } from "@/types/traveller";
 export type DemoResponse = Record<string, any>;
 import type { CreateGoalRequest, Goal } from "@/types/goal";
 import type { CreateTripPlanRequest, TripPlan } from "@/types/trip";
+import type { FlightOption, FlightRecommendationResponse, RecommendFlightsRequest } from "@/types/flight";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -98,6 +99,44 @@ export async function getTravellerTrips(
   });
   if (!res.ok) {
     throw new Error(`Failed to load trips: ${res.status}`);
+  }
+  return res.json();
+}
+
+// ------------------------------------------------------------------
+// Flight API
+// ------------------------------------------------------------------
+
+export async function recommendFlights(
+  data: RecommendFlightsRequest
+): Promise<FlightRecommendationResponse> {
+  const res = await fetch(`${BASE_URL}/flights/recommend`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to get flight recommendations: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function getFlightOption(flightOptionId: string): Promise<FlightOption> {
+  const res = await fetch(`${BASE_URL}/flights/${flightOptionId}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`Flight option not found: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function getTripFlights(tripId: string): Promise<FlightOption[]> {
+  const res = await fetch(`${BASE_URL}/trips/${tripId}/flights`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to load trip flights: ${res.status}`);
   }
   return res.json();
 }

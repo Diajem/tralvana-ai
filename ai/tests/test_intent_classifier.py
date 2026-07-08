@@ -54,6 +54,24 @@ class TestIntentClassification:
         upper = classifier.classify("I WANT TO TRAVEL TO PARIS")
         assert lower.intent == upper.intent
 
+    def test_flight_search_intent(self, classifier):
+        result = classifier.classify("recommend flights to Tokyo")
+        assert result.intent == Intent.FLIGHT_SEARCH
+
+    def test_flight_search_find_flights_variant(self, classifier):
+        result = classifier.classify("find flights to Paris")
+        assert result.intent == Intent.FLIGHT_SEARCH
+
+    def test_fly_to_stays_plan_trip_not_flight_search(self, classifier):
+        # "fly to" is a PLAN_TRIP trigger; must not collide with FLIGHT_SEARCH patterns.
+        result = classifier.classify("I need to fly to Barcelona next month")
+        assert result.intent == Intent.PLAN_TRIP
+
+    def test_change_my_flight_stays_modify_trip(self, classifier):
+        # "change my flight" is a MODIFY_TRIP trigger; must not collide with FLIGHT_SEARCH.
+        result = classifier.classify("I want to change my flight")
+        assert result.intent == Intent.MODIFY_TRIP
+
 
 class TestEntityExtraction:
     def test_extracts_destination(self, classifier):
@@ -77,3 +95,7 @@ class TestEntityExtraction:
     def test_skips_short_destination_words(self, classifier):
         result = classifier.classify("Travel to me")
         assert result.entities.get("destination") is None
+
+    def test_flight_search_extracts_destination(self, classifier):
+        result = classifier.classify("find flights to Singapore")
+        assert result.entities.get("destination") == "Singapore"

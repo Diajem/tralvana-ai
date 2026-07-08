@@ -4,6 +4,7 @@ from enum import Enum
 
 class Intent(str, Enum):
     PLAN_TRIP = "PLAN_TRIP"
+    FLIGHT_SEARCH = "FLIGHT_SEARCH"
     MODIFY_TRIP = "MODIFY_TRIP"
     VIEW_PROFILE = "VIEW_PROFILE"
     UPDATE_PREFERENCES = "UPDATE_PREFERENCES"
@@ -22,6 +23,12 @@ class ClassifiedIntent:
 
 # Priority-ordered: first match wins.
 _PATTERNS: list[tuple[Intent, list[str]]] = [
+    (Intent.FLIGHT_SEARCH, [
+        "recommend flights", "flight recommendations", "flight options",
+        "search flights", "find flights", "find me a flight", "find me flights",
+        "compare flights", "which flights", "best flights", "show me flights",
+        "flights from", "rank flights", "flight search",
+    ]),
     (Intent.PLAN_TRIP, [
         "plan a trip", "book a flight", "book flights", "fly to",
         "travel to", "trip to", "visit", "going to",

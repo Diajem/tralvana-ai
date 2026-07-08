@@ -18,6 +18,7 @@ class ResponseComposer:
 
     _PREAMBLES: dict[Intent, str] = {
         Intent.PLAN_TRIP: "Here's what I've put together for your trip.",
+        Intent.FLIGHT_SEARCH: "Here are your ranked flight options.",
         Intent.MODIFY_TRIP: "I can help you make changes to that trip.",
         Intent.VIEW_PROFILE: "Here's what I have on file for you.",
         Intent.UPDATE_PREFERENCES: "I'll update your travel preferences right away.",
@@ -100,6 +101,20 @@ class ResponseComposer:
                 f"**Budget estimate ({cabin} class):** "
                 f"Flights from ~{flight}, hotels from ~{hotel}/night, "
                 f"daily spend ~{daily}."
+            )
+
+        if result.agent_name == "flight_intelligence":
+            top = d.get("top_option", {})
+            if not top:
+                return "**Flights:** No flight options could be generated for this route."
+            return (
+                f"**Flights:** {d.get('count', 0)} option(s) ranked for "
+                f"{d.get('origin', 'origin')} → {d.get('destination', 'destination')}. "
+                f"Best match: {top.get('airline')} {top.get('flight_number')} "
+                f"({top.get('cabin_class')}, {top.get('stops')} stop"
+                f"{'s' if top.get('stops') != 1 else ''}) at {top.get('currency')} "
+                f"{top.get('estimated_price')} — match score {top.get('match_score')}. "
+                f"{top.get('reasoning', '')}"
             )
 
         if result.agent_name == "flight_agent":

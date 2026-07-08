@@ -86,3 +86,23 @@ class TestDecisionEngine:
     def test_reasoning_is_non_empty(self, engine):
         decision = engine.decide(Intent.PLAN_TRIP, {}, None)
         assert len(decision.reasoning) > 0
+
+    def test_flight_search_without_destination_is_not_ready(self, engine):
+        decision = engine.decide(Intent.FLIGHT_SEARCH, {}, None)
+        assert not decision.has_enough_information
+        assert "Where would you like to fly to?" in decision.follow_up_questions
+
+    def test_flight_search_with_destination_only_is_ready(self, engine):
+        # Unlike PLAN_TRIP, FLIGHT_SEARCH does not require a date_hint —
+        # Flight Intelligence defaults the departure date itself.
+        decision = engine.decide(Intent.FLIGHT_SEARCH, {"destination": "Tokyo"}, None)
+        assert decision.has_enough_information
+
+    def test_flight_search_does_not_dispatch_specialist_agents(self, engine):
+        # Routed directly to Flight Intelligence by ConversationEngine, not TravelManager.
+        decision = engine.decide(Intent.FLIGHT_SEARCH, {"destination": "Tokyo"}, None)
+        assert decision.requires_agents == []
+
+    def test_flight_search_requires_live_data(self, engine):
+        decision = engine.decide(Intent.FLIGHT_SEARCH, {"destination": "Tokyo"}, None)
+        assert decision.requires_live_data

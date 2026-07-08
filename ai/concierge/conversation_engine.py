@@ -9,6 +9,7 @@ from ai.concierge.response_composer import ResponseComposer
 from ai.manager.travel_manager import travel_manager
 from ai.shared.agent_context import AgentContext
 from ai.shared.agent_result import AgentResult
+from ai.shared.agent_status import AgentStatus
 
 
 # ---------------------------------------------------------------------------
@@ -126,6 +127,13 @@ class ConversationEngine:
         ):
             session.trip_id = self._create_trip(session, classified.entities, profile)
 
+        # Flight-related requests route directly to Flight Intelligence
+        # (ai/discovery/flights/), not through the specialist-agent registry.
+        if classified.intent == Intent.FLIGHT_SEARCH and decision.has_enough_information:
+            flight_result = self._get_flight_recommendations(session, classified.entities, profile)
+            if flight_result:
+                results = [flight_result]
+
         if decision.has_enough_information and decision.requires_agents:
             ctx = AgentContext(
                 session_id=session.conversation_id,
@@ -227,6 +235,47 @@ class ConversationEngine:
             return trip["trip_id"]
         except Exception:
             return None
+
+    def _get_flight_recommendations(
+        self,
+        session: ConversationSession,
+        entities: dict[str, str],
+        profile: dict[str, Any] | None,
+    ) -> AgentResult | None:
+        try:
+            from app.domains.flights.service import flight_intelligence_service
+            output = flight_intelligence_service.recommend_from_conversation(
+                traveller_id=session.traveller_id,
+                trip_id=session.trip_id,
+                entities=entities,
+                profile=profile,
+            )
+        except Exception:
+            return None
+
+        options = output["flight_options"]
+        top = next(
+            (f for f in options if f["recommendation_type"] == "BEST_OVERALL"),
+            options[0] if options else None,
+        )
+        avg_confidence = sum(f["match_score"] for f in options) / len(options) if options else 0.0
+        risks = [r for f in options for r in f["risks"]][:5]
+
+        return AgentResult(
+            agent_name="flight_intelligence",
+            status=AgentStatus.SUCCESS if options else AgentStatus.NEEDS_INFORMATION,
+            confidence=round(avg_confidence, 2),
+            data={
+                "count": len(options),
+                "origin": output["origin"],
+                "destination": output["destination"],
+                "top_option": top or {},
+                "flight_option_ids": [f["flight_option_id"] for f in options],
+            },
+            assumptions=output["assumptions"],
+            risks=risks,
+            next_actions=output["next_actions"],
+        )
 
     def _create_goal(
         self,

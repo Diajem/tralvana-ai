@@ -36,6 +36,24 @@ def test_conversation_general_intent_for_greeting(client):
     assert res.json()["intent"] == "GENERAL_CONVERSATION"
 
 
+def test_conversation_flight_search_intent(client):
+    res = client.post("/conversation/message", json={
+        "message": "recommend flights to Tokyo",
+    })
+    body = res.json()
+    assert body["intent"] == "FLIGHT_SEARCH"
+    assert "Flights" in body["response"]
+
+
+def test_conversation_flight_search_without_destination_asks_for_it(client):
+    res = client.post("/conversation/message", json={
+        "message": "find me flights",
+    })
+    body = res.json()
+    assert body["intent"] == "FLIGHT_SEARCH"
+    assert "Where would you like to fly to?" in body["missing_information"]
+
+
 def test_conversation_preserves_session(client):
     first = client.post("/conversation/message", json={
         "message": "I want to visit London",
