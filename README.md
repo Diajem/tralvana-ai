@@ -79,3 +79,9 @@ pytest ai/tests/              # AI classifiers and planner
 No external services required — all tests run against in-memory stores.
 
 See [`docs/TESTING_FRAMEWORK.md`](docs/TESTING_FRAMEWORK.md) for full details.
+
+## CI
+
+GitHub Actions runs `pytest` (required), plus Ruff and frontend lint/build (advisory — see [`docs/TECHNICAL_DEBT_REGISTER.md`](docs/TECHNICAL_DEBT_REGISTER.md) TD-016/TD-017) on every push and pull request to `main`.
+
+See [`docs/CI_CD.md`](docs/CI_CD.md) for full details.

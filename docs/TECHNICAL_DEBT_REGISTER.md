@@ -106,8 +106,7 @@ In Sprint 1 this works because all code runs in one process. In Sprint 3 (separa
 
 ### TD-007 — Zero test coverage
 **Severity**: Critical
-**Status**: Open
-**Introduced**: Sprint 1 (deferred)
+**Status**: Resolved (T-012)
 
 No test files exist anywhere in the repository. Untested areas with highest risk:
 1. DNA trait inference (complex scoring logic)
@@ -116,18 +115,55 @@ No test files exist anywhere in the repository. Untested areas with highest risk
 4. BudgetEstimator fallback paths
 5. KG entity/relationship queries
 
-**Resolution**: Sprint 2 — establish `services/api/tests/` and `ai/tests/` with pytest. Minimum: unit tests for DNA classifier, intent classifier, budget estimator, and trip status logic.
+**Resolution**: `services/api/tests/` (30 tests) and `ai/tests/` (62 tests) established with pytest — 92 tests, all passing. See ADR-007.
 
 ---
 
 ### TD-008 — TASK_TRACKER.md stale
 **Severity**: Medium
-**Status**: Open (resolved partially in this task)
+**Status**: Resolved (2026-07-08)
 **Introduced**: T-003
 
-TASK_TRACKER.md was written in Sprint 0. The backlog it shows (old T-004 through T-010) does not reflect actual Sprint 1 work. T-004–T-009 have all been completed; the tracker was never updated.
+TASK_TRACKER.md was written in Sprint 0. The backlog it showed (old T-011–T-023 numbering: remove legacy conversation, remove dead orchestration, etc.) had drifted from the actual roadmap in use (T-011 Platform Layer, T-012 Testing Framework, T-013 CI/CD, T-014 Repository Refactoring, T-015–T-020 intelligence engines).
 
-**Resolution**: Rewrite TASK_TRACKER.md with correct completed/backlog items (done in this task).
+**Resolution**: Rewrote TASK_TRACKER.md to match the roadmap actually in use; old T-011–T-023 items preserved as TD-001–TD-006 (now scoped under T-014).
+
+---
+
+### TD-015 — `travelos/` platform layer has no test coverage
+**Severity**: High
+**Status**: Open
+**Introduced**: T-011/T-012 (Sprint 2)
+
+T-012 established `services/api/tests/` and `ai/tests/`, but the platform layer (`travelos/` — SDK, DI container, `ServiceRegistry`, `ConfigurationManager`, `EventBus`, `TravelLogger`, and shared types `Result`/`Identifier`/`Timestamp`/`Pagination`/`BaseRepository`/`BaseService`) shipped in the same commit with zero tests. This is the foundation every future service (T-015–T-020 intelligence engines) will build on — untested infrastructure at the base of the stack is higher-risk than untested application code.
+
+**Resolution**: Tracked as backlog item **T-012A — Platform Layer Test Coverage** (`TASK_TRACKER.md`). Deliberately scheduled after T-014 (repository refactoring) so it doesn't delay current progress. Add `travelos/tests/` mirroring the module structure (`test_event_bus.py`, `test_service_registry.py`, `test_configuration_manager.py`, `test_result.py`, `test_container.py`, etc.).
+
+---
+
+### TD-016 — Frontend ESLint config references unregistered rule, blocks lint/build
+**Severity**: Medium
+**Status**: Open
+**Introduced**: Unknown (pre-existing, found during T-013 CI setup)
+
+`apps/web/src/lib/api.ts:2` has `// eslint-disable-next-line @typescript-eslint/no-explicit-any`, but `apps/web/.eslintrc.json` only extends `next/core-web-vitals` — the `@typescript-eslint` rule namespace isn't registered under the active config, so ESLint errors immediately: `Definition for rule '@typescript-eslint/no-explicit-any' was not found`. This fails both `npm run lint` and `npm run build` (Next.js runs lint during build) on the current `main` branch, independent of any new changes.
+
+**Files affected**:
+- `apps/web/src/lib/api.ts`
+- `apps/web/.eslintrc.json`
+
+**Resolution**: Either remove the stale disable comment (the `any` it was suppressing may need a proper type instead) or add `@typescript-eslint/eslint-plugin` + parser to `apps/web/package.json` and extend the config to register the rule. One-line-scale fix; blocks CI frontend job from being a required check until resolved — see ADR-008.
+
+---
+
+### TD-017 — Backend Ruff violations (pre-existing)
+**Severity**: Low
+**Status**: Open
+**Introduced**: Sprint 0–2 (accumulated, first measured T-013)
+
+Running `ruff check .` against the current backend/AI codebase surfaces 72 violations (mostly `E701` multiple-statements-on-one-line in `services/api/app/domains/goals/service.py`, and unused imports like `TravellersSchema` in `services/api/app/domains/trips/service.py`). `CODING_STANDARDS.md` specifies PEP 8 "enforced by Ruff in CI," but Ruff was never added to `requirements.txt` or run before now.
+
+**Resolution**: Clean up violations as part of T-014 (repository refactoring), then flip the Ruff CI job from advisory to a required check — see ADR-008.
 
 ---
 
@@ -202,6 +238,8 @@ The traveller profile routes live in `services/api/app/routers/traveller.py` and
 | ID | Description | Resolved in | Commit |
 |----|-------------|-------------|--------|
 | — | Stray files `0.85`, `Any`, `dict[str` at repo root | T-010 | (this task) |
+| TD-007 | Zero test coverage | T-012 | `aa5934a` |
+| TD-008 | TASK_TRACKER.md stale | — | 2026-07-08 doc update |
 
 ---
 
@@ -209,6 +247,6 @@ The traveller profile routes live in `services/api/app/routers/traveller.py` and
 
 | Sprint | Items to close |
 |--------|---------------|
-| Sprint 2 | TD-001 (legacy conversation), TD-002/TD-003/TD-004 (dead orchestration), TD-007 (tests), TD-008 (tracker) |
-| Sprint 3 | TD-005 (shared types), TD-006 (AI↔API boundary), TD-010 (static KG enrichment), TD-011 (traveller domain), TD-013 (pagination) |
+| Sprint 2 | TD-001 (legacy conversation), TD-002/TD-003/TD-004 (dead orchestration), TD-005 (shared types), TD-017 (Ruff violations) — all under T-014; TD-015 (platform layer tests, T-012A); TD-016 (frontend ESLint config) |
+| Sprint 3 | TD-006 (AI↔API boundary), TD-010 (static KG enrichment), TD-011 (traveller domain), TD-013 (pagination) |
 | Sprint 4+ | TD-009 (demo isolation), TD-012 (ontology split), TD-014 (infra) |
