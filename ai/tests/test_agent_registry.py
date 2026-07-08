@@ -1,4 +1,3 @@
-import pytest
 
 from ai.registry.agent_registry import AgentRegistry, default_registry
 

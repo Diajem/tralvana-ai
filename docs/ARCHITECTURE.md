@@ -90,8 +90,10 @@ The system is built for orchestration, not integration. Every capability is expr
                            │ Python imports (Sprint 0–1)
                            │ Message queue (Sprint 3+)
 ┌──────────────────────────▼───────────────────────────────┐
-│                    ORCHESTRATION LAYER                   │
-│               ai/orchestration/orchestrator.py           │
+│               CONCIERGE / MANAGER LAYER                  │
+│   ai/concierge/  intent, decision, conversation engine    │
+│   ai/manager/    TravelManager — dispatches via registry  │
+│   ai/registry/   AgentRegistry — agent name → class       │
 │    Session management · Agent routing · Error handling   │
 └──────┬───────────────────┬───────────────────────────────┘
        │                   │
@@ -118,8 +120,11 @@ tralvana-ai/
 │           └── models/   Pydantic request/response schemas
 │
 ├── ai/
-│   ├── agents/           One file per agent class
-│   ├── orchestration/    Routing, session, pipeline logic
+│   ├── agents/           One file per specialist agent class
+│   ├── concierge/        Intent classification, decision engine, conversation engine
+│   ├── manager/          TravelManager — dispatches to agents via the registry
+│   ├── registry/         AgentRegistry — agent name → class lookup
+│   ├── shared/           Canonical AgentContext / AgentResult / AgentStatus types
 │   └── memory/           Profile schema, memory adapters
 │
 ├── docs/                 Architecture authority (this folder)
@@ -146,13 +151,13 @@ tralvana-ai/
 
 ### Sprint 0–1 (current)
 ```
-Browser → Next.js → FastAPI → Orchestrator → Agent → return
+Browser → Next.js → FastAPI → TravelConcierge → TravelManager → Agent → return
 ```
 Direct Python calls within one process. No network hops after FastAPI.
 
 ### Sprint 3+ (target)
 ```
-Browser → Next.js → FastAPI → Message Queue → Orchestrator → Agents
+Browser → Next.js → FastAPI → Message Queue → TravelManager → Agents
                                                            ↕
                                                     Memory / Knowledge
 ```

@@ -1,5 +1,4 @@
 import type { CreateProfileRequest, TravellerProfile } from "@/types/traveller";
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type DemoResponse = Record<string, any>;
 import type { CreateGoalRequest, Goal } from "@/types/goal";
 import type { CreateTripPlanRequest, TripPlan } from "@/types/trip";

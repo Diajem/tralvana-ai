@@ -1,4 +1,3 @@
-from typing import Any
 
 from ai.concierge.decision_engine import Decision
 from ai.concierge.intent_classifier import Intent

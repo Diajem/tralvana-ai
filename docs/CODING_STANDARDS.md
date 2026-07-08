@@ -18,7 +18,7 @@ Standards applied across all TravelOS code. Consistency enables safe, fast itera
 | Classes | `PascalCase` | `TravelManagerAgent`, `AgentResult` |
 | Constants | `SCREAMING_SNAKE_CASE` | `AGENT_REGISTRY`, `DEFAULT_TIMEOUT` |
 | Private methods | `_leading_underscore` | `_build_plan()`, `_ok()` |
-| Modules / files | `snake_case` | `base_agent.py`, `travel_manager_agent.py` |
+| Modules / files | `snake_case` | `flight_agent.py`, `travel_manager.py` |
 
 ### TypeScript
 | Construct | Convention | Example |
@@ -44,8 +44,11 @@ tests/          mirrors the app/ structure
 
 ### Python (`ai/`)
 ```
-agents/         one file per agent class
-orchestration/  routing and pipeline logic
+agents/         one file per specialist agent class
+concierge/      intent classification, decision engine, conversation engine
+manager/        TravelManager — dispatches to agents via the registry
+registry/       AgentRegistry — agent name → class lookup
+shared/         canonical AgentContext / AgentResult / AgentStatus types
 memory/         schema definitions and adapters
 llm/            provider adapters (Sprint 1+)
 tests/          unit tests for agents
@@ -157,7 +160,7 @@ except Exception as exc:
 **Rules:**
 - Every new agent has at least one unit test in `ai/tests/`
 - Tests do not call live external APIs — use stubs or fixtures
-- Test file names mirror source: `base_agent.py` → `test_base_agent.py`
+- Test file names mirror source: `agent_registry.py` → `test_agent_registry.py`
 - Tests must pass before a PR is merged
 
 ---

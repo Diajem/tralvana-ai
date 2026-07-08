@@ -26,6 +26,7 @@ class GoalService:
         if goal_type == GoalType.GENERAL_TRAVEL.value and request.interests:
             try:
                 from ai.goals.goal_classifier import goal_classifier
+
                 inferred = goal_classifier.classify_from_interests(request.interests)
                 if inferred != GoalType.GENERAL_TRAVEL.value:
                     goal_type = inferred
@@ -63,7 +64,10 @@ class GoalService:
     def update(self, goal_id: str, request: UpdateGoalRequest) -> dict[str, Any] | None:
         updates: dict[str, Any] = {}
         for field, value in request.model_dump(exclude_none=True).items():
-            if field in ("budget", "timeframe", "travellers", "flexibility") and value is not None:
+            if (
+                field in ("budget", "timeframe", "travellers", "flexibility")
+                and value is not None
+            ):
                 updates[field] = value
             elif value is not None:
                 updates[field] = value
@@ -94,6 +98,7 @@ class GoalService:
         """Create a minimal DRAFT goal from a conversation PLAN_TRIP intent."""
         try:
             from ai.goals.goal_classifier import goal_classifier
+
             goal_type = goal_classifier.classify_from_text(message)
         except Exception:
             goal_type = GoalType.GENERAL_TRAVEL.value
@@ -110,8 +115,13 @@ class GoalService:
             goal_type=goal_type,
             priority=3,
             budget={"min_usd": None, "max_usd": None, "currency": "USD"},
-            timeframe={"earliest": None, "latest": None, "duration_days": None, "flexible": True,
-                       "hint": date_hint or None},
+            timeframe={
+                "earliest": None,
+                "latest": None,
+                "duration_days": None,
+                "flexible": True,
+                "hint": date_hint or None,
+            },
             travellers={"adults": 1, "children": 0, "infants": 0},
             interests=[],
             constraints=[],
@@ -126,16 +136,24 @@ class GoalService:
 
     def _readiness_score(self, goal: Goal) -> float:
         score = 0.0
-        if goal.title:                                              score += 0.15
-        if goal.goal_type != GoalType.GENERAL_TRAVEL.value:        score += 0.10
+        if goal.title:
+            score += 0.15
+        if goal.goal_type != GoalType.GENERAL_TRAVEL.value:
+            score += 0.10
         b = goal.budget
-        if b.get("min_usd") and b.get("max_usd"):                 score += 0.20
+        if b.get("min_usd") and b.get("max_usd"):
+            score += 0.20
         t = goal.timeframe
-        if t.get("earliest") and t.get("latest"):                 score += 0.20
-        if goal.travellers.get("adults", 0) >= 1:                 score += 0.10
-        if goal.interests:                                         score += 0.10
-        if goal.success_criteria:                                  score += 0.10
-        if goal.constraints:                                       score += 0.05
+        if t.get("earliest") and t.get("latest"):
+            score += 0.20
+        if goal.travellers.get("adults", 0) >= 1:
+            score += 0.10
+        if goal.interests:
+            score += 0.10
+        if goal.success_criteria:
+            score += 0.10
+        if goal.constraints:
+            score += 0.05
         return score
 
 

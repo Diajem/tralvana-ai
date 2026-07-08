@@ -181,9 +181,9 @@ class ItineraryBuilder:
 
             notes = ""
             if day_num == 1:
-                notes = f"Allow extra time for immigration and transfer — aim to arrive before evening."
+                notes = "Allow extra time for immigration and transfer — aim to arrive before evening."
             elif day_num == duration_days:
-                notes = f"Check airline requirements for check-in time."
+                notes = "Check airline requirements for check-in time."
 
             itinerary.append({
                 "day": day_num,

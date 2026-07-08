@@ -1,6 +1,6 @@
 import pytest
 
-from ai.concierge.decision_engine import Decision, DecisionEngine
+from ai.concierge.decision_engine import DecisionEngine
 from ai.concierge.intent_classifier import Intent
 
 

@@ -11,7 +11,7 @@ Tracked from T-010 audit. Updated each sprint. Items are closed when resolved an
 
 ### TD-001 — Legacy conversation layer
 **Severity**: High
-**Status**: Open
+**Status**: Resolved (T-014)
 **Introduced**: T-006 (Sprint 1)
 
 Three endpoints (`POST /conversation/start`, `POST /conversation/{id}/message`, `GET /conversation/{id}`) use `services/api/app/conversation/ConversationEngine` — a legacy stub that predates the full AI concierge. This engine has no trip/goal integration, no DNA inference, no session trip_id field.
@@ -25,28 +25,30 @@ The active endpoint is `POST /conversation/message` → `ai.concierge.TravelConc
 - `services/api/app/conversation/conversation_session.py`
 - `services/api/app/conversation/conversation_router.py` (old 3 endpoints)
 
-**Resolution**: Deprecate and remove old endpoints in Sprint 2. Move session store to `ai/concierge/`. Remove the `services/api/app/conversation/` module (all classes superseded by `ai/concierge/`).
+**Resolution**: The active `POST /conversation/message` endpoint was moved to `services/api/app/routers/conversation.py` (matching the one-file-per-resource-group pattern used by `health.py`/`traveller.py`), still delegating to `ai.concierge.travel_concierge` exactly as before. `main.py` updated accordingly. The entire `services/api/app/conversation/` directory (the 3 legacy endpoints + `conversation_engine.py`, `intent_classifier.py`, `response_composer.py`, `conversation_session.py`) was deleted — confirmed via full-repo grep that nothing else imported from it. All 92 tests pass unchanged; `POST /conversation/message` behavior is byte-for-byte identical.
 
 ---
 
 ### TD-002 — Duplicate AgentRegistry
 **Severity**: Medium
-**Status**: Open
+**Status**: Resolved (T-014)
 **Introduced**: T-001B (Sprint 0)
 
 `AgentRegistry` class is defined twice:
-- `ai/registry/agent_registry.py` — registers TravelConcierge + TravelManager (active)
-- `ai/orchestration/agent_registry.py` — registers Budget/Flight/Hotel/Visa/Experience (dead)
+- `ai/registry/agent_registry.py`
+- `ai/orchestration/agent_registry.py`
 
 Both classes have identical APIs. The orchestration registry is only used by the dead Orchestrator.
 
-**Resolution**: Delete `ai/orchestration/agent_registry.py` and `ai/orchestration/orchestrator.py` when the orchestration module is removed (see TD-003).
+**Correction (T-014)**: The original description above had the two registries' roles reversed. Investigation before deleting anything found: `ai/registry/agent_registry.py` registers `budget_agent`/`experience_agent`/`flight_agent`/`hotel_agent`/`visa_agent` and is imported by `ai/manager/travel_manager.py` — which **is** the active dispatcher, called from the live request path (`POST /conversation/message` → `travel_concierge` → `ai/concierge/conversation_engine.py` → `travel_manager.execute()`). `ai/orchestration/agent_registry.py` registers `TravelConciergeAgent`/`TravelManagerAgent` and is used only by `ai/orchestration/orchestrator.py`, which nothing else imports. So `ai/registry/` was active and `ai/orchestration/` was dead — the opposite of what was recorded in T-010. This matters for TD-004 below.
+
+**Resolution**: Deleted `ai/orchestration/agent_registry.py` along with the rest of `ai/orchestration/` (see TD-003). `ai/registry/agent_registry.py` — the genuinely active registry — was left untouched.
 
 ---
 
 ### TD-003 — Dead Orchestrator module
 **Severity**: Medium
-**Status**: Open
+**Status**: Resolved (T-014)
 **Introduced**: T-001B (Sprint 0)
 
 `ai/orchestration/orchestrator.py` contains `Orchestrator` and `default_orchestrator`. Neither is imported from `main.py` or any active route. The active agent dispatcher is `ai/manager/TravelManager`.
@@ -56,38 +58,40 @@ Both classes have identical APIs. The orchestration registry is only used by the
 - `ai/orchestration/agent_registry.py`
 - `ai/orchestration/__init__.py`
 
-**Resolution**: Remove entire `ai/orchestration/` directory in Sprint 2.
+**Resolution**: Confirmed via full-repo grep that `ai/orchestration/` had exactly one external referrer — the legacy `services/api/app/conversation/conversation_engine.py` (removed under TD-001). Once that was gone, the entire `ai/orchestration/` directory was deleted. All 92 tests pass unchanged.
 
 ---
 
 ### TD-004 — Dead specialist agents
 **Severity**: Low
-**Status**: Open
+**Status**: Resolved (T-014) — found to be a false positive; no deletion needed
 **Introduced**: T-001B (Sprint 0)
 
-Five specialist agents are registered in the dead orchestration registry (TD-003) and are never reachable from the active pipeline:
+Five specialist agents were believed to be registered only in the dead orchestration registry (TD-003) and unreachable from the active pipeline:
 - `ai/agents/budget_agent.py`
 - `ai/agents/experience_agent.py`
 - `ai/agents/flight_agent.py`
 - `ai/agents/hotel_agent.py`
 - `ai/agents/visa_agent.py`
 
-**Resolution**: When the orchestration module is removed, assess whether any of these agents should be reimplemented and registered in the active `ai/registry/` path. Delete those that aren't needed.
+**Correction (T-014)**: This was incorrect (see TD-002's correction note). These five agents are registered in `ai/registry/agent_registry.py` — the **active** registry — and are dispatched live by `ai/manager/travel_manager.py` on every `POST /conversation/message` call that needs agent work. They use `ai/shared/agent_context.py` and `ai/shared/agent_result.py` (the canonical shared types, see TD-005), not `ai/agents/base_agent.py`. They are also covered by `ai/tests/test_agent_registry.py`. The actually-dead agents were `ai/agents/travel_concierge_agent.py` (`TravelConciergeAgent`) and `ai/agents/travel_manager_agent.py` (`TravelManagerAgent`) — registered only in the dead `ai/orchestration/agent_registry.py`, referenced nowhere else in the repository.
+
+**Resolution**: `budget_agent.py`, `experience_agent.py`, `flight_agent.py`, `hotel_agent.py`, `visa_agent.py` were **preserved unchanged** — they are live code. `travel_concierge_agent.py` and `travel_manager_agent.py` were deleted along with `ai/orchestration/`. All 92 tests pass unchanged.
 
 ---
 
 ### TD-005 — Duplicate AgentContext / AgentResult
 **Severity**: Medium
-**Status**: Open
+**Status**: Resolved (T-014)
 **Introduced**: T-001B (Sprint 0)
 
 `AgentContext` and `AgentResult` are defined twice:
 - `ai/agents/base_agent.py` — simple version (`success`, `output`, `error`)
 - `ai/shared/agent_context.py` and `ai/shared/agent_result.py` — richer version with `agent_name`, `status`, `confidence`, `risks`
 
-The active stack uses `ai/shared/`. `ai/agents/base_agent.py` versions are used only by the dead agents (TD-004).
+The active stack uses `ai/shared/`.
 
-**Resolution**: Consolidate to `ai/shared/`. Update `BaseAgent` to import from there. Remove duplicates from `base_agent.py`.
+**Resolution**: `ai/agents/base_agent.py` (`BaseAgent`, and its simple `AgentContext`/`AgentResult`) was used only by the two dead agents removed under TD-004 (`travel_concierge_agent.py`, `travel_manager_agent.py`) — confirmed via full-repo grep before deleting. Removing all three files in the same pass leaves `ai/shared/agent_context.py` and `ai/shared/agent_result.py` as the single canonical definition, already used by every live agent. No consolidation code change was needed — the duplicate simply had no other callers once the dead agents were gone.
 
 ---
 
@@ -143,7 +147,7 @@ T-012 established `services/api/tests/` and `ai/tests/`, but the platform layer 
 
 ### TD-016 — Frontend ESLint config references unregistered rule, blocks lint/build
 **Severity**: Medium
-**Status**: Open
+**Status**: Resolved (T-014)
 **Introduced**: Unknown (pre-existing, found during T-013 CI setup)
 
 `apps/web/src/lib/api.ts:2` has `// eslint-disable-next-line @typescript-eslint/no-explicit-any`, but `apps/web/.eslintrc.json` only extends `next/core-web-vitals` — the `@typescript-eslint` rule namespace isn't registered under the active config, so ESLint errors immediately: `Definition for rule '@typescript-eslint/no-explicit-any' was not found`. This fails both `npm run lint` and `npm run build` (Next.js runs lint during build) on the current `main` branch, independent of any new changes.
@@ -152,18 +156,18 @@ T-012 established `services/api/tests/` and `ai/tests/`, but the platform layer 
 - `apps/web/src/lib/api.ts`
 - `apps/web/.eslintrc.json`
 
-**Resolution**: Either remove the stale disable comment (the `any` it was suppressing may need a proper type instead) or add `@typescript-eslint/eslint-plugin` + parser to `apps/web/package.json` and extend the config to register the rule. One-line-scale fix; blocks CI frontend job from being a required check until resolved — see ADR-008.
+**Resolution**: Confirmed `next/core-web-vitals` never enforced `@typescript-eslint/no-explicit-any` in this project (no warning appears without the disable comment) — the comment was suppressing a rule that was never active, pure dead weight. Removed the comment; left the underlying type (`Record<string, any>`) completely unchanged, so the public `DemoResponse` type is unaffected. `npm run lint` now reports zero warnings and `npm run build` succeeds. No new dependency added — resolved without touching `package.json`, honoring the "no external dependencies" constraint on T-014.
 
 ---
 
 ### TD-017 — Backend Ruff violations (pre-existing)
 **Severity**: Low
-**Status**: Open
+**Status**: Resolved (T-014)
 **Introduced**: Sprint 0–2 (accumulated, first measured T-013)
 
 Running `ruff check .` against the current backend/AI codebase surfaces 72 violations (mostly `E701` multiple-statements-on-one-line in `services/api/app/domains/goals/service.py`, and unused imports like `TravellersSchema` in `services/api/app/domains/trips/service.py`). `CODING_STANDARDS.md` specifies PEP 8 "enforced by Ruff in CI," but Ruff was never added to `requirements.txt` or run before now.
 
-**Resolution**: Clean up violations as part of T-014 (repository refactoring), then flip the Ruff CI job from advisory to a required check — see ADR-008.
+**Resolution**: 72 → 0. `ruff check --fix` resolved 10 (unused imports, f-strings without placeholders). `ruff format`, scoped only to the 6 files with remaining `E701` violations (not a repo-wide reformat), mechanically split 59 compound one-line `if x: y` statements into standard multi-line form — verified as pure whitespace/structural changes (same conditions, same right-hand sides). The last 3 (2 ambiguous single-letter loop variables, 1 unused variable assignment with no side effects) were fixed by hand after confirming each was safe. All 92 tests pass unchanged throughout. The `backend-lint` CI job (ADR-008) can now be flipped from advisory to required.
 
 ---
 
@@ -240,6 +244,13 @@ The traveller profile routes live in `services/api/app/routers/traveller.py` and
 | — | Stray files `0.85`, `Any`, `dict[str` at repo root | T-010 | (this task) |
 | TD-007 | Zero test coverage | T-012 | `aa5934a` |
 | TD-008 | TASK_TRACKER.md stale | — | 2026-07-08 doc update |
+| TD-001 | Legacy conversation layer | T-014 | (this task) |
+| TD-002 | Duplicate AgentRegistry | T-014 | (this task) |
+| TD-003 | Dead Orchestrator module | T-014 | (this task) |
+| TD-004 | Dead specialist agents (false positive — see correction note) | T-014 | (this task) |
+| TD-005 | Duplicate AgentContext/AgentResult | T-014 | (this task) |
+| TD-016 | Frontend ESLint config | T-014 | (this task) |
+| TD-017 | Backend Ruff violations (72 → 0) | T-014 | (this task) |
 
 ---
 
@@ -247,6 +258,6 @@ The traveller profile routes live in `services/api/app/routers/traveller.py` and
 
 | Sprint | Items to close |
 |--------|---------------|
-| Sprint 2 | TD-001 (legacy conversation), TD-002/TD-003/TD-004 (dead orchestration), TD-005 (shared types), TD-017 (Ruff violations) — all under T-014; TD-015 (platform layer tests, T-012A); TD-016 (frontend ESLint config) |
+| Sprint 2 | ~~TD-001, TD-002, TD-003, TD-004, TD-005, TD-016, TD-017~~ — all closed in T-014; TD-015 (platform layer tests) remains open, tracked as T-012A |
 | Sprint 3 | TD-006 (AI↔API boundary), TD-010 (static KG enrichment), TD-011 (traveller domain), TD-013 (pagination) |
 | Sprint 4+ | TD-009 (demo isolation), TD-012 (ontology split), TD-014 (infra) |

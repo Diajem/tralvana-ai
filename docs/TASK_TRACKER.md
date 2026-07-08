@@ -24,7 +24,8 @@ Live register of all engineering tasks. Update status in the same PR that comple
 | T-010 | Repository Audit and Architecture Review | `complete` | medium | `1d10953` | Audit doc, tech debt register, architecture recommendations, stray file cleanup |
 | T-011 | Platform Layer | `complete` | high | `aa5934a` | `travelos/` — SDK, DI container, service registry, config, structured logging, event bus, shared types (`Result`, `Identifier`, `Timestamp`, `Pagination`); ADR-006 |
 | T-012 | Testing Framework | `complete` | critical | `aa5934a` | pytest suite — 30 backend API tests + 62 AI layer tests (92 total, all passing); ADR-007; resolves TD-007 |
-| T-013 | GitHub Actions CI/CD | `complete` | high | (this task) | `.github/workflows/ci.yml` — `pytest` (required), Ruff + frontend lint/build (advisory, see TD-016/TD-017); ADR-008 |
+| T-013 | GitHub Actions CI/CD | `complete` | high | `2a17d6c` | `.github/workflows/ci.yml` — `pytest` (required), Ruff + frontend lint/build (advisory, see TD-016/TD-017); ADR-008 |
+| T-014 | Repository Stabilisation & Engineering Refactor | `complete` | high | (this task) | Closed TD-001 (legacy conversation layer removed), TD-002/TD-003 (dead `ai/orchestration/` removed), TD-004 (found to be a false positive — the 5 specialist agents are live, not dead), TD-005 (duplicate `AgentContext`/`AgentResult` resolved), TD-016 (ESLint config fixed), TD-017 (Ruff violations 72 → 0). No API or behaviour changes; 92/92 tests pass throughout. ADR-009 |
 
 ---
 
@@ -32,8 +33,7 @@ Live register of all engineering tasks. Update status in the same PR that comple
 
 | Task ID | Title | Status | Priority | Notes |
 |---------|-------|--------|----------|-------|
-| T-014 | Repository refactoring | `planned` | high | Close remaining Sprint 2 tech debt: TD-001 (legacy conversation layer), TD-002–TD-004 (dead orchestration module + duplicate registry + unreachable agents), TD-005 (duplicate AgentContext/AgentResult), TD-017 (Ruff violations) |
-| T-012A | Platform Layer Test Coverage | `planned` | medium | Unit tests for `travelos/`: SDK, Service Registry, Event Bus, Configuration Manager, Service Container, shared base classes. Scheduled after T-014 (repository refactor) so it doesn't delay current progress; see TD-015 |
+| T-012A | Platform Layer Test Coverage | `planned` | medium | Unit tests for `travelos/`: SDK, Service Registry, Event Bus, Configuration Manager, Service Container, shared base classes; see TD-015. Now unblocked — T-014 is complete |
 | T-015 | Flight Intelligence Engine | `planned` | high | Provider-agnostic flight search/compare agent |
 | T-016 | Hotel Intelligence Engine | `planned` | high | Provider-agnostic accommodation search/compare agent |
 | T-017 | Destination Intelligence Engine | `planned` | medium | Destination data, activities, local knowledge |
@@ -65,3 +65,4 @@ Live register of all engineering tasks. Update status in the same PR that comple
 - Technical debt items tracked in `docs/TECHNICAL_DEBT_REGISTER.md`.
 - Architecture recommendations in `docs/ARCHITECTURE_RECOMMENDATIONS.md`.
 - 2026-07-08: Renumbered Sprint 2/3 backlog to match the actual roadmap in use (T-013 CI/CD → T-020 Budget Optimisation Engine). Previous T-011–T-023 numbering (legacy conversation removal, dead orchestration removal, etc.) is superseded — see `TECHNICAL_DEBT_REGISTER.md` for those items, now tracked as TD-001–TD-005 under T-014.
+- 2026-07-08: T-014 closed TD-001, TD-002, TD-003, TD-004, TD-005, TD-016, TD-017. Investigation found TD-002/TD-004's original T-010 description had the two `AgentRegistry` implementations backwards — `ai/registry/agent_registry.py` (budget/experience/flight/hotel/visa agents) was the active one, not `ai/orchestration/agent_registry.py`. See TD-002/TD-004 correction notes in `TECHNICAL_DEBT_REGISTER.md` and ADR-009.

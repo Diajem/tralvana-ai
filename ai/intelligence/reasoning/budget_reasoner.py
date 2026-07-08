@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from typing import Any
 
 from ai.intelligence.reasoning.base_reasoner import BaseReasoner, ReasoningResult
 

@@ -6,7 +6,7 @@ from typing import Any
 
 from app.domains.trips.models import TripPlan, TripStatus
 from app.domains.trips.repository import TripRepository
-from app.domains.trips.schemas import CreateTripPlanRequest, TravellersSchema, UpdateTripPlanRequest
+from app.domains.trips.schemas import CreateTripPlanRequest, UpdateTripPlanRequest
 
 
 class TripPlanningService:

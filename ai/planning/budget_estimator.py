@@ -4,12 +4,17 @@ from typing import Any
 
 # Fallback tables when destination is not in the knowledge graph
 _DAILY_USD: dict[str, int] = {
-    "backpacker": 40, "budget": 65, "balanced": 150,
-    "comfort": 300, "luxury": 650,
+    "backpacker": 40,
+    "budget": 65,
+    "balanced": 150,
+    "comfort": 300,
+    "luxury": 650,
 }
 
 _FLIGHT_USD: dict[str, int] = {
-    "economy": 650, "business": 2200, "first": 5000,
+    "economy": 650,
+    "business": 2200,
+    "first": 5000,
 }
 
 _ACCOMMODATION_SHARE = 0.45
@@ -42,14 +47,19 @@ class BudgetEstimator:
         # Try knowledge graph first
         try:
             from ai.intelligence.reasoning.budget_reasoner import budget_reasoner
+
             result = budget_reasoner.reason(destination, duration_days, mock_profile)
             if result.success:
-                return self._from_reasoner(result.data, adults, duration_days, budget_style, cabin_class)
+                return self._from_reasoner(
+                    result.data, adults, duration_days, budget_style, cabin_class
+                )
         except Exception:
             pass
 
         # Fallback
-        return self._from_static(destination, duration_days, budget_style, cabin_class, adults)
+        return self._from_static(
+            destination, duration_days, budget_style, cabin_class, adults
+        )
 
     # ------------------------------------------------------------------
 
@@ -63,7 +73,6 @@ class BudgetEstimator:
     ) -> dict[str, Any]:
         bd = data["daily_breakdown_usd"]
         flight_pp = data["flight_estimate_usd"]
-        daily_pp = data["daily_estimate_usd"]
 
         accommodation = bd["accommodation"] * duration_days * adults
         food = bd["food"] * duration_days * adults

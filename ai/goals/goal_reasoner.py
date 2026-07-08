@@ -4,33 +4,38 @@ GoalReasoner — evaluates goal completeness and planning readiness.
 Sprint 1: deterministic scoring from Goal fields. No external APIs.
 Sprint 3+: LLM-assisted gap analysis and agent recommendation.
 """
+
 from __future__ import annotations
 
 from typing import Any
 
 _REQUIRED_FIELDS = [
-    ("title",            0.15, "Title not set"),
-    ("goal_type_ne_gen", 0.10, "Goal type is still 'General Travel' — be more specific"),
-    ("budget",           0.20, "Budget range (min/max) not specified"),
-    ("timeframe",        0.20, "Travel dates or timeframe not provided"),
-    ("travellers",       0.10, "Number of travellers not confirmed"),
-    ("interests",        0.10, "No travel interests specified"),
+    ("title", 0.15, "Title not set"),
+    (
+        "goal_type_ne_gen",
+        0.10,
+        "Goal type is still 'General Travel' — be more specific",
+    ),
+    ("budget", 0.20, "Budget range (min/max) not specified"),
+    ("timeframe", 0.20, "Travel dates or timeframe not provided"),
+    ("travellers", 0.10, "Number of travellers not confirmed"),
+    ("interests", 0.10, "No travel interests specified"),
     ("success_criteria", 0.10, "Success criteria not defined"),
-    ("constraints",      0.05, "No constraints listed (optional but helpful)"),
+    ("constraints", 0.05, "No constraints listed (optional but helpful)"),
 ]
 
 _AGENT_MAP: dict[str, list[str]] = {
-    "RELAXATION":       ["FlightAgent", "HotelAgent", "ExperienceAgent"],
-    "ADVENTURE":        ["FlightAgent", "HotelAgent", "ExperienceAgent", "VisaAgent"],
-    "FOOTBALL_TRAVEL":  ["FlightAgent", "HotelAgent", "ExperienceAgent"],
-    "FAMILY_TRIP":      ["FlightAgent", "HotelAgent", "ExperienceAgent"],
-    "BUSINESS_TRAVEL":  ["FlightAgent", "HotelAgent"],
-    "FOOD_TOUR":        ["FlightAgent", "HotelAgent", "ExperienceAgent"],
-    "PHOTOGRAPHY":      ["FlightAgent", "HotelAgent", "ExperienceAgent"],
-    "PILGRIMAGE":       ["FlightAgent", "HotelAgent", "VisaAgent", "ExperienceAgent"],
-    "DIASPORA_TRAVEL":  ["FlightAgent", "HotelAgent", "VisaAgent", "ExperienceAgent"],
-    "ROMANTIC_TRIP":    ["FlightAgent", "HotelAgent", "ExperienceAgent"],
-    "GENERAL_TRAVEL":   ["FlightAgent", "HotelAgent"],
+    "RELAXATION": ["FlightAgent", "HotelAgent", "ExperienceAgent"],
+    "ADVENTURE": ["FlightAgent", "HotelAgent", "ExperienceAgent", "VisaAgent"],
+    "FOOTBALL_TRAVEL": ["FlightAgent", "HotelAgent", "ExperienceAgent"],
+    "FAMILY_TRIP": ["FlightAgent", "HotelAgent", "ExperienceAgent"],
+    "BUSINESS_TRAVEL": ["FlightAgent", "HotelAgent"],
+    "FOOD_TOUR": ["FlightAgent", "HotelAgent", "ExperienceAgent"],
+    "PHOTOGRAPHY": ["FlightAgent", "HotelAgent", "ExperienceAgent"],
+    "PILGRIMAGE": ["FlightAgent", "HotelAgent", "VisaAgent", "ExperienceAgent"],
+    "DIASPORA_TRAVEL": ["FlightAgent", "HotelAgent", "VisaAgent", "ExperienceAgent"],
+    "ROMANTIC_TRIP": ["FlightAgent", "HotelAgent", "ExperienceAgent"],
+    "GENERAL_TRAVEL": ["FlightAgent", "HotelAgent"],
 }
 
 _NEXT_ACTIONS: dict[str, list[str]] = {
@@ -118,7 +123,9 @@ class GoalReasoner:
         title = goal.get("title", "Untitled goal")
         goal_type = goal.get("goal_type", "GENERAL_TRAVEL").replace("_", " ").title()
         status = goal.get("status", "DRAFT")
-        readiness = "ready for planning" if score >= 0.85 else f"{int(score * 100)}% complete"
+        readiness = (
+            "ready for planning" if score >= 0.85 else f"{int(score * 100)}% complete"
+        )
 
         b = goal.get("budget", {})
         t = goal.get("timeframe", {})
@@ -126,12 +133,17 @@ class GoalReasoner:
         parts = [f"**{title}** — {goal_type} | Status: {status} | {readiness}."]
 
         if b.get("min_usd") and b.get("max_usd"):
-            parts.append(f"Budget: ${b['min_usd']:,}–${b['max_usd']:,} {b.get('currency', 'USD')}.")
+            parts.append(
+                f"Budget: ${b['min_usd']:,}–${b['max_usd']:,} {b.get('currency', 'USD')}."
+            )
         if t.get("earliest") or t.get("duration_days"):
             timeframe_txt = []
-            if t.get("earliest"): timeframe_txt.append(f"from {t['earliest']}")
-            if t.get("latest"):   timeframe_txt.append(f"to {t['latest']}")
-            if t.get("duration_days"): timeframe_txt.append(f"{t['duration_days']} days")
+            if t.get("earliest"):
+                timeframe_txt.append(f"from {t['earliest']}")
+            if t.get("latest"):
+                timeframe_txt.append(f"to {t['latest']}")
+            if t.get("duration_days"):
+                timeframe_txt.append(f"{t['duration_days']} days")
             parts.append(f"Timeframe: {', '.join(timeframe_txt)}.")
         if goal.get("interests"):
             parts.append(f"Interests: {', '.join(goal['interests'])}.")

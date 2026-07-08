@@ -28,7 +28,9 @@ class TravellerDNAInferenceService:
 
         ranked = sorted(dna_scores.items(), key=lambda x: x[1], reverse=True)
         primary, primary_score = ranked[0]
-        secondary = [name for name, score in ranked[1:] if score > self.SECONDARY_THRESHOLD]
+        secondary = [
+            name for name, score in ranked[1:] if score > self.SECONDARY_THRESHOLD
+        ]
 
         return TravellerDNA(
             traveller_id=traveller_id,
@@ -59,75 +61,120 @@ class TravellerDNAInferenceService:
         s: dict[str, float] = {t: 0.0 for t in TRAITS}
 
         # adventure_seeking
-        if "adventure"  in interests: s["adventure_seeking"] += 0.50
-        if "nature"     in interests: s["adventure_seeking"] += 0.25
-        if "sport"      in interests: s["adventure_seeking"] += 0.15
-        if budget_style in ("backpacker", "budget"): s["adventure_seeking"] += 0.10
+        if "adventure" in interests:
+            s["adventure_seeking"] += 0.50
+        if "nature" in interests:
+            s["adventure_seeking"] += 0.25
+        if "sport" in interests:
+            s["adventure_seeking"] += 0.15
+        if budget_style in ("backpacker", "budget"):
+            s["adventure_seeking"] += 0.10
 
         # luxury_orientation
-        if cabin == "first":             s["luxury_orientation"] += 0.40
-        if cabin == "business":          s["luxury_orientation"] += 0.20
-        if budget_style == "luxury":     s["luxury_orientation"] += 0.40
-        if budget_style == "comfort":    s["luxury_orientation"] += 0.15
-        if "luxury"   in interests:      s["luxury_orientation"] += 0.25
-        if accommodation == "resort":    s["luxury_orientation"] += 0.10
+        if cabin == "first":
+            s["luxury_orientation"] += 0.40
+        if cabin == "business":
+            s["luxury_orientation"] += 0.20
+        if budget_style == "luxury":
+            s["luxury_orientation"] += 0.40
+        if budget_style == "comfort":
+            s["luxury_orientation"] += 0.15
+        if "luxury" in interests:
+            s["luxury_orientation"] += 0.25
+        if accommodation == "resort":
+            s["luxury_orientation"] += 0.10
 
         # budget_consciousness
-        if budget_style == "backpacker":  s["budget_consciousness"] += 0.50
-        if budget_style == "budget":      s["budget_consciousness"] += 0.40
-        if accommodation == "hostel":     s["budget_consciousness"] += 0.30
-        if cabin == "economy" and budget_style in ("backpacker","budget"):
+        if budget_style == "backpacker":
+            s["budget_consciousness"] += 0.50
+        if budget_style == "budget":
+            s["budget_consciousness"] += 0.40
+        if accommodation == "hostel":
+            s["budget_consciousness"] += 0.30
+        if cabin == "economy" and budget_style in ("backpacker", "budget"):
             s["budget_consciousness"] += 0.15
 
         # cultural_curiosity
-        if "culture"  in interests: s["cultural_curiosity"] += 0.40
-        if "history"  in interests: s["cultural_curiosity"] += 0.30
-        if "city"     in interests: s["cultural_curiosity"] += 0.20
-        if len(interests) >= 4:     s["cultural_curiosity"] += 0.10
+        if "culture" in interests:
+            s["cultural_curiosity"] += 0.40
+        if "history" in interests:
+            s["cultural_curiosity"] += 0.30
+        if "city" in interests:
+            s["cultural_curiosity"] += 0.20
+        if len(interests) >= 4:
+            s["cultural_curiosity"] += 0.10
 
         # food_focus
-        if "food_drink" in interests:                             s["food_focus"] += 0.50
-        if meal in ("halal","kosher","vegan","vegetarian"):       s["food_focus"] += 0.25
-        if "culture"    in interests:                             s["food_focus"] += 0.10
+        if "food_drink" in interests:
+            s["food_focus"] += 0.50
+        if meal in ("halal", "kosher", "vegan", "vegetarian"):
+            s["food_focus"] += 0.25
+        if "culture" in interests:
+            s["food_focus"] += 0.10
 
         # sport_focus
-        if "sport"     in interests: s["sport_focus"] += 0.50
-        if "adventure" in interests: s["sport_focus"] += 0.15
+        if "sport" in interests:
+            s["sport_focus"] += 0.50
+        if "adventure" in interests:
+            s["sport_focus"] += 0.15
 
         # business_orientation
-        if "business" in interests:                          s["business_orientation"] += 0.40
-        if cabin == "business":                              s["business_orientation"] += 0.30
-        if has_airline_loyalty:                              s["business_orientation"] += 0.20
-        if budget_style in ("comfort","luxury"):             s["business_orientation"] += 0.10
+        if "business" in interests:
+            s["business_orientation"] += 0.40
+        if cabin == "business":
+            s["business_orientation"] += 0.30
+        if has_airline_loyalty:
+            s["business_orientation"] += 0.20
+        if budget_style in ("comfort", "luxury"):
+            s["business_orientation"] += 0.10
 
         # family_orientation
-        if accommodation == "resort": s["family_orientation"] += 0.30
-        if "beach"    in interests:   s["family_orientation"] += 0.20
-        if "wellness" in interests:   s["family_orientation"] += 0.15
+        if accommodation == "resort":
+            s["family_orientation"] += 0.30
+        if "beach" in interests:
+            s["family_orientation"] += 0.20
+        if "wellness" in interests:
+            s["family_orientation"] += 0.15
 
         # digital_mobility
-        if "city"      in interests:                        s["digital_mobility"] += 0.30
-        if budget_style in ("budget","balanced"):           s["digital_mobility"] += 0.20
-        if accommodation == "apartment":                    s["digital_mobility"] += 0.35
-        if cabin == "economy":                              s["digital_mobility"] += 0.10
+        if "city" in interests:
+            s["digital_mobility"] += 0.30
+        if budget_style in ("budget", "balanced"):
+            s["digital_mobility"] += 0.20
+        if accommodation == "apartment":
+            s["digital_mobility"] += 0.35
+        if cabin == "economy":
+            s["digital_mobility"] += 0.10
 
         # photography_tendency
-        if "nature"    in interests: s["photography_tendency"] += 0.30
-        if "culture"   in interests: s["photography_tendency"] += 0.25
-        if "city"      in interests: s["photography_tendency"] += 0.20
-        if "adventure" in interests: s["photography_tendency"] += 0.10
+        if "nature" in interests:
+            s["photography_tendency"] += 0.30
+        if "culture" in interests:
+            s["photography_tendency"] += 0.25
+        if "city" in interests:
+            s["photography_tendency"] += 0.20
+        if "adventure" in interests:
+            s["photography_tendency"] += 0.10
 
         # spiritual_orientation
-        if "religious"  in interests:  s["spiritual_orientation"] += 0.40
-        if "pilgrimage" in interests:  s["spiritual_orientation"] += 0.50
-        if "spiritual"  in interests:  s["spiritual_orientation"] += 0.35
-        if "culture"    in interests:  s["spiritual_orientation"] += 0.10
+        if "religious" in interests:
+            s["spiritual_orientation"] += 0.40
+        if "pilgrimage" in interests:
+            s["spiritual_orientation"] += 0.50
+        if "spiritual" in interests:
+            s["spiritual_orientation"] += 0.35
+        if "culture" in interests:
+            s["spiritual_orientation"] += 0.10
 
         # heritage_connection
-        if "heritage"  in interests:  s["heritage_connection"] += 0.50
-        if "diaspora"  in interests:  s["heritage_connection"] += 0.50
-        if "roots"     in interests:  s["heritage_connection"] += 0.40
-        if "family"    in interests:  s["heritage_connection"] += 0.20
+        if "heritage" in interests:
+            s["heritage_connection"] += 0.50
+        if "diaspora" in interests:
+            s["heritage_connection"] += 0.50
+        if "roots" in interests:
+            s["heritage_connection"] += 0.40
+        if "family" in interests:
+            s["heritage_connection"] += 0.20
 
         return s
 
@@ -144,24 +191,27 @@ class TravellerDNAInferenceService:
         n = len(interests)
 
         scores = {
-            DNAType.LUXURY_TRAVELLER.value:    traits["luxury_orientation"]    * 0.80,
-            DNAType.BUDGET_TRAVELLER.value:    traits["budget_consciousness"]  * 0.80,
-            DNAType.BUSINESS_TRAVELLER.value:  traits["business_orientation"]  * 0.80,
-            DNAType.FOOTBALL_TRAVELLER.value:  traits["sport_focus"]           * 0.90,
-            DNAType.FAMILY_TRAVELLER.value:    traits["family_orientation"]    * 0.85,
-            DNAType.ADVENTURE_TRAVELLER.value: traits["adventure_seeking"]     * 0.85,
-            DNAType.FOOD_TRAVELLER.value:      traits["food_focus"]            * 0.90,
-            DNAType.PHOTOGRAPHY_TRAVELLER.value: traits["photography_tendency"]* 0.80,
-            DNAType.DIGITAL_NOMAD.value:       traits["digital_mobility"]      * 0.85,
-            DNAType.PILGRIMAGE_TRAVELLER.value: traits["spiritual_orientation"]* 0.90,
-            DNAType.DIASPORA_TRAVELLER.value:  traits["heritage_connection"]   * 0.85,
+            DNAType.LUXURY_TRAVELLER.value: traits["luxury_orientation"] * 0.80,
+            DNAType.BUDGET_TRAVELLER.value: traits["budget_consciousness"] * 0.80,
+            DNAType.BUSINESS_TRAVELLER.value: traits["business_orientation"] * 0.80,
+            DNAType.FOOTBALL_TRAVELLER.value: traits["sport_focus"] * 0.90,
+            DNAType.FAMILY_TRAVELLER.value: traits["family_orientation"] * 0.85,
+            DNAType.ADVENTURE_TRAVELLER.value: traits["adventure_seeking"] * 0.85,
+            DNAType.FOOD_TRAVELLER.value: traits["food_focus"] * 0.90,
+            DNAType.PHOTOGRAPHY_TRAVELLER.value: traits["photography_tendency"] * 0.80,
+            DNAType.DIGITAL_NOMAD.value: traits["digital_mobility"] * 0.85,
+            DNAType.PILGRIMAGE_TRAVELLER.value: traits["spiritual_orientation"] * 0.90,
+            DNAType.DIASPORA_TRAVELLER.value: traits["heritage_connection"] * 0.85,
         }
 
         # Explorer: breadth + curiosity bonus
         explorer = traits["cultural_curiosity"] * 0.30
-        if n >= 5:   explorer += 0.50
-        elif n >= 3: explorer += 0.30
-        elif n >= 2: explorer += 0.15
+        if n >= 5:
+            explorer += 0.50
+        elif n >= 3:
+            explorer += 0.30
+        elif n >= 2:
+            explorer += 0.15
         scores[DNAType.EXPLORER.value] = explorer
 
         return scores
