@@ -72,6 +72,24 @@ class TestIntentClassification:
         result = classifier.classify("I want to change my flight")
         assert result.intent == Intent.MODIFY_TRIP
 
+    def test_accommodation_search_intent(self, classifier):
+        result = classifier.classify("find hotels in Tokyo")
+        assert result.intent == Intent.ACCOMMODATION_SEARCH
+
+    def test_accommodation_search_where_to_stay_variant(self, classifier):
+        result = classifier.classify("where to stay in Lisbon")
+        assert result.intent == Intent.ACCOMMODATION_SEARCH
+
+    def test_different_hotel_stays_modify_trip_not_accommodation_search(self, classifier):
+        # "different hotel" is a MODIFY_TRIP trigger; must not collide with ACCOMMODATION_SEARCH.
+        result = classifier.classify("I need a different hotel")
+        assert result.intent == Intent.MODIFY_TRIP
+
+    def test_affordable_hotels_stays_budget_advice(self, classifier):
+        # "affordable hotels" is a BUDGET_ADVICE trigger; must not collide with ACCOMMODATION_SEARCH.
+        result = classifier.classify("affordable hotels in Paris")
+        assert result.intent == Intent.BUDGET_ADVICE
+
 
 class TestEntityExtraction:
     def test_extracts_destination(self, classifier):
@@ -99,3 +117,12 @@ class TestEntityExtraction:
     def test_flight_search_extracts_destination(self, classifier):
         result = classifier.classify("find flights to Singapore")
         assert result.entities.get("destination") == "Singapore"
+
+    def test_accommodation_search_extracts_destination(self, classifier):
+        result = classifier.classify("find hotels in Singapore")
+        assert result.entities.get("destination") == "Singapore"
+
+    def test_place_to_stay_does_not_extract_stay_as_destination(self, classifier):
+        # "to stay" must not be misread as "destination: Stay" via the generic "to " marker.
+        result = classifier.classify("find me a place to stay")
+        assert result.entities.get("destination") is None

@@ -7,9 +7,11 @@ from ai.concierge.intent_classifier import Intent
 # Which specialist agents handle each intent.
 _AGENT_MAP: dict[Intent, list[str]] = {
     Intent.PLAN_TRIP: ["flight_agent", "hotel_agent", "budget_agent", "experience_agent", "visa_agent"],
-    # FLIGHT_SEARCH is handled directly by Flight Intelligence (ai/discovery/flights/),
+    # FLIGHT_SEARCH and ACCOMMODATION_SEARCH are handled directly by their
+    # Discovery Layer engines (ai/discovery/flights/, ai/discovery/accommodation/),
     # not dispatched through the specialist-agent registry — see ConversationEngine.
     Intent.FLIGHT_SEARCH: [],
+    Intent.ACCOMMODATION_SEARCH: [],
     Intent.MODIFY_TRIP: ["flight_agent", "hotel_agent"],
     Intent.DESTINATION_QUESTION: ["experience_agent"],
     Intent.TRAVEL_ADVICE: ["experience_agent"],
@@ -77,6 +79,12 @@ class DecisionEngine:
             # No date_hint requirement — Flight Intelligence defaults the
             # departure date and records it as an assumption when omitted.
 
+        if intent == Intent.ACCOMMODATION_SEARCH:
+            if not destination:
+                questions.append("Which destination would you like accommodation for?")
+            # No date_hint requirement — Accommodation Intelligence defaults
+            # the check-in date and records it as an assumption when omitted.
+
         has_enough = len(questions) == 0
         agents = _AGENT_MAP.get(intent, []) if has_enough else []
 
@@ -105,7 +113,9 @@ class DecisionEngine:
         is_safety = destination in _SAFETY_SENSITIVE
 
         # --- live data requirement ---
-        needs_live = intent in (Intent.PLAN_TRIP, Intent.MODIFY_TRIP, Intent.FLIGHT_SEARCH)
+        needs_live = intent in (
+            Intent.PLAN_TRIP, Intent.MODIFY_TRIP, Intent.FLIGHT_SEARCH, Intent.ACCOMMODATION_SEARCH,
+        )
 
         return Decision(
             has_enough_information=has_enough,

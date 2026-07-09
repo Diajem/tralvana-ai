@@ -134,6 +134,15 @@ class ConversationEngine:
             if flight_result:
                 results = [flight_result]
 
+        # Accommodation-related requests route directly to Accommodation
+        # Intelligence (ai/discovery/accommodation/), same pattern as flights.
+        if classified.intent == Intent.ACCOMMODATION_SEARCH and decision.has_enough_information:
+            accommodation_result = self._get_accommodation_recommendations(
+                session, classified.entities, profile
+            )
+            if accommodation_result:
+                results = [accommodation_result]
+
         if decision.has_enough_information and decision.requires_agents:
             ctx = AgentContext(
                 session_id=session.conversation_id,
@@ -271,6 +280,46 @@ class ConversationEngine:
                 "destination": output["destination"],
                 "top_option": top or {},
                 "flight_option_ids": [f["flight_option_id"] for f in options],
+            },
+            assumptions=output["assumptions"],
+            risks=risks,
+            next_actions=output["next_actions"],
+        )
+
+    def _get_accommodation_recommendations(
+        self,
+        session: ConversationSession,
+        entities: dict[str, str],
+        profile: dict[str, Any] | None,
+    ) -> AgentResult | None:
+        try:
+            from app.domains.accommodation.service import accommodation_intelligence_service
+            output = accommodation_intelligence_service.recommend_from_conversation(
+                traveller_id=session.traveller_id,
+                trip_id=session.trip_id,
+                entities=entities,
+                profile=profile,
+            )
+        except Exception:
+            return None
+
+        options = output["accommodation_options"]
+        top = next(
+            (a for a in options if a["recommendation_type"] == "BEST_OVERALL"),
+            options[0] if options else None,
+        )
+        avg_confidence = sum(a["match_score"] for a in options) / len(options) if options else 0.0
+        risks = [r for a in options for r in a["risks"]][:5]
+
+        return AgentResult(
+            agent_name="accommodation_intelligence",
+            status=AgentStatus.SUCCESS if options else AgentStatus.NEEDS_INFORMATION,
+            confidence=round(avg_confidence, 2),
+            data={
+                "count": len(options),
+                "destination": output["destination"],
+                "top_option": top or {},
+                "accommodation_option_ids": [a["accommodation_option_id"] for a in options],
             },
             assumptions=output["assumptions"],
             risks=risks,

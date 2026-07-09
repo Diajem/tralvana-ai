@@ -5,6 +5,7 @@ from enum import Enum
 class Intent(str, Enum):
     PLAN_TRIP = "PLAN_TRIP"
     FLIGHT_SEARCH = "FLIGHT_SEARCH"
+    ACCOMMODATION_SEARCH = "ACCOMMODATION_SEARCH"
     MODIFY_TRIP = "MODIFY_TRIP"
     VIEW_PROFILE = "VIEW_PROFILE"
     UPDATE_PREFERENCES = "UPDATE_PREFERENCES"
@@ -28,6 +29,13 @@ _PATTERNS: list[tuple[Intent, list[str]]] = [
         "search flights", "find flights", "find me a flight", "find me flights",
         "compare flights", "which flights", "best flights", "show me flights",
         "flights from", "rank flights", "flight search",
+    ]),
+    (Intent.ACCOMMODATION_SEARCH, [
+        "recommend hotels", "recommend accommodation", "hotel recommendations",
+        "hotel options", "accommodation options", "search hotels", "search accommodation",
+        "find hotels", "find accommodation", "find me a hotel", "find me a place to stay",
+        "compare hotels", "which hotels", "best hotels", "show me hotels",
+        "where to stay", "places to stay", "hotel search",
     ]),
     (Intent.PLAN_TRIP, [
         "plan a trip", "book a flight", "book flights", "fly to",
@@ -105,7 +113,7 @@ class IntentClassifier:
                 if words:
                     candidate = words[0].strip(".,?!")
                     if len(candidate) > 2 and candidate not in (
-                        "the", "my", "a", "an", "be", "me", "do", "go", "is"
+                        "the", "my", "a", "an", "be", "me", "do", "go", "is", "stay"
                     ):
                         entities["destination"] = candidate.title()
                         break

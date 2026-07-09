@@ -106,3 +106,22 @@ class TestDecisionEngine:
     def test_flight_search_requires_live_data(self, engine):
         decision = engine.decide(Intent.FLIGHT_SEARCH, {"destination": "Tokyo"}, None)
         assert decision.requires_live_data
+
+    def test_accommodation_search_without_destination_is_not_ready(self, engine):
+        decision = engine.decide(Intent.ACCOMMODATION_SEARCH, {}, None)
+        assert not decision.has_enough_information
+        assert "Which destination would you like accommodation for?" in decision.follow_up_questions
+
+    def test_accommodation_search_with_destination_only_is_ready(self, engine):
+        # Unlike PLAN_TRIP, ACCOMMODATION_SEARCH does not require a date_hint —
+        # Accommodation Intelligence defaults the check-in date itself.
+        decision = engine.decide(Intent.ACCOMMODATION_SEARCH, {"destination": "Tokyo"}, None)
+        assert decision.has_enough_information
+
+    def test_accommodation_search_does_not_dispatch_specialist_agents(self, engine):
+        decision = engine.decide(Intent.ACCOMMODATION_SEARCH, {"destination": "Tokyo"}, None)
+        assert decision.requires_agents == []
+
+    def test_accommodation_search_requires_live_data(self, engine):
+        decision = engine.decide(Intent.ACCOMMODATION_SEARCH, {"destination": "Tokyo"}, None)
+        assert decision.requires_live_data

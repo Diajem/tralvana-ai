@@ -54,6 +54,24 @@ def test_conversation_flight_search_without_destination_asks_for_it(client):
     assert "Where would you like to fly to?" in body["missing_information"]
 
 
+def test_conversation_accommodation_search_intent(client):
+    res = client.post("/conversation/message", json={
+        "message": "find hotels in Tokyo",
+    })
+    body = res.json()
+    assert body["intent"] == "ACCOMMODATION_SEARCH"
+    assert "Accommodation" in body["response"]
+
+
+def test_conversation_accommodation_search_without_destination_asks_for_it(client):
+    res = client.post("/conversation/message", json={
+        "message": "find me a place to stay",
+    })
+    body = res.json()
+    assert body["intent"] == "ACCOMMODATION_SEARCH"
+    assert "Which destination would you like accommodation for?" in body["missing_information"]
+
+
 def test_conversation_preserves_session(client):
     first = client.post("/conversation/message", json={
         "message": "I want to visit London",

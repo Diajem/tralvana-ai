@@ -3,6 +3,11 @@ export type DemoResponse = Record<string, any>;
 import type { CreateGoalRequest, Goal } from "@/types/goal";
 import type { CreateTripPlanRequest, TripPlan } from "@/types/trip";
 import type { FlightOption, FlightRecommendationResponse, RecommendFlightsRequest } from "@/types/flight";
+import type {
+  AccommodationOption,
+  AccommodationRecommendationResponse,
+  RecommendAccommodationRequest,
+} from "@/types/accommodation";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -137,6 +142,46 @@ export async function getTripFlights(tripId: string): Promise<FlightOption[]> {
   });
   if (!res.ok) {
     throw new Error(`Failed to load trip flights: ${res.status}`);
+  }
+  return res.json();
+}
+
+// ------------------------------------------------------------------
+// Accommodation API
+// ------------------------------------------------------------------
+
+export async function recommendAccommodation(
+  data: RecommendAccommodationRequest
+): Promise<AccommodationRecommendationResponse> {
+  const res = await fetch(`${BASE_URL}/accommodation/recommend`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to get accommodation recommendations: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function getAccommodationOption(
+  accommodationOptionId: string
+): Promise<AccommodationOption> {
+  const res = await fetch(`${BASE_URL}/accommodation/${accommodationOptionId}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`Accommodation option not found: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function getTripAccommodation(tripId: string): Promise<AccommodationOption[]> {
+  const res = await fetch(`${BASE_URL}/trips/${tripId}/accommodation`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to load trip accommodation: ${res.status}`);
   }
   return res.json();
 }
