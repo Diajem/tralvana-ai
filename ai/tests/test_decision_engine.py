@@ -125,3 +125,18 @@ class TestDecisionEngine:
     def test_accommodation_search_requires_live_data(self, engine):
         decision = engine.decide(Intent.ACCOMMODATION_SEARCH, {"destination": "Tokyo"}, None)
         assert decision.requires_live_data
+
+    def test_destination_discovery_is_always_ready_without_destination(self, engine):
+        # Unlike the other Discovery intents, DESTINATION_DISCOVERY has a
+        # useful "no city" catalogue mode, so it never blocks on missing info.
+        decision = engine.decide(Intent.DESTINATION_DISCOVERY, {}, None)
+        assert decision.has_enough_information
+        assert decision.follow_up_questions == []
+
+    def test_destination_discovery_does_not_dispatch_specialist_agents(self, engine):
+        decision = engine.decide(Intent.DESTINATION_DISCOVERY, {}, None)
+        assert decision.requires_agents == []
+
+    def test_destination_discovery_requires_live_data(self, engine):
+        decision = engine.decide(Intent.DESTINATION_DISCOVERY, {}, None)
+        assert decision.requires_live_data

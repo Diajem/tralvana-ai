@@ -143,6 +143,17 @@ class ConversationEngine:
             if accommodation_result:
                 results = [accommodation_result]
 
+        # Destination-discovery requests route directly to Destination
+        # Intelligence (ai/discovery/destinations/), same pattern as flights
+        # and accommodation. Always ready — no destination is required since
+        # the "no city" catalogue mode is itself a valid, useful response.
+        if classified.intent == Intent.DESTINATION_DISCOVERY:
+            destination_result = self._get_destination_recommendations(
+                session, classified.entities, profile
+            )
+            if destination_result:
+                results = [destination_result]
+
         if decision.has_enough_information and decision.requires_agents:
             ctx = AgentContext(
                 session_id=session.conversation_id,
@@ -320,6 +331,46 @@ class ConversationEngine:
                 "destination": output["destination"],
                 "top_option": top or {},
                 "accommodation_option_ids": [a["accommodation_option_id"] for a in options],
+            },
+            assumptions=output["assumptions"],
+            risks=risks,
+            next_actions=output["next_actions"],
+        )
+
+    def _get_destination_recommendations(
+        self,
+        session: ConversationSession,
+        entities: dict[str, str],
+        profile: dict[str, Any] | None,
+    ) -> AgentResult | None:
+        try:
+            from app.domains.destinations.service import destination_intelligence_service
+            output = destination_intelligence_service.recommend_from_conversation(
+                traveller_id=session.traveller_id,
+                trip_id=session.trip_id,
+                entities=entities,
+                profile=profile,
+            )
+        except Exception:
+            return None
+
+        options = output["destination_options"]
+        top = next(
+            (d for d in options if d["recommendation_type"] == "BEST_OVERALL"),
+            options[0] if options else None,
+        )
+        avg_confidence = sum(d["match_score"] for d in options) / len(options) if options else 0.0
+        risks = [r for d in options for r in d["risks"]][:5]
+
+        return AgentResult(
+            agent_name="destination_intelligence",
+            status=AgentStatus.SUCCESS if options else AgentStatus.NEEDS_INFORMATION,
+            confidence=round(avg_confidence, 2),
+            data={
+                "count": len(options),
+                "city": output["city"],
+                "top_option": top or {},
+                "destination_option_ids": [d["destination_option_id"] for d in options],
             },
             assumptions=output["assumptions"],
             risks=risks,

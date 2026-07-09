@@ -72,6 +72,34 @@ def test_conversation_accommodation_search_without_destination_asks_for_it(clien
     assert "Which destination would you like accommodation for?" in body["missing_information"]
 
 
+def test_conversation_destination_discovery_intent(client):
+    res = client.post("/conversation/message", json={
+        "message": "where should i go",
+    })
+    body = res.json()
+    assert body["intent"] == "DESTINATION_DISCOVERY"
+    assert "Destinations" in body["response"]
+
+
+def test_conversation_destination_discovery_without_city_still_ready(client):
+    # Unlike flights/accommodation, no city is required — catalogue mode is useful on its own.
+    res = client.post("/conversation/message", json={
+        "message": "recommend a destination",
+    })
+    body = res.json()
+    assert body["intent"] == "DESTINATION_DISCOVERY"
+    assert body["missing_information"] == []
+
+
+def test_conversation_destination_discovery_with_city(client):
+    res = client.post("/conversation/message", json={
+        "message": "things to do in Tokyo",
+    })
+    body = res.json()
+    assert body["intent"] == "DESTINATION_DISCOVERY"
+    assert "Tokyo" in body["response"]
+
+
 def test_conversation_preserves_session(client):
     first = client.post("/conversation/message", json={
         "message": "I want to visit London",

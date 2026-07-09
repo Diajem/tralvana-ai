@@ -90,6 +90,26 @@ class TestIntentClassification:
         result = classifier.classify("affordable hotels in Paris")
         assert result.intent == Intent.BUDGET_ADVICE
 
+    def test_destination_discovery_intent(self, classifier):
+        result = classifier.classify("where should i go")
+        assert result.intent == Intent.DESTINATION_DISCOVERY
+
+    def test_destination_discovery_things_to_do_variant(self, classifier):
+        result = classifier.classify("things to do in Tokyo")
+        assert result.intent == Intent.DESTINATION_DISCOVERY
+
+    def test_tell_me_about_stays_destination_question(self, classifier):
+        # "tell me about" is a DESTINATION_QUESTION trigger; must not collide with DESTINATION_DISCOVERY.
+        result = classifier.classify("Tell me about Tokyo")
+        assert result.intent == Intent.DESTINATION_QUESTION
+
+    def test_travel_tips_stays_travel_advice_not_destination_discovery(self, classifier):
+        # Bare "recommend"/"suggest" live under TRAVEL_ADVICE; DESTINATION_DISCOVERY
+        # must be checked first so its own specific phrases win, without swallowing
+        # unrelated "recommend"/"suggest" uses elsewhere.
+        result = classifier.classify("What are the best travel tips for Japan?")
+        assert result.intent == Intent.TRAVEL_ADVICE
+
 
 class TestEntityExtraction:
     def test_extracts_destination(self, classifier):
@@ -126,3 +146,7 @@ class TestEntityExtraction:
         # "to stay" must not be misread as "destination: Stay" via the generic "to " marker.
         result = classifier.classify("find me a place to stay")
         assert result.entities.get("destination") is None
+
+    def test_destination_discovery_extracts_destination(self, classifier):
+        result = classifier.classify("things to do in Singapore")
+        assert result.entities.get("destination") == "Singapore"

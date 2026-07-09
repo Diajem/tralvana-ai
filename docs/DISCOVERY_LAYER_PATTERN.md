@@ -78,3 +78,4 @@ Every Discovery module must have:
 |--------|--------|-------------|-----|
 | Flight Intelligence | `services/api/app/domains/flights/` | `ai/discovery/flights/` | ADR-010 |
 | Accommodation Intelligence | `services/api/app/domains/accommodation/` | `ai/discovery/accommodation/` | ADR-012 |
+| Destination Intelligence | `services/api/app/domains/destinations/` | `ai/discovery/destinations/` | ADR-013 |

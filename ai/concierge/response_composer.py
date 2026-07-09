@@ -20,6 +20,7 @@ class ResponseComposer:
         Intent.PLAN_TRIP: "Here's what I've put together for your trip.",
         Intent.FLIGHT_SEARCH: "Here are your ranked flight options.",
         Intent.ACCOMMODATION_SEARCH: "Here are your ranked accommodation options.",
+        Intent.DESTINATION_DISCOVERY: "Here are your ranked destination options.",
         Intent.MODIFY_TRIP: "I can help you make changes to that trip.",
         Intent.VIEW_PROFILE: "Here's what I have on file for you.",
         Intent.UPDATE_PREFERENCES: "I'll update your travel preferences right away.",
@@ -130,6 +131,17 @@ class ResponseComposer:
                 f"{top.get('star_rating')}-star) at {top.get('currency')} "
                 f"{top.get('nightly_price')}/night — match score {top.get('match_score')}. "
                 f"{top.get('reasoning', '')}"
+            )
+
+        if result.agent_name == "destination_intelligence":
+            top = d.get("top_option", {})
+            if not top:
+                return "**Destinations:** No destination options could be generated for this search."
+            scope = d.get("city") or "the catalogue"
+            return (
+                f"**Destinations:** {d.get('count', 0)} option(s) ranked for {scope}. "
+                f"Best match: {top.get('name')} ({top.get('destination_type', '').replace('_', ' ').title()}) "
+                f"— match score {top.get('match_score')}. {top.get('reasoning', '')}"
             )
 
         if result.agent_name == "flight_agent":

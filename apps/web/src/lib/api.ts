@@ -8,6 +8,11 @@ import type {
   AccommodationRecommendationResponse,
   RecommendAccommodationRequest,
 } from "@/types/accommodation";
+import type {
+  DestinationOption,
+  DestinationRecommendationResponse,
+  RecommendDestinationsRequest,
+} from "@/types/destination";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -182,6 +187,46 @@ export async function getTripAccommodation(tripId: string): Promise<Accommodatio
   });
   if (!res.ok) {
     throw new Error(`Failed to load trip accommodation: ${res.status}`);
+  }
+  return res.json();
+}
+
+// ------------------------------------------------------------------
+// Destination API
+// ------------------------------------------------------------------
+
+export async function recommendDestinations(
+  data: RecommendDestinationsRequest
+): Promise<DestinationRecommendationResponse> {
+  const res = await fetch(`${BASE_URL}/destinations/recommend`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to get destination recommendations: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function getDestinationOption(
+  destinationOptionId: string
+): Promise<DestinationOption> {
+  const res = await fetch(`${BASE_URL}/destinations/${destinationOptionId}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`Destination option not found: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function getTripDestinations(tripId: string): Promise<DestinationOption[]> {
+  const res = await fetch(`${BASE_URL}/trips/${tripId}/destinations`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to load trip destinations: ${res.status}`);
   }
   return res.json();
 }

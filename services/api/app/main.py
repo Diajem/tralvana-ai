@@ -6,6 +6,7 @@ from app.domains.goals.router import router as goals_router
 from app.domains.trips.router import router as trips_router
 from app.domains.flights.router import router as flights_router
 from app.domains.accommodation.router import router as accommodation_router
+from app.domains.destinations.router import router as destinations_router
 from app.demo.demo_router import router as demo_router
 
 app = FastAPI(title="Tralvana API", version="0.1.0")
@@ -25,6 +26,7 @@ app.include_router(goals_router)
 app.include_router(trips_router)
 app.include_router(flights_router)
 app.include_router(accommodation_router)
+app.include_router(destinations_router)
 app.include_router(demo_router)
 
 
