@@ -146,6 +146,33 @@ def test_conversation_visa_check_nationality_and_destination_statement(client):
     assert "Spain" in body["response"]
 
 
+def test_conversation_weather_analysis_intent(client):
+    res = client.post("/conversation/message", json={
+        "message": "Is July a good time to visit Japan?",
+    })
+    body = res.json()
+    assert body["intent"] == "WEATHER_ANALYSIS"
+    assert "Weather" in body["response"]
+
+
+def test_conversation_weather_analysis_missing_destination_asks_for_it(client):
+    res = client.post("/conversation/message", json={
+        "message": "Should I avoid hurricane season?",
+    })
+    body = res.json()
+    assert body["intent"] == "WEATHER_ANALYSIS"
+    assert "Which destination would you like a weather and safety assessment for?" in body["missing_information"]
+
+
+def test_conversation_weather_analysis_without_month_still_ready(client):
+    res = client.post("/conversation/message", json={
+        "message": "When should I visit Spain?",
+    })
+    body = res.json()
+    assert body["intent"] == "WEATHER_ANALYSIS"
+    assert body["missing_information"] == []
+
+
 def test_conversation_preserves_session(client):
     first = client.post("/conversation/message", json={
         "message": "I want to visit London",

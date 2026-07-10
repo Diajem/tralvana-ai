@@ -9,6 +9,7 @@ class Intent(str, Enum):
     DESTINATION_DISCOVERY = "DESTINATION_DISCOVERY"
     BUDGET_ANALYSIS = "BUDGET_ANALYSIS"
     VISA_CHECK = "VISA_CHECK"
+    WEATHER_ANALYSIS = "WEATHER_ANALYSIS"
     MODIFY_TRIP = "MODIFY_TRIP"
     VIEW_PROFILE = "VIEW_PROFILE"
     UPDATE_PREFERENCES = "UPDATE_PREFERENCES"
@@ -57,6 +58,12 @@ _PATTERNS: list[tuple[Intent, list[str]]] = [
         "can i enter", "will my passport", "passport work", "check my visa", "check visa",
         "visa check", "am i eligible to enter", "entry requirements for",
     ]),
+    (Intent.WEATHER_ANALYSIS, [
+        "good time to visit", "when should i visit", "when should i go",
+        "will it rain", "weather in", "climate in", "hurricane season",
+        "typhoon season", "rainy season", "best time to visit", "best time to go",
+        "avoid hurricane", "avoid typhoon", "weather forecast for",
+    ]),
     (Intent.PLAN_TRIP, [
         "plan a trip", "book a flight", "book flights", "fly to",
         "travel to", "trip to", "visit", "going to",
@@ -79,14 +86,14 @@ _PATTERNS: list[tuple[Intent, list[str]]] = [
     ]),
     (Intent.DESTINATION_QUESTION, [
         "tell me about", "what is it like", "what's it like",
-        "weather in", "best places in", "what to do in",
+        "best places in", "what to do in",
         "what to see in", "how safe is",
         "is it safe to travel to",
     ]),
     (Intent.TRAVEL_ADVICE, [
         "travel advice", "travel tips", "tips for travelling",
         "recommend", "suggest", "should i visit",
-        "is it worth", "best time to visit", "best time to go",
+        "is it worth",
         "worth visiting",
     ]),
     (Intent.BUDGET_ADVICE, [
@@ -135,14 +142,18 @@ class IntentClassifier:
     def _extract_entities(self, text: str) -> dict[str, str]:
         entities: dict[str, str] = {}
 
+        # Padded so every marker search requires a leading word boundary —
+        # without this, "in " matches inside "rain " (rendering "Will it
+        # rain in Jamaica" destination-less) and similar false positives.
+        padded = f" {text}"
         for marker in ("to ", "in ", "visit ", "near ", "about ", "enter "):
-            idx = text.find(marker)
+            idx = padded.find(f" {marker}")
             if idx != -1:
-                words = text[idx + len(marker):].split()
+                words = padded[idx + len(marker) + 1:].split()
                 if words:
                     candidate = words[0].strip(".,?!")
                     if len(candidate) > 2 and candidate not in (
-                        "the", "my", "a", "an", "be", "me", "do", "go", "is", "stay"
+                        "the", "my", "a", "an", "be", "me", "do", "go", "is", "stay", "visit"
                     ):
                         entities["destination"] = candidate.title()
                         break
@@ -175,6 +186,19 @@ class IntentClassifier:
         ):
             if token in text:
                 entities["date_hint"] = token
+                break
+
+        # A bare month name anywhere in the message (not just "in <month>")
+        # — e.g. "Is July a good time to visit Japan?". Padding with spaces
+        # lets a month at the very start/end of the message still match as
+        # a whole word.
+        padded = f" {text} "
+        for i, name in enumerate((
+            "january", "february", "march", "april", "may", "june",
+            "july", "august", "september", "october", "november", "december",
+        ), start=1):
+            if f" {name} " in padded or f" {name}?" in padded or f" {name}." in padded:
+                entities["month"] = str(i)
                 break
 
         return entities

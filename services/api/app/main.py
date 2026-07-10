@@ -9,6 +9,7 @@ from app.domains.accommodation.router import router as accommodation_router
 from app.domains.destinations.router import router as destinations_router
 from app.domains.budget.router import router as budget_router
 from app.domains.visa.router import router as visa_router
+from app.domains.weather.router import router as weather_router
 from app.demo.demo_router import router as demo_router
 
 app = FastAPI(title="Tralvana API", version="0.1.0")
@@ -31,6 +32,7 @@ app.include_router(accommodation_router)
 app.include_router(destinations_router)
 app.include_router(budget_router)
 app.include_router(visa_router)
+app.include_router(weather_router)
 app.include_router(demo_router)
 
 

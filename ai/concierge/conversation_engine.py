@@ -176,6 +176,18 @@ class ConversationEngine:
             if visa_result:
                 results = [visa_result]
 
+        # Weather-analysis requests route directly to Weather Intelligence
+        # (ai/discovery/weather/), same pattern as flights and accommodation.
+        # Only a destination is required — an omitted month finds the best
+        # month to visit, same "useful either way" idea as Destination
+        # Intelligence's city vs. no-city dual mode.
+        if classified.intent == Intent.WEATHER_ANALYSIS and decision.has_enough_information:
+            weather_result = self._get_weather_assessment(
+                session, classified.entities, profile
+            )
+            if weather_result:
+                results = [weather_result]
+
         if decision.has_enough_information and decision.requires_agents:
             ctx = AgentContext(
                 session_id=session.conversation_id,
@@ -458,6 +470,33 @@ class ConversationEngine:
 
         return AgentResult(
             agent_name="visa_intelligence",
+            status=AgentStatus.SUCCESS,
+            confidence=output["confidence"],
+            data=output,
+            assumptions=output["assumptions"],
+            risks=output["risks"],
+            next_actions=[output["recommendation"]],
+        )
+
+    def _get_weather_assessment(
+        self,
+        session: ConversationSession,
+        entities: dict[str, str],
+        profile: dict[str, Any] | None,
+    ) -> AgentResult | None:
+        try:
+            from app.domains.weather.service import weather_intelligence_service
+            output = weather_intelligence_service.analyse_from_conversation(
+                traveller_id=session.traveller_id,
+                trip_id=session.trip_id,
+                entities=entities,
+                profile=profile,
+            )
+        except Exception:
+            return None
+
+        return AgentResult(
+            agent_name="weather_intelligence",
             status=AgentStatus.SUCCESS,
             confidence=output["confidence"],
             data=output,

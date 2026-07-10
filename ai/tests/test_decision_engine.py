@@ -183,3 +183,22 @@ class TestDecisionEngine:
     def test_visa_check_requires_live_data(self, engine):
         decision = engine.decide(Intent.VISA_CHECK, {"nationality": "Irish", "destination": "Japan"}, None)
         assert decision.requires_live_data
+
+    def test_weather_analysis_without_destination_is_not_ready(self, engine):
+        decision = engine.decide(Intent.WEATHER_ANALYSIS, {}, None)
+        assert not decision.has_enough_information
+        assert "Which destination would you like a weather and safety assessment for?" in decision.follow_up_questions
+
+    def test_weather_analysis_with_destination_only_is_ready(self, engine):
+        # Unlike VISA_CHECK, no month is required — Weather Intelligence
+        # finds the best month itself when one isn't supplied.
+        decision = engine.decide(Intent.WEATHER_ANALYSIS, {"destination": "Japan"}, None)
+        assert decision.has_enough_information
+
+    def test_weather_analysis_does_not_dispatch_specialist_agents(self, engine):
+        decision = engine.decide(Intent.WEATHER_ANALYSIS, {"destination": "Japan"}, None)
+        assert decision.requires_agents == []
+
+    def test_weather_analysis_requires_live_data(self, engine):
+        decision = engine.decide(Intent.WEATHER_ANALYSIS, {"destination": "Japan"}, None)
+        assert decision.requires_live_data

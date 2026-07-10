@@ -23,6 +23,7 @@ class ResponseComposer:
         Intent.DESTINATION_DISCOVERY: "Here are your ranked destination options.",
         Intent.BUDGET_ANALYSIS: "Here are your ranked budget options.",
         Intent.VISA_CHECK: "Here's your entry requirement assessment.",
+        Intent.WEATHER_ANALYSIS: "Here's your weather and safety assessment.",
         Intent.MODIFY_TRIP: "I can help you make changes to that trip.",
         Intent.VIEW_PROFILE: "Here's what I have on file for you.",
         Intent.UPDATE_PREFERENCES: "I'll update your travel preferences right away.",
@@ -162,6 +163,14 @@ class ResponseComposer:
             return (
                 f"**Visa:** {d.get('nationality')} passport holder entering {d.get('destination_country')} — "
                 f"{d.get('visa_status', '').replace('_', ' ').title()} (confidence {d.get('confidence')}). "
+                f"{d.get('recommendation', '')}"
+            )
+
+        if result.agent_name == "weather_intelligence":
+            return (
+                f"**Weather:** {d.get('destination')} in {d.get('month_of_travel')} — "
+                f"{d.get('weather_status', '').replace('_', ' ').title()} "
+                f"(suitability {d.get('weather_suitability_score')}, confidence {d.get('confidence')}). "
                 f"{d.get('recommendation', '')}"
             )
 

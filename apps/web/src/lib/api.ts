@@ -19,6 +19,7 @@ import type {
   RecommendBudgetRequest,
 } from "@/types/budget";
 import type { CheckVisaRequest, VisaAssessment } from "@/types/visa";
+import type { AnalyseWeatherRequest, WeatherAssessment } from "@/types/weather";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -307,6 +308,42 @@ export async function getTripVisa(tripId: string): Promise<VisaAssessment[]> {
   });
   if (!res.ok) {
     throw new Error(`Failed to load trip visa assessments: ${res.status}`);
+  }
+  return res.json();
+}
+
+// ------------------------------------------------------------------
+// Weather API
+// ------------------------------------------------------------------
+
+export async function analyseWeather(data: AnalyseWeatherRequest): Promise<WeatherAssessment> {
+  const res = await fetch(`${BASE_URL}/weather/analyse`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to analyse weather: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function getWeatherAssessment(weatherAssessmentId: string): Promise<WeatherAssessment> {
+  const res = await fetch(`${BASE_URL}/weather/${weatherAssessmentId}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`Weather assessment not found: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function getTripWeather(tripId: string): Promise<WeatherAssessment[]> {
+  const res = await fetch(`${BASE_URL}/trips/${tripId}/weather`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to load trip weather assessments: ${res.status}`);
   }
   return res.json();
 }

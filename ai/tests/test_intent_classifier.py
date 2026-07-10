@@ -149,6 +149,43 @@ class TestIntentClassification:
         result = classifier.classify("I am Nigerian")
         assert result.intent == Intent.GENERAL_CONVERSATION
 
+    def test_weather_analysis_good_time_to_visit(self, classifier):
+        result = classifier.classify("Is July a good time to visit Japan?")
+        assert result.intent == Intent.WEATHER_ANALYSIS
+        assert result.entities.get("destination") == "Japan"
+        assert result.entities.get("month") == "7"
+
+    def test_weather_analysis_when_should_i_visit(self, classifier):
+        result = classifier.classify("When should I visit Spain?")
+        assert result.intent == Intent.WEATHER_ANALYSIS
+        assert result.entities.get("destination") == "Spain"
+
+    def test_weather_analysis_will_it_rain(self, classifier):
+        result = classifier.classify("Will it rain in Jamaica in September?")
+        assert result.intent == Intent.WEATHER_ANALYSIS
+        assert result.entities.get("destination") == "Jamaica"
+        assert result.entities.get("month") == "9"
+
+    def test_weather_analysis_hurricane_season(self, classifier):
+        result = classifier.classify("Should I avoid hurricane season?")
+        assert result.intent == Intent.WEATHER_ANALYSIS
+
+    def test_weather_in_now_routes_to_weather_analysis(self, classifier):
+        # Reclaimed from DESTINATION_QUESTION — a new, more specific intent.
+        result = classifier.classify("weather in Tokyo")
+        assert result.intent == Intent.WEATHER_ANALYSIS
+
+    def test_best_time_to_visit_now_routes_to_weather_analysis(self, classifier):
+        # Reclaimed from TRAVEL_ADVICE — a new, more specific intent.
+        result = classifier.classify("best time to visit Barcelona")
+        assert result.intent == Intent.WEATHER_ANALYSIS
+
+    def test_rain_word_does_not_falsely_match_in_marker(self, classifier):
+        # Regression: "rain" contains "in " as a substring; the destination
+        # marker search must not match inside it.
+        result = classifier.classify("will it rain in london")
+        assert result.entities.get("destination") == "London"
+
     def test_how_expensive_stays_budget_advice_not_budget_analysis(self, classifier):
         # "how expensive" is a BUDGET_ADVICE trigger; must not collide with
         # BUDGET_ANALYSIS's more specific tier-comparison phrasing.
