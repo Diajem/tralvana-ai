@@ -118,6 +118,37 @@ class TestIntentClassification:
         result = classifier.classify("recommend a budget for my trip")
         assert result.intent == Intent.BUDGET_ANALYSIS
 
+    def test_visa_check_do_i_need_a_visa(self, classifier):
+        result = classifier.classify("Do I need a visa?")
+        assert result.intent == Intent.VISA_CHECK
+
+    def test_visa_check_can_i_enter(self, classifier):
+        result = classifier.classify("Can I enter Japan?")
+        assert result.intent == Intent.VISA_CHECK
+        assert result.entities.get("destination") == "Japan"
+
+    def test_visa_check_passport_work(self, classifier):
+        result = classifier.classify("Will my Irish passport work?")
+        assert result.intent == Intent.VISA_CHECK
+        assert result.entities.get("nationality") == "Irish"
+
+    def test_visa_check_nationality_and_destination_fallback(self, classifier):
+        # No explicit visa keyword — inferred from stating both nationality
+        # and a destination, which has no other clear intent in this layer.
+        result = classifier.classify("I am Nigerian travelling to Spain.")
+        assert result.intent == Intent.VISA_CHECK
+        assert result.entities.get("nationality") == "Nigerian"
+        assert result.entities.get("destination") == "Spain"
+
+    def test_visa_requirements_for_now_routes_to_visa_check(self, classifier):
+        # Reclaimed from DESTINATION_QUESTION — a new, more specific intent.
+        result = classifier.classify("visa requirements for Japan")
+        assert result.intent == Intent.VISA_CHECK
+
+    def test_nationality_alone_without_destination_does_not_trigger_visa_check(self, classifier):
+        result = classifier.classify("I am Nigerian")
+        assert result.intent == Intent.GENERAL_CONVERSATION
+
     def test_how_expensive_stays_budget_advice_not_budget_analysis(self, classifier):
         # "how expensive" is a BUDGET_ADVICE trigger; must not collide with
         # BUDGET_ANALYSIS's more specific tier-comparison phrasing.

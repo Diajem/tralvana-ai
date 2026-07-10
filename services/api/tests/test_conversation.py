@@ -118,6 +118,34 @@ def test_conversation_budget_analysis_without_destination_still_ready(client):
     assert body["missing_information"] == []
 
 
+def test_conversation_visa_check_intent(client):
+    res = client.post("/conversation/message", json={
+        "message": "Will my Irish passport work in Japan?",
+    })
+    body = res.json()
+    assert body["intent"] == "VISA_CHECK"
+    assert "Visa" in body["response"]
+
+
+def test_conversation_visa_check_missing_info_asks_for_it(client):
+    res = client.post("/conversation/message", json={
+        "message": "Do I need a visa?",
+    })
+    body = res.json()
+    assert body["intent"] == "VISA_CHECK"
+    assert "What is your passport country or nationality?" in body["missing_information"]
+
+
+def test_conversation_visa_check_nationality_and_destination_statement(client):
+    res = client.post("/conversation/message", json={
+        "message": "I am Nigerian travelling to Spain.",
+    })
+    body = res.json()
+    assert body["intent"] == "VISA_CHECK"
+    assert body["missing_information"] == []
+    assert "Spain" in body["response"]
+
+
 def test_conversation_preserves_session(client):
     first = client.post("/conversation/message", json={
         "message": "I want to visit London",

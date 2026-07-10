@@ -165,6 +165,17 @@ class ConversationEngine:
             if budget_result:
                 results = [budget_result]
 
+        # Visa-check requests route directly to Visa Intelligence
+        # (ai/discovery/visa/), same pattern as flights and accommodation.
+        # Unlike Budget/Destination, both nationality and destination are
+        # required before a real assessment can be produced.
+        if classified.intent == Intent.VISA_CHECK and decision.has_enough_information:
+            visa_result = self._get_visa_assessment(
+                session, classified.entities, profile
+            )
+            if visa_result:
+                results = [visa_result]
+
         if decision.has_enough_information and decision.requires_agents:
             ctx = AgentContext(
                 session_id=session.conversation_id,
@@ -426,6 +437,33 @@ class ConversationEngine:
             assumptions=output["assumptions"],
             risks=risks,
             next_actions=output["next_actions"],
+        )
+
+    def _get_visa_assessment(
+        self,
+        session: ConversationSession,
+        entities: dict[str, str],
+        profile: dict[str, Any] | None,
+    ) -> AgentResult | None:
+        try:
+            from app.domains.visa.service import visa_intelligence_service
+            output = visa_intelligence_service.check_from_conversation(
+                traveller_id=session.traveller_id,
+                trip_id=session.trip_id,
+                entities=entities,
+                profile=profile,
+            )
+        except Exception:
+            return None
+
+        return AgentResult(
+            agent_name="visa_intelligence",
+            status=AgentStatus.SUCCESS,
+            confidence=output["confidence"],
+            data=output,
+            assumptions=output["assumptions"],
+            risks=output["risks"],
+            next_actions=[output["recommendation"]],
         )
 
     def _create_goal(

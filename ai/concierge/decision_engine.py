@@ -14,6 +14,7 @@ _AGENT_MAP: dict[Intent, list[str]] = {
     Intent.ACCOMMODATION_SEARCH: [],
     Intent.DESTINATION_DISCOVERY: [],
     Intent.BUDGET_ANALYSIS: [],
+    Intent.VISA_CHECK: [],
     Intent.MODIFY_TRIP: ["flight_agent", "hotel_agent"],
     Intent.DESTINATION_QUESTION: ["experience_agent"],
     Intent.TRAVEL_ADVICE: ["experience_agent"],
@@ -87,6 +88,12 @@ class DecisionEngine:
             # No date_hint requirement — Accommodation Intelligence defaults
             # the check-in date and records it as an assumption when omitted.
 
+        if intent == Intent.VISA_CHECK:
+            if not entities.get("nationality"):
+                questions.append("What is your passport country or nationality?")
+            if not destination:
+                questions.append("Which destination would you like to check entry requirements for?")
+
         has_enough = len(questions) == 0
         agents = _AGENT_MAP.get(intent, []) if has_enough else []
 
@@ -118,6 +125,7 @@ class DecisionEngine:
         needs_live = intent in (
             Intent.PLAN_TRIP, Intent.MODIFY_TRIP, Intent.FLIGHT_SEARCH,
             Intent.ACCOMMODATION_SEARCH, Intent.DESTINATION_DISCOVERY, Intent.BUDGET_ANALYSIS,
+            Intent.VISA_CHECK,
         )
 
         return Decision(

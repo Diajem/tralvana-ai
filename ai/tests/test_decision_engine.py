@@ -155,3 +155,31 @@ class TestDecisionEngine:
     def test_budget_analysis_requires_live_data(self, engine):
         decision = engine.decide(Intent.BUDGET_ANALYSIS, {}, None)
         assert decision.requires_live_data
+
+    def test_visa_check_without_nationality_or_destination_is_not_ready(self, engine):
+        decision = engine.decide(Intent.VISA_CHECK, {}, None)
+        assert not decision.has_enough_information
+        assert "What is your passport country or nationality?" in decision.follow_up_questions
+        assert "Which destination would you like to check entry requirements for?" in decision.follow_up_questions
+
+    def test_visa_check_missing_nationality_only_asks_for_nationality(self, engine):
+        decision = engine.decide(Intent.VISA_CHECK, {"destination": "Japan"}, None)
+        assert not decision.has_enough_information
+        assert decision.follow_up_questions == ["What is your passport country or nationality?"]
+
+    def test_visa_check_missing_destination_only_asks_for_destination(self, engine):
+        decision = engine.decide(Intent.VISA_CHECK, {"nationality": "Irish"}, None)
+        assert not decision.has_enough_information
+        assert decision.follow_up_questions == ["Which destination would you like to check entry requirements for?"]
+
+    def test_visa_check_with_both_entities_is_ready(self, engine):
+        decision = engine.decide(Intent.VISA_CHECK, {"nationality": "Irish", "destination": "Japan"}, None)
+        assert decision.has_enough_information
+
+    def test_visa_check_does_not_dispatch_specialist_agents(self, engine):
+        decision = engine.decide(Intent.VISA_CHECK, {"nationality": "Irish", "destination": "Japan"}, None)
+        assert decision.requires_agents == []
+
+    def test_visa_check_requires_live_data(self, engine):
+        decision = engine.decide(Intent.VISA_CHECK, {"nationality": "Irish", "destination": "Japan"}, None)
+        assert decision.requires_live_data

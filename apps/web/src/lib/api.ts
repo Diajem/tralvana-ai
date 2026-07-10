@@ -18,6 +18,7 @@ import type {
   BudgetRecommendationResponse,
   RecommendBudgetRequest,
 } from "@/types/budget";
+import type { CheckVisaRequest, VisaAssessment } from "@/types/visa";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -270,6 +271,42 @@ export async function getTripBudget(tripId: string): Promise<BudgetOption[]> {
   });
   if (!res.ok) {
     throw new Error(`Failed to load trip budget: ${res.status}`);
+  }
+  return res.json();
+}
+
+// ------------------------------------------------------------------
+// Visa API
+// ------------------------------------------------------------------
+
+export async function checkVisa(data: CheckVisaRequest): Promise<VisaAssessment> {
+  const res = await fetch(`${BASE_URL}/visa/check`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to check visa requirements: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function getVisaAssessment(visaAssessmentId: string): Promise<VisaAssessment> {
+  const res = await fetch(`${BASE_URL}/visa/${visaAssessmentId}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`Visa assessment not found: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function getTripVisa(tripId: string): Promise<VisaAssessment[]> {
+  const res = await fetch(`${BASE_URL}/trips/${tripId}/visa`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to load trip visa assessments: ${res.status}`);
   }
   return res.json();
 }

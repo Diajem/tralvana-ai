@@ -22,6 +22,7 @@ class ResponseComposer:
         Intent.ACCOMMODATION_SEARCH: "Here are your ranked accommodation options.",
         Intent.DESTINATION_DISCOVERY: "Here are your ranked destination options.",
         Intent.BUDGET_ANALYSIS: "Here are your ranked budget options.",
+        Intent.VISA_CHECK: "Here's your entry requirement assessment.",
         Intent.MODIFY_TRIP: "I can help you make changes to that trip.",
         Intent.VIEW_PROFILE: "Here's what I have on file for you.",
         Intent.UPDATE_PREFERENCES: "I'll update your travel preferences right away.",
@@ -155,6 +156,13 @@ class ResponseComposer:
                 f"Best match: {top.get('budget_style', '').title()} tier at {top.get('currency')} "
                 f"{top.get('total_cost_usd')} — match score {top.get('match_score')}. "
                 f"{top.get('reasoning', '')}"
+            )
+
+        if result.agent_name == "visa_intelligence":
+            return (
+                f"**Visa:** {d.get('nationality')} passport holder entering {d.get('destination_country')} — "
+                f"{d.get('visa_status', '').replace('_', ' ').title()} (confidence {d.get('confidence')}). "
+                f"{d.get('recommendation', '')}"
             )
 
         if result.agent_name == "flight_agent":
