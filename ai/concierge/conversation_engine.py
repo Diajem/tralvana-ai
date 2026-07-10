@@ -154,6 +154,17 @@ class ConversationEngine:
             if destination_result:
                 results = [destination_result]
 
+        # Budget-analysis requests route directly to Budget Intelligence
+        # (ai/discovery/budget/), same pattern as flights, accommodation,
+        # and destinations. Always ready — no destination is required since
+        # comparing tiers at default global rates is itself a useful answer.
+        if classified.intent == Intent.BUDGET_ANALYSIS:
+            budget_result = self._get_budget_recommendations(
+                session, classified.entities, profile
+            )
+            if budget_result:
+                results = [budget_result]
+
         if decision.has_enough_information and decision.requires_agents:
             ctx = AgentContext(
                 session_id=session.conversation_id,
@@ -371,6 +382,46 @@ class ConversationEngine:
                 "city": output["city"],
                 "top_option": top or {},
                 "destination_option_ids": [d["destination_option_id"] for d in options],
+            },
+            assumptions=output["assumptions"],
+            risks=risks,
+            next_actions=output["next_actions"],
+        )
+
+    def _get_budget_recommendations(
+        self,
+        session: ConversationSession,
+        entities: dict[str, str],
+        profile: dict[str, Any] | None,
+    ) -> AgentResult | None:
+        try:
+            from app.domains.budget.service import budget_intelligence_service
+            output = budget_intelligence_service.recommend_from_conversation(
+                traveller_id=session.traveller_id,
+                trip_id=session.trip_id,
+                entities=entities,
+                profile=profile,
+            )
+        except Exception:
+            return None
+
+        options = output["budget_options"]
+        top = next(
+            (o for o in options if o["recommendation_type"] == "BEST_OVERALL"),
+            options[0] if options else None,
+        )
+        avg_confidence = sum(o["match_score"] for o in options) / len(options) if options else 0.0
+        risks = [r for o in options for r in o["risks"]][:5]
+
+        return AgentResult(
+            agent_name="budget_intelligence",
+            status=AgentStatus.SUCCESS if options else AgentStatus.NEEDS_INFORMATION,
+            confidence=round(avg_confidence, 2),
+            data={
+                "count": len(options),
+                "destination": output["destination"],
+                "top_option": top or {},
+                "budget_option_ids": [o["budget_option_id"] for o in options],
             },
             assumptions=output["assumptions"],
             risks=risks,

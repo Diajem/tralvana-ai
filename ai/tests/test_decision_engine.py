@@ -140,3 +140,18 @@ class TestDecisionEngine:
     def test_destination_discovery_requires_live_data(self, engine):
         decision = engine.decide(Intent.DESTINATION_DISCOVERY, {}, None)
         assert decision.requires_live_data
+
+    def test_budget_analysis_is_always_ready_without_destination(self, engine):
+        # Same rationale as DESTINATION_DISCOVERY — comparing tiers at
+        # default global rates is a useful answer without a destination.
+        decision = engine.decide(Intent.BUDGET_ANALYSIS, {}, None)
+        assert decision.has_enough_information
+        assert decision.follow_up_questions == []
+
+    def test_budget_analysis_does_not_dispatch_specialist_agents(self, engine):
+        decision = engine.decide(Intent.BUDGET_ANALYSIS, {}, None)
+        assert decision.requires_agents == []
+
+    def test_budget_analysis_requires_live_data(self, engine):
+        decision = engine.decide(Intent.BUDGET_ANALYSIS, {}, None)
+        assert decision.requires_live_data

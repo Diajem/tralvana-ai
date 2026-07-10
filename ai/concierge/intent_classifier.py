@@ -7,6 +7,7 @@ class Intent(str, Enum):
     FLIGHT_SEARCH = "FLIGHT_SEARCH"
     ACCOMMODATION_SEARCH = "ACCOMMODATION_SEARCH"
     DESTINATION_DISCOVERY = "DESTINATION_DISCOVERY"
+    BUDGET_ANALYSIS = "BUDGET_ANALYSIS"
     MODIFY_TRIP = "MODIFY_TRIP"
     VIEW_PROFILE = "VIEW_PROFILE"
     UPDATE_PREFERENCES = "UPDATE_PREFERENCES"
@@ -43,6 +44,12 @@ _PATTERNS: list[tuple[Intent, list[str]]] = [
         "where should i go", "where should i travel", "suggest a destination", "suggest destinations",
         "destination ideas", "help me choose a destination", "which city should i visit",
         "which destination", "explore destinations", "discover destinations", "things to do in",
+    ]),
+    (Intent.BUDGET_ANALYSIS, [
+        "recommend a budget", "recommend budget options", "budget recommendations",
+        "compare budget options", "budget plan for", "budget breakdown for",
+        "which budget style", "rank budget options", "budget options for",
+        "best budget for my trip", "optimise my budget", "optimize my budget", "budget tiers",
     ]),
     (Intent.PLAN_TRIP, [
         "plan a trip", "book a flight", "book flights", "fly to",

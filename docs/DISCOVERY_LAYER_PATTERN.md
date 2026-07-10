@@ -4,7 +4,7 @@ The standard structure every Discovery module follows. Formalised in T-016 from 
 
 ## Why a Discovery Layer
 
-Tralvana Travel does not "search and list" — it reasons about which option best fits the traveller, goal, budget, trip plan, and preferences, and explains why. Every Discovery module (Flight, Accommodation, and future Destination/Visa/Weather modules per `ROADMAP.md`) exists to turn a category of raw options into ranked, explainable recommendations. A consistent internal pipeline means a new engineer who has read one Discovery module already understands the shape of every other one.
+Tralvana Travel does not "search and list" — it reasons about which option best fits the traveller, goal, budget, trip plan, and preferences, and explains why. Every Discovery module (Flight, Accommodation, Destination, Budget, and future Visa/Weather modules per `docs/TASK_TRACKER.md`) exists to turn a category of raw options into ranked, explainable recommendations. A consistent internal pipeline means a new engineer who has read one Discovery module already understands the shape of every other one.
 
 ## The Pipeline
 
@@ -79,3 +79,4 @@ Every Discovery module must have:
 | Flight Intelligence | `services/api/app/domains/flights/` | `ai/discovery/flights/` | ADR-010 |
 | Accommodation Intelligence | `services/api/app/domains/accommodation/` | `ai/discovery/accommodation/` | ADR-012 |
 | Destination Intelligence | `services/api/app/domains/destinations/` | `ai/discovery/destinations/` | ADR-013 |
+| Budget Intelligence | `services/api/app/domains/budget/` | `ai/discovery/budget/` | ADR-014 |

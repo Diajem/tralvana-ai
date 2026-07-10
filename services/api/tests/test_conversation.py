@@ -100,6 +100,24 @@ def test_conversation_destination_discovery_with_city(client):
     assert "Tokyo" in body["response"]
 
 
+def test_conversation_budget_analysis_intent(client):
+    res = client.post("/conversation/message", json={
+        "message": "compare budget options in Tokyo",
+    })
+    body = res.json()
+    assert body["intent"] == "BUDGET_ANALYSIS"
+    assert "Budget" in body["response"]
+
+
+def test_conversation_budget_analysis_without_destination_still_ready(client):
+    res = client.post("/conversation/message", json={
+        "message": "recommend a budget for my trip",
+    })
+    body = res.json()
+    assert body["intent"] == "BUDGET_ANALYSIS"
+    assert body["missing_information"] == []
+
+
 def test_conversation_preserves_session(client):
     first = client.post("/conversation/message", json={
         "message": "I want to visit London",

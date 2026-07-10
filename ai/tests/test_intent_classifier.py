@@ -110,6 +110,20 @@ class TestIntentClassification:
         result = classifier.classify("What are the best travel tips for Japan?")
         assert result.intent == Intent.TRAVEL_ADVICE
 
+    def test_budget_analysis_intent(self, classifier):
+        result = classifier.classify("compare budget options for Tokyo")
+        assert result.intent == Intent.BUDGET_ANALYSIS
+
+    def test_budget_analysis_recommend_a_budget_variant(self, classifier):
+        result = classifier.classify("recommend a budget for my trip")
+        assert result.intent == Intent.BUDGET_ANALYSIS
+
+    def test_how_expensive_stays_budget_advice_not_budget_analysis(self, classifier):
+        # "how expensive" is a BUDGET_ADVICE trigger; must not collide with
+        # BUDGET_ANALYSIS's more specific tier-comparison phrasing.
+        result = classifier.classify("how expensive is Tokyo")
+        assert result.intent == Intent.BUDGET_ADVICE
+
 
 class TestEntityExtraction:
     def test_extracts_destination(self, classifier):

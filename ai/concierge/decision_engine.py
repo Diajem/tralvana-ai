@@ -13,6 +13,7 @@ _AGENT_MAP: dict[Intent, list[str]] = {
     Intent.FLIGHT_SEARCH: [],
     Intent.ACCOMMODATION_SEARCH: [],
     Intent.DESTINATION_DISCOVERY: [],
+    Intent.BUDGET_ANALYSIS: [],
     Intent.MODIFY_TRIP: ["flight_agent", "hotel_agent"],
     Intent.DESTINATION_QUESTION: ["experience_agent"],
     Intent.TRAVEL_ADVICE: ["experience_agent"],
@@ -116,7 +117,7 @@ class DecisionEngine:
         # --- live data requirement ---
         needs_live = intent in (
             Intent.PLAN_TRIP, Intent.MODIFY_TRIP, Intent.FLIGHT_SEARCH,
-            Intent.ACCOMMODATION_SEARCH, Intent.DESTINATION_DISCOVERY,
+            Intent.ACCOMMODATION_SEARCH, Intent.DESTINATION_DISCOVERY, Intent.BUDGET_ANALYSIS,
         )
 
         return Decision(

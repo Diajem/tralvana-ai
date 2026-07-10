@@ -13,6 +13,11 @@ import type {
   DestinationRecommendationResponse,
   RecommendDestinationsRequest,
 } from "@/types/destination";
+import type {
+  BudgetOption,
+  BudgetRecommendationResponse,
+  RecommendBudgetRequest,
+} from "@/types/budget";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -227,6 +232,44 @@ export async function getTripDestinations(tripId: string): Promise<DestinationOp
   });
   if (!res.ok) {
     throw new Error(`Failed to load trip destinations: ${res.status}`);
+  }
+  return res.json();
+}
+
+// ------------------------------------------------------------------
+// Budget API
+// ------------------------------------------------------------------
+
+export async function recommendBudget(
+  data: RecommendBudgetRequest
+): Promise<BudgetRecommendationResponse> {
+  const res = await fetch(`${BASE_URL}/budget/recommend`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to get budget recommendations: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function getBudgetOption(budgetOptionId: string): Promise<BudgetOption> {
+  const res = await fetch(`${BASE_URL}/budget/${budgetOptionId}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`Budget option not found: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function getTripBudget(tripId: string): Promise<BudgetOption[]> {
+  const res = await fetch(`${BASE_URL}/trips/${tripId}/budget`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to load trip budget: ${res.status}`);
   }
   return res.json();
 }
