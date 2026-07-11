@@ -146,7 +146,38 @@ class IntentClassifier:
         # without this, "in " matches inside "rain " (rendering "Will it
         # rain in Jamaica" destination-less) and similar false positives.
         padded = f" {text}"
+        destination_found = False
         for marker in ("to ", "in ", "visit ", "near ", "about ", "enter "):
+            if marker == "to ":
+                # "to " is ambiguous between a destination preposition
+                # ("trip to Tokyo") and an infinitive marker inside an
+                # auxiliary construction ("want to travel", "need to
+                # fly", "plan to visit"). Taking the first occurrence
+                # unconditionally misreads the auxiliary verb itself as
+                # the destination ("I want to travel to Tokyo" -> "Travel").
+                # Keep scanning subsequent " to " occurrences until one
+                # yields a real candidate.
+                search_from = 0
+                while True:
+                    idx = padded.find(" to ", search_from)
+                    if idx == -1:
+                        break
+                    words = padded[idx + 4:].split()
+                    if not words:
+                        break
+                    candidate = words[0].strip(".,?!")
+                    if len(candidate) > 2 and candidate not in (
+                        "the", "my", "a", "an", "be", "me", "do", "go", "is", "stay",
+                        "visit", "travel", "plan", "fly", "book", "see", "explore",
+                    ):
+                        entities["destination"] = candidate.title()
+                        destination_found = True
+                        break
+                    search_from = idx + 4
+                if destination_found:
+                    break
+                continue
+
             idx = padded.find(f" {marker}")
             if idx != -1:
                 words = padded[idx + len(marker) + 1:].split()
@@ -156,6 +187,7 @@ class IntentClassifier:
                         "the", "my", "a", "an", "be", "me", "do", "go", "is", "stay", "visit"
                     ):
                         entities["destination"] = candidate.title()
+                        destination_found = True
                         break
 
         for marker in ("i am ", "i'm "):

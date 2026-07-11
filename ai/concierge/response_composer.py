@@ -42,6 +42,7 @@ class ResponseComposer:
         decision: Decision,
         results: list[AgentResult],
         traveller_name: str | None = None,
+        synthesis_note: str | None = None,
     ) -> str:
         if not decision.has_enough_information:
             return self._compose_clarification(decision.follow_up_questions)
@@ -55,7 +56,12 @@ class ResponseComposer:
             prefix = ""
 
         name_prefix = f"{traveller_name}, " if traveller_name else ""
-        preamble = self._PREAMBLES.get(intent, "I'm here to help.")
+        # Trip Brain (multi-module PLAN_TRIP requests) passes its own
+        # synthesis sentence naming what was checked, in place of the
+        # generic per-intent preamble — docs/TRIP_BRAIN_ARCHITECTURE.md's
+        # Explainability Strategy. Narrow, single-module intents never
+        # pass one, so they keep today's behaviour unchanged.
+        preamble = synthesis_note or self._PREAMBLES.get(intent, "I'm here to help.")
         parts: list[str] = [f"{prefix}{name_prefix}{preamble}"]
 
         for result in results:
@@ -63,7 +69,14 @@ class ResponseComposer:
             if section:
                 parts.append(section)
 
-        if not results:
+        # A FAILED result still renders no section (above), but is kept in
+        # `results` so its assumptions/risks propagate — see
+        # ConversationEngine._build_output. The "no results" fallback must
+        # therefore also fire when every result present is FAILED, the
+        # Total Failure Floor case (docs/TRIP_BRAIN_ARCHITECTURE.md's
+        # Failure Handling section), not just when `results` is literally
+        # empty.
+        if not any(r.status != AgentStatus.FAILED for r in results):
             parts.append(
                 "I'll bring in live data for flights, hotels, and pricing in a future sprint. "
                 "For now, I can give you cost estimates and destination insights."

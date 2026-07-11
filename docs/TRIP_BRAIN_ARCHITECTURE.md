@@ -338,6 +338,77 @@ graph TD
 > **Traveller:** "Plan a trip to Lagos for December."
 > **System:** Five modules succeed; Weather Intelligence's mock catalogue doesn't cover a destination the traveller meant informally — say the destination string didn't resolve — Trip Brain still returns flight, accommodation, budget, and visa results, with an assumption: "Weather and safety data wasn't available for this destination — check conditions closer to your travel date."
 
+## Implementation Notes (T-022)
+
+Implemented exactly as this document specifies. Where the architecture
+left a parameter unspecified, the concrete choice made is recorded here.
+
+**Package layout** — `ai/trip_brain/`: `context.py` (`ContextBuilder`/
+`TripBrainContext`), `module_selection.py` (`ModuleSelector`),
+`discovery_adapters.py` (the six, and only six, call sites into the
+Discovery modules), `confidence.py`, `conflicts.py`, `synthesis.py`,
+`models.py` (`UnifiedRecommendation`), `coordinator.py` (`TripBrain`).
+
+**Module relevance weights** — the Decision Lifecycle table doesn't
+assign numbers, only "central" vs. "supporting context". Implemented as
+two constants: `CORE_WEIGHT = 1.0` for Destination and Weather (always,
+once a destination is known) and Flight/Accommodation (once dates are
+also known); `SUPPORTING_WEIGHT = 0.7` for Budget (only added because a
+Goal carries a budget cap) and Visa (only added because nationality is
+unknown or differs from the destination). The "full trip shape → all
+six" row is implemented as an override: when destination, dates, and
+party size are all known, every module's weight is set to `CORE_WEIGHT`
+regardless of whether the Budget/Visa-specific triggers independently
+fired — a literal reading of that row as its own unconditional case, not
+a refinement of the other four rows.
+
+**"Party size known"** is true whenever a Goal's or Trip's `travellers`
+object has an `adults` count set — which is always true once a Goal
+exists, since `GoalService.create_from_conversation()` defaults
+`travellers.adults` to 1. In practice this means a `PLAN_TRIP` request
+with both a destination and any date signal reaches the "full trip
+shape" case and gets all six modules, matching the worked example in
+this document's "Example Conversations" section.
+
+**Confidence aggregation** matches the documented formula exactly:
+`weighted_average(per_module_confidence, weight=module_relevance) ×
+completion_penalty`, where the weighted average is taken only over
+*succeeded* modules (a failed module's 0.0 confidence never drags the
+average down — that's `completion_penalty`'s job, computed as
+`len(succeeded) / len(selected)`).
+
+**Conflict Resolution** implements exactly the one worked example in
+`docs/ORCHESTRATION_PATTERN.md` (Budget's `BEST_OVERALL` tier vs.
+Accommodation's `BEST_OVERALL` star rating) as a presentation-only
+assumption appended to the Accommodation result — no other conflict
+rules exist yet; extending this table is future work, not required for
+T-022.
+
+**`ResponseComposer` extension** — two additive changes only:
+1. An optional `synthesis_note` parameter to `compose()`, used in place
+   of the per-intent preamble when provided. Every existing caller
+   (all six narrow intents, plus any future caller that doesn't pass it)
+   is unaffected — `None` is the default and preserves prior behaviour
+   exactly.
+2. The "no results" fallback condition changed from `if not results:` to
+   `if not any(r.status != FAILED for r in results):` — the Total
+   Failure Floor. Backward-compatible: no pre-existing caller ever
+   produced an all-`FAILED` non-empty `results` list before Trip Brain
+   existed (the six narrow-intent private methods return `None`,
+   filtered out entirely, rather than a `FAILED` `AgentResult`), so this
+   is a strict behavioural improvement with no regression surface.
+
+**Bug found and fixed along the way** — `IntentClassifier._extract_entities`'s
+destination marker search took the *first* occurrence of `" to "` in the
+message, which collides with auxiliary "want to <verb>" / "need to
+<verb>" constructions ("I want to travel to Tokyo" → destination
+misread as "Travel"). Fixed by having the `"to "` marker keep scanning
+past known infinitive-verb candidates (`want`, `need`, `travel`, `fly`,
+`plan`, ...) for the real prepositional "to". This is the same class of
+shared-code bug T-020 already found and fixed twice in this method; it
+directly affects Trip Brain's primary entry point (`PLAN_TRIP`'s most
+natural phrasing), so it was fixed rather than worked around.
+
 ## Non-Goals (Explicitly Out of Scope for Trip Brain)
 
 - Trip Brain does not book anything (Commerce is Phase 6, per `docs/ROADMAP.md`).

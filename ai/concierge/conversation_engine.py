@@ -10,6 +10,7 @@ from ai.manager.travel_manager import travel_manager
 from ai.shared.agent_context import AgentContext
 from ai.shared.agent_result import AgentResult
 from ai.shared.agent_status import AgentStatus
+from ai.trip_brain.coordinator import trip_brain
 
 
 # ---------------------------------------------------------------------------
@@ -188,7 +189,27 @@ class ConversationEngine:
             if weather_result:
                 results = [weather_result]
 
-        if decision.has_enough_information and decision.requires_agents:
+        synthesis_note: str | None = None
+        confidence_override: float | None = None
+
+        # PLAN_TRIP — the broad-planning intent — routes through Trip Brain
+        # (ai/trip_brain/), which calls the six real Discovery modules
+        # directly, instead of TravelManager's placeholder specialist
+        # agents. See docs/ADR/ADR-017-trip-brain.md. TravelManager /
+        # AgentRegistry are left in place, unused for PLAN_TRIP, as a
+        # rollback path until T-023 removes them.
+        if classified.intent == Intent.PLAN_TRIP and decision.has_enough_information:
+            unified = await trip_brain.plan(
+                traveller_id=session.traveller_id,
+                trip_id=session.trip_id,
+                goal_id=session.goal_id,
+                entities=classified.entities,
+                profile=profile,
+            )
+            results = unified.results
+            synthesis_note = unified.synthesis_note
+            confidence_override = unified.overall_confidence
+        elif decision.has_enough_information and decision.requires_agents:
             ctx = AgentContext(
                 session_id=session.conversation_id,
                 traveller_id=session.traveller_id,
@@ -207,12 +228,14 @@ class ConversationEngine:
             )
 
         response_text = self._composer.compose(
-            classified.intent, decision, results, traveller_name
+            classified.intent, decision, results, traveller_name, synthesis_note=synthesis_note
         )
         session.add_message("assistant", response_text, intent=classified.intent.value)
         self._store.save(session)
 
-        return self._build_output(session, classified, decision, results, response_text)
+        return self._build_output(
+            session, classified, decision, results, response_text, confidence_override
+        )
 
     # ------------------------------------------------------------------
 
@@ -223,6 +246,7 @@ class ConversationEngine:
         decision: Decision,
         results: list[AgentResult],
         response_text: str,
+        confidence_override: float | None = None,
     ) -> dict[str, Any]:
         all_assumptions = list(decision.assumptions)
         all_missing = list(decision.follow_up_questions)
@@ -233,8 +257,12 @@ class ConversationEngine:
             all_missing.extend(r.missing_information)
             all_next_actions.extend(r.next_actions)
 
-        # Average agent confidence when agents ran; fall back to classifier confidence.
-        if results:
+        # Trip Brain supplies its own weighted, completion-penalized
+        # confidence (docs/TRIP_BRAIN_ARCHITECTURE.md's Confidence
+        # Propagation) rather than a flat average across module results.
+        if confidence_override is not None:
+            confidence = confidence_override
+        elif results:
             confidence = sum(r.confidence for r in results) / len(results)
         else:
             confidence = classified.confidence

@@ -64,3 +64,7 @@ Recorded here for continuity into the next tasks; not built as part of T-021.
 - **T-023 — Legacy orchestration cleanup.** A distinct, later task: remove `ai/manager/`, `ai/registry/`, and the five placeholder agent files, once T-022 has been fully implemented and verified. Not started until T-022 is done.
 
 See the companion review's "Suggested Implementation Order" for T-022's phased breakdown.
+
+## Implementation Status (2026-07-11)
+
+T-022 is complete — `ai/trip_brain/` implements every decision above exactly as written; see `docs/TASK_TRACKER.md`'s T-022 entry and `docs/TRIP_BRAIN_ARCHITECTURE.md`'s "Implementation Notes (T-022)" section for the concrete module-relevance weights, confidence formula, and file layout the architecture above left as free parameters. `ai/manager/`, `ai/registry/`, and the five placeholder agents are confirmed untouched (`git status` shows zero diff under those paths). T-023 is unblocked but not started.
