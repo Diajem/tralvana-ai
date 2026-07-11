@@ -397,4 +397,15 @@ class FlightIntelligence:
         )
 
 
-flight_intelligence = FlightIntelligence()
+# Routed through the Intelligence Gateway (T-025) — GatewayFlightProvider
+# implements this same .search() interface and calls
+# intelligence_gateway.execute() instead of MockFlightProvider directly,
+# so caching/retry/failover/observability apply. Imported here, after
+# MockFlightProvider is already defined above, to avoid a circular import
+# (travelos/intelligence_gateway/discovery_adapters.py lazily imports
+# MockFlightProvider from this module to build its gateway-contract
+# wrapper). Deterministic mock data, byte-identical output — see
+# docs/INTELLIGENCE_GATEWAY.md's Discovery Integration section.
+from travelos.intelligence_gateway.discovery_adapters import GatewayFlightProvider  # noqa: E402
+
+flight_intelligence = FlightIntelligence(provider=GatewayFlightProvider())

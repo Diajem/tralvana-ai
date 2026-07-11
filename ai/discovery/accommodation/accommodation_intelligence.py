@@ -236,4 +236,9 @@ class AccommodationIntelligence:
         )
 
 
-accommodation_intelligence = AccommodationIntelligence()
+# Routed through the Intelligence Gateway (T-025) — see the matching
+# comment in ai/discovery/flights/flight_intelligence.py for why this
+# import is placed here rather than at the top of the file.
+from travelos.intelligence_gateway.discovery_adapters import GatewayAccommodationProvider  # noqa: E402
+
+accommodation_intelligence = AccommodationIntelligence(provider=GatewayAccommodationProvider())

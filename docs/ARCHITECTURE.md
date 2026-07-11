@@ -108,12 +108,27 @@ The system is built for orchestration, not integration. Every capability is expr
 ┌──────▼──────┐ ┌─────▼──────┐ ┌────▼──────┐
 │   AGENTS    │ │ DISCOVERY  │ │  MEMORY   │
 │  ai/agents/ │ │ai/discovery/│ │ ai/memory/│
-└─────────────┘ └────────────┘ └───────────┘
+└─────────────┘ └─────┬──────┘ └───────────┘
+                       │ provider access (Flight/Accommodation/Weather)
+                ┌──────▼───────────────────┐
+                │   INTELLIGENCE GATEWAY   │
+                │ travelos/intelligence_gateway/ │
+                │ contract · registry ·    │
+                │ selection · cache ·      │
+                │ retry · failover ·       │
+                │ rate limit               │
+                └──────┬────────────────────┘
+                       │
+                ┌──────▼──────┐
+                │Mock Provider│  (future: live provider, same contract)
+                └─────────────┘
 ```
 
 `PLAN_TRIP` is the only intent Trip Brain handles; `TravelManager`/`AgentRegistry` remain the active dispatcher for the four intents above. See `docs/TRIP_BRAIN_ARCHITECTURE.md` and `docs/ADR/ADR-018-legacy-orchestration-retirement.md` for why full retirement of `ai/manager/`/`ai/registry/` is not yet possible.
 
 Trip Brain's `plan()` also calls the Explainability Engine once per request, right after merging module results — see `docs/EXPLAINABILITY_ENGINE.md` and `docs/ADR/ADR-019-explainability-engine.md`. It is presentation-only: it explains `ai/discovery/` and Trip Brain's existing output, never scores or recommends anything itself.
+
+Three of the six Discovery modules (Flight, Accommodation, Weather) obtain their provider through the Intelligence Gateway (`travelos/intelligence_gateway/`) rather than constructing a mock provider directly — see `docs/INTELLIGENCE_GATEWAY.md` and `docs/ADR/ADR-020-intelligence-gateway.md`. Only Discovery modules call the gateway; the Trip Brain is never wired to a provider directly, preserving the same layering ADR-017 established.
 
 ---
 
@@ -147,6 +162,12 @@ tralvana-ai/
 │   ├── registry/         AgentRegistry — agent name → class lookup
 │   ├── shared/           Canonical AgentContext / AgentResult / AgentStatus types
 │   └── memory/           Profile schema, memory adapters
+│
+├── travelos/              Platform layer — SDK, DI container, service registry,
+│   │                      configuration, structured logging, event bus (docs/PLATFORM_LAYER.md)
+│   └── intelligence_gateway/  Provider-access infrastructure — mock/future-live
+│                          knowledge sources behind one contract, with caching,
+│                          retry, failover, and rate limiting (docs/INTELLIGENCE_GATEWAY.md)
 │
 ├── docs/                 Architecture authority (this folder)
 ├── handoff/              Agent-to-agent start documents

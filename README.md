@@ -11,17 +11,23 @@ tralvana-ai/
 ├── services/
 │   └── api/          # FastAPI backend
 ├── ai/
-│   ├── agents/       # Specialist agents (flight, hotel, budget, visa, experience)
-│   ├── concierge/    # Intent classifier, decision engine, conversation engine
-│   ├── intelligence/ # Traveller DNA, knowledge graph
-│   ├── manager/      # TravelManager orchestrator
-│   ├── memory/       # Traveller intelligence service
-│   ├── orchestration/ # Workflow orchestration
-│   ├── planning/     # Trip planner, itinerary builder, budget estimator
-│   ├── registry/     # Agent registry
-│   └── tests/        # AI unit tests
-├── travelos/         # Platform layer (SDK, events, config, logging, DI)
-├── docs/             # Architecture docs, ADRs, task tracker
+│   ├── agents/         # Specialist agents (flight, hotel, budget, visa, experience) —
+│   │                   #   still live for MODIFY_TRIP/DESTINATION_QUESTION/TRAVEL_ADVICE/BUDGET_ADVICE
+│   ├── concierge/      # Intent classifier, decision engine, conversation engine
+│   ├── discovery/      # Six Discovery Layer modules (flights, accommodation, destinations,
+│   │                   #   budget, visa, weather)
+│   ├── trip_brain/     # Trip Brain — orchestrates the six Discovery modules for PLAN_TRIP
+│   ├── explainability/ # Explainability Engine — traveller-facing drivers/trade-offs/confidence
+│   ├── intelligence/   # Traveller DNA, knowledge graph
+│   ├── manager/        # TravelManager orchestrator
+│   ├── memory/         # Traveller intelligence service
+│   ├── planning/       # Trip planner, itinerary builder, budget estimator
+│   ├── registry/       # Agent registry
+│   └── tests/          # AI unit tests
+├── travelos/           # Platform layer (SDK, events, config, logging, DI)
+│   └── intelligence_gateway/  # Provider-access infrastructure — contract, registry,
+│                       #   selection, cache, retry, failover, rate limiting
+├── docs/               # Architecture docs, ADRs, task tracker
 └── docker-compose.yml
 ```
 
@@ -74,6 +80,7 @@ Run by suite:
 ```bash
 pytest services/api/tests/    # backend endpoints
 pytest ai/tests/              # AI classifiers and planner
+pytest travelos/tests/        # platform layer (Intelligence Gateway)
 ```
 
 No external services required — all tests run against in-memory stores.

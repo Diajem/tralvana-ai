@@ -143,6 +143,8 @@ T-012 established `services/api/tests/` and `ai/tests/`, but the platform layer 
 
 **Resolution**: Tracked as backlog item **T-012A — Platform Layer Test Coverage** (`TASK_TRACKER.md`). Deliberately scheduled after T-014 (repository refactoring) so it doesn't delay current progress. Add `travelos/tests/` mirroring the module structure (`test_event_bus.py`, `test_service_registry.py`, `test_configuration_manager.py`, `test_result.py`, `test_container.py`, etc.).
 
+**Partial progress (T-025, 2026-07-11)**: `travelos/tests/` now exists, created for the new `travelos/intelligence_gateway/` package (110 tests — registration, selection, cache, retry, failover, rate limiting, secrets, discovery-adapter determinism) and registered in `pytest.ini`. SDK, `ServiceRegistry`, `ConfigurationManager` (beyond the five new intelligence-gateway properties, exercised only indirectly), `EventBus`, and the `shared/` types still have zero direct tests — T-012A remains open for those.
+
 ---
 
 ### TD-016 — Frontend ESLint config references unregistered rule, blocks lint/build
@@ -271,6 +273,47 @@ investigation.
 
 ---
 
+### TD-019 — Destinations, Budget, Visa not yet wired to the Intelligence Gateway
+**Severity**: Low
+**Status**: Open
+**Introduced**: T-025
+
+T-025 built the Intelligence Gateway and wired the three minimum-required
+providers (Flight, Accommodation, Weather). Destination, Budget, and Visa
+Intelligence still construct their `Mock*Provider` directly, bypassing
+the gateway's caching/retry/failover/observability entirely — not a
+technical blocker, just deferred to keep T-025's diff reviewable (see
+`docs/INTELLIGENCE_GATEWAY.md`'s Deferred Integrations section and
+ADR-020).
+
+**Files affected**: `ai/discovery/destinations/destination_intelligence.py`,
+`ai/discovery/budget/budget_intelligence.py`, `ai/discovery/visa/visa_intelligence.py`.
+
+**Resolution**: Extend `travelos/intelligence_gateway/discovery_adapters.py`
+with three more gateway-contract wrappers and drop-in `Gateway*Provider`
+adapters, following the exact pattern already proven for Flight/
+Accommodation/Weather. No new gateway capability is needed — `Capability.DESTINATIONS`/
+`BUDGET`/`VISA` already exist.
+
+---
+
+### TD-020 — Maps, Currency, Events capabilities have no provider
+**Severity**: Low
+**Status**: Open
+**Introduced**: T-025
+
+`Capability.MAPS`/`CURRENCY`/`EVENTS` exist in
+`travelos/intelligence_gateway/provider_status.py` (per T-025's explicit
+capability list) but no Discovery module or mock provider exists yet for
+any of them — there is nothing to register. Not a bug; the registry and
+selector are simply ready the moment a real module for one of these
+domains is built.
+
+**Resolution**: No action needed until a Maps/Currency/Events Discovery
+module is scoped as its own task.
+
+---
+
 ## Resolved Items
 
 | ID | Description | Resolved in | Commit |
@@ -292,6 +335,6 @@ investigation.
 
 | Sprint | Items to close |
 |--------|---------------|
-| Sprint 2 | ~~TD-001, TD-002, TD-003, TD-004, TD-005, TD-016, TD-017~~ — all closed in T-014; TD-015 (platform layer tests) remains open, tracked as T-012A; TD-018 (legacy orchestration retirement blocked on T-032) opened in T-023 |
-| Sprint 3 | TD-006 (AI↔API boundary), TD-010 (static KG enrichment), TD-011 (traveller domain), TD-013 (pagination) |
-| Sprint 4+ | TD-009 (demo isolation), TD-012 (ontology split), TD-014 (infra), TD-018 (legacy orchestration, pending T-032) |
+| Sprint 2 | ~~TD-001, TD-002, TD-003, TD-004, TD-005, TD-016, TD-017~~ — all closed in T-014; TD-015 (platform layer tests) partially addressed in T-025, remains open for SDK/EventBus/shared types, tracked as T-012A; TD-018 (legacy orchestration retirement blocked on T-032) opened in T-023; TD-019/TD-020 (deferred Intelligence Gateway integrations) opened in T-025 |
+| Sprint 3 | TD-006 (AI↔API boundary), TD-010 (static KG enrichment), TD-011 (traveller domain), TD-013 (pagination), TD-019 (wire remaining Discovery providers to the gateway) |
+| Sprint 4+ | TD-009 (demo isolation), TD-012 (ontology split), TD-014 (infra), TD-018 (legacy orchestration, pending T-032), TD-020 (Maps/Currency/Events providers, pending new Discovery modules) |

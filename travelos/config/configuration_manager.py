@@ -122,5 +122,47 @@ class ConfigurationManager:
         """Read any environment variable with an optional default."""
         return os.environ.get(key, default)
 
+    # ------------------------------------------------------------------
+    # Intelligence Gateway settings (T-025) — see docs/INTELLIGENCE_GATEWAY.md.
+    # All environment-variable-driven with development-safe defaults;
+    # none of these ever hold a credential themselves — see
+    # travelos/intelligence_gateway/secret_reference.py for that.
+    # ------------------------------------------------------------------
+
+    @property
+    def provider_environment(self) -> str:
+        """MOCK / SANDBOX / PRODUCTION — which provider environment the
+        Intelligence Gateway selects from. Defaults to MOCK everywhere
+        except production, where it must be explicitly set."""
+        default = "MOCK" if not self.is_production else "PRODUCTION"
+        return os.environ.get("PROVIDER_ENVIRONMENT", default).upper()
+
+    @property
+    def cache_enabled(self) -> bool:
+        return self._bool_env("PROVIDER_CACHE_ENABLED", default=True)
+
+    @property
+    def retry_enabled(self) -> bool:
+        return self._bool_env("PROVIDER_RETRY_ENABLED", default=True)
+
+    @property
+    def default_provider_priority(self) -> int:
+        """Priority assigned to a provider that doesn't specify its own —
+        lower runs first (docs/PROVIDER_SELECTION.md)."""
+        raw = os.environ.get("PROVIDER_DEFAULT_PRIORITY")
+        return int(raw) if raw else 100
+
+    def provider_override_for(self, capability_name: str) -> str | None:
+        """Force a specific provider name for one capability, e.g.
+        PROVIDER_FLIGHTS=some_other_mock_provider. Unset by default —
+        the registry's own priority order applies."""
+        return os.environ.get(f"PROVIDER_{capability_name.upper()}")
+
+    def _bool_env(self, name: str, default: bool) -> bool:
+        raw = os.environ.get(name)
+        if raw is None:
+            return default
+        return raw.strip().lower() in ("1", "true", "yes", "on")
+
 
 config = ConfigurationManager.get_instance()
