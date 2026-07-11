@@ -20,6 +20,10 @@ _AGENT_MAP: dict[Intent, list[str]] = {
     Intent.DESTINATION_QUESTION: ["experience_agent"],
     Intent.TRAVEL_ADVICE: ["experience_agent"],
     Intent.BUDGET_ADVICE: ["budget_agent"],
+    # Never needs agents — it explains a recommendation Trip Brain already
+    # produced (ai/explainability/), reading session state instead of
+    # dispatching anything new.
+    Intent.EXPLAIN_RECOMMENDATION: [],
     Intent.VIEW_PROFILE: [],
     Intent.UPDATE_PREFERENCES: [],
     Intent.GENERAL_CONVERSATION: [],

@@ -16,6 +16,7 @@ class Intent(str, Enum):
     DESTINATION_QUESTION = "DESTINATION_QUESTION"
     TRAVEL_ADVICE = "TRAVEL_ADVICE"
     BUDGET_ADVICE = "BUDGET_ADVICE"
+    EXPLAIN_RECOMMENDATION = "EXPLAIN_RECOMMENDATION"
     GENERAL_CONVERSATION = "GENERAL_CONVERSATION"
 
 
@@ -63,6 +64,19 @@ _PATTERNS: list[tuple[Intent, list[str]]] = [
         "will it rain", "weather in", "climate in", "hurricane season",
         "typhoon season", "rainy season", "best time to visit", "best time to go",
         "avoid hurricane", "avoid typhoon", "weather forecast for",
+    ]),
+    (Intent.EXPLAIN_RECOMMENDATION, [
+        # Placed before PLAN_TRIP/TRAVEL_ADVICE/BUDGET_ADVICE — those
+        # patterns are broad enough ("recommend", "how much") to otherwise
+        # swallow a follow-up question about a recommendation just made.
+        "why did you recommend", "why did you suggest", "why was this recommended",
+        "why was that recommended", "why not the cheaper", "why not a cheaper",
+        "why not cheaper", "what assumptions did you make", "what assumptions",
+        "how confident are you", "how confident is that", "what would change your answer",
+        "what would change the recommendation", "what would change your recommendation",
+        "explain your recommendation", "explain this recommendation", "explain that recommendation",
+        "explain your answer", "why this option", "why that option",
+        "why did you pick", "why did you choose",
     ]),
     (Intent.PLAN_TRIP, [
         "plan a trip", "book a flight", "book flights", "fly to",

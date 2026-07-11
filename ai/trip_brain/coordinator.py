@@ -13,6 +13,11 @@ has no scoring, ranking, or domain reasoning of its own. Every module call
 goes through ai/trip_brain/discovery_adapters.py, which calls exactly the
 same public service.recommend()/check()/analyse() entrypoint
 ConversationEngine already calls for narrow intents.
+
+The Explainability Engine runs last, after merge/conflict resolution and
+confidence aggregation (docs/EXPLAINABILITY_ENGINE.md's Trip Brain
+Integration section) — it only reads the results/conflicts/confidence
+already produced above, never changes them.
 """
 
 from __future__ import annotations
@@ -20,6 +25,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+from ai.explainability.explainability_engine import explainability_engine
 from ai.shared.agent_result import AgentResult
 from ai.shared.agent_status import AgentStatus
 from ai.trip_brain.confidence import aggregate_confidence
@@ -65,7 +71,7 @@ class TripBrain:
             name for name in weights if module_results[name].status == AgentStatus.FAILED
         ]
 
-        detect_conflicts(module_results)
+        conflicts = detect_conflicts(module_results)
 
         overall_confidence = aggregate_confidence(
             {name: module_results[name].confidence for name in weights},
@@ -79,6 +85,15 @@ class TripBrain:
             module_results[name] for name in ALL_MODULES if name in module_results
         ]
 
+        explanation = explainability_engine.explain(
+            ordered_results,
+            overall_confidence=overall_confidence,
+            modules_selected=list(weights.keys()),
+            modules_failed=modules_failed,
+            conflicts=conflicts,
+            destination=context.destination,
+        )
+
         return UnifiedRecommendation(
             results=ordered_results,
             modules_selected=list(weights.keys()),
@@ -86,6 +101,9 @@ class TripBrain:
             modules_failed=modules_failed,
             overall_confidence=overall_confidence,
             synthesis_note=synthesis_note,
+            conflicts=conflicts,
+            explanation=explanation,
+            destination=context.destination,
         )
 
     async def _run_modules(

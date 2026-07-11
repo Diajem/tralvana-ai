@@ -1,6 +1,7 @@
 import { getTripPlan } from "@/lib/api";
 import type { TripPlan, DayPlan, TripRisk, BudgetBreakdown } from "@/types/trip";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 
 // ------------------------------------------------------------------
 // Sub-components
@@ -195,6 +196,13 @@ export default async function TripPlanPage({
           <div className="mt-6">
             <ConfidenceBar confidence={trip.confidence} />
           </div>
+
+          <Link
+            href={`/explain?trip_id=${trip.trip_id}`}
+            className="mt-4 inline-block text-xs font-medium text-blue-600 hover:text-blue-700"
+          >
+            Why was this recommended? →
+          </Link>
         </div>
 
         {/* Missing info */}

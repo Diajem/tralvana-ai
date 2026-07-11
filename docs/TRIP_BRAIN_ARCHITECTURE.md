@@ -411,9 +411,27 @@ shared-code bug T-020 already found and fixed twice in this method; it
 directly affects Trip Brain's primary entry point (`PLAN_TRIP`'s most
 natural phrasing), so it was fixed rather than worked around.
 
+## Explainability Engine Integration (T-024)
+
+`ai/trip_brain/coordinator.py`'s `TripBrain.plan()` now calls the
+Explainability Engine (`ai/explainability/`) once, immediately after
+conflict resolution and confidence aggregation, and attaches the result
+to `UnifiedRecommendation.explanation` — the pipeline stage this
+document's Orchestration Lifecycle diagram didn't yet name when first
+written: `Discovery Modules → Trip Brain → Explainability Engine →
+Response Composer → Traveller`. `UnifiedRecommendation` gained three
+fields: `conflicts` (previously computed and discarded by the
+Coordinator), `explanation` (the structured dict), and `destination`
+(carried alongside so a caller re-deriving only the question-sensitive
+summary line doesn't lose it). See `docs/EXPLAINABILITY_ENGINE.md` for
+the full design and `docs/ADR/ADR-019-explainability-engine.md` for the
+decisions. This is purely additive — no Discovery module score, ranking,
+or `top_option` selection changes as a result.
+
 ## Non-Goals (Explicitly Out of Scope for Trip Brain)
 
 - Trip Brain does not book anything (Commerce is Phase 6, per `docs/ROADMAP.md`).
 - Trip Brain does not learn or adapt scoring weights — that stays inside each Discovery module's deterministic Scorer, unchanged.
 - Trip Brain does not introduce a vector store, embeddings, or RAG — that is Phase 5's separate, larger initiative (see `docs/EPIC3_ARCHITECTURE.md`).
 - Trip Brain does not replace `ai/planning/trip_planner.py`'s itinerary assembly — it *feeds* it real Discovery Layer data instead of static estimates (see `docs/ORCHESTRATION_PATTERN.md`).
+- Trip Brain does not explain its own output — that is the Explainability Engine's job (T-024, above), kept as a separate, presentation-only layer for the same reason Trip Brain itself is separate from the Discovery Layer.

@@ -42,6 +42,22 @@ def _top_option(options: list[dict[str, Any]]) -> dict[str, Any]:
     )
 
 
+def _cheaper_alternative(
+    options: list[dict[str, Any]], top: dict[str, Any], cheap_label: str, id_field: str
+) -> dict[str, Any] | None:
+    """
+    The module's own cheapest-labelled option (already computed and
+    labelled by its labelling algorithm, docs/DISCOVERY_LAYER_PATTERN.md —
+    not a new score), if one exists and differs from the top pick. Lets
+    ai/explainability/tradeoff_analyser.py compare "what was recommended"
+    vs. "the cheaper option that wasn't" using only fields already present.
+    """
+    alt = next((o for o in options if o.get("recommendation_type") == cheap_label), None)
+    if not alt or not top or alt.get(id_field) == top.get(id_field):
+        return None
+    return alt
+
+
 def _failed(agent_name: str, exc: Exception) -> AgentResult:
     return AgentResult(
         agent_name=agent_name,
@@ -74,6 +90,7 @@ def run_flight_intelligence(context: TripBrainContext) -> AgentResult:
             "origin": output["origin"],
             "destination": output["destination"],
             "top_option": top,
+            "alternative_option": _cheaper_alternative(options, top, "LOWEST_PRICE", "flight_option_id"),
             "flight_option_ids": [f["flight_option_id"] for f in options],
         },
         assumptions=output["assumptions"],
@@ -104,6 +121,7 @@ def run_accommodation_intelligence(context: TripBrainContext) -> AgentResult:
             "count": len(options),
             "destination": output["destination"],
             "top_option": top,
+            "alternative_option": _cheaper_alternative(options, top, "BEST_BUDGET", "accommodation_option_id"),
             "accommodation_option_ids": [a["accommodation_option_id"] for a in options],
         },
         assumptions=output["assumptions"],
@@ -164,6 +182,7 @@ def run_budget_intelligence(context: TripBrainContext) -> AgentResult:
             "count": len(options),
             "destination": output["destination"],
             "top_option": top,
+            "alternative_option": _cheaper_alternative(options, top, "LOWEST_COST", "budget_option_id"),
             "budget_option_ids": [o["budget_option_id"] for o in options],
         },
         assumptions=output["assumptions"],

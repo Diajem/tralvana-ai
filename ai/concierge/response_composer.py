@@ -30,6 +30,7 @@ class ResponseComposer:
         Intent.DESTINATION_QUESTION: "Here's what I know about that destination.",
         Intent.TRAVEL_ADVICE: "Here's my travel advice.",
         Intent.BUDGET_ADVICE: "Here's my budget overview.",
+        Intent.EXPLAIN_RECOMMENDATION: "Here's why I made that recommendation.",
         Intent.GENERAL_CONVERSATION: (
             "I'm Tralvana, your AI travel concierge. "
             "I can help you plan trips, explore destinations, review budgets, and more."

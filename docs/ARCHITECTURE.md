@@ -94,6 +94,9 @@ The system is built for orchestration, not integration. Every capability is expr
 │   ai/concierge/  intent, decision, conversation engine    │
 │   ai/trip_brain/ Trip Brain — PLAN_TRIP orchestration,    │
 │                   calls the six Discovery modules         │
+│   ai/explainability/ Explainability Engine — turns Trip   │
+│                   Brain's merged results into traveller-  │
+│                   facing drivers/trade-offs/confidence     │
 │   ai/manager/    TravelManager — dispatches via registry, │
 │                   still active for MODIFY_TRIP,           │
 │                   DESTINATION_QUESTION, TRAVEL_ADVICE,    │
@@ -109,6 +112,8 @@ The system is built for orchestration, not integration. Every capability is expr
 ```
 
 `PLAN_TRIP` is the only intent Trip Brain handles; `TravelManager`/`AgentRegistry` remain the active dispatcher for the four intents above. See `docs/TRIP_BRAIN_ARCHITECTURE.md` and `docs/ADR/ADR-018-legacy-orchestration-retirement.md` for why full retirement of `ai/manager/`/`ai/registry/` is not yet possible.
+
+Trip Brain's `plan()` also calls the Explainability Engine once per request, right after merging module results — see `docs/EXPLAINABILITY_ENGINE.md` and `docs/ADR/ADR-019-explainability-engine.md`. It is presentation-only: it explains `ai/discovery/` and Trip Brain's existing output, never scores or recommends anything itself.
 
 ---
 
@@ -134,6 +139,8 @@ tralvana-ai/
 │   ├── discovery/        Six Discovery Layer modules (flights, accommodation,
 │   │                     destinations, budget, visa, weather) — real, explainable
 │   ├── trip_brain/       Trip Brain — orchestrates the six Discovery modules for PLAN_TRIP
+│   ├── explainability/   Explainability Engine — turns Trip Brain/Discovery reasoning
+│   │                     into traveller-facing drivers, trade-offs, and confidence
 │   ├── manager/          TravelManager — dispatches to agents via the registry;
 │   │                     active for MODIFY_TRIP/DESTINATION_QUESTION/TRAVEL_ADVICE/
 │   │                     BUDGET_ADVICE only, not PLAN_TRIP (see ADR-018)

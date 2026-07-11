@@ -20,6 +20,7 @@ import type {
 } from "@/types/budget";
 import type { CheckVisaRequest, VisaAssessment } from "@/types/visa";
 import type { AnalyseWeatherRequest, WeatherAssessment } from "@/types/weather";
+import type { Explanation, ExplainRequest } from "@/types/explain";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -344,6 +345,22 @@ export async function getTripWeather(tripId: string): Promise<WeatherAssessment[
   });
   if (!res.ok) {
     throw new Error(`Failed to load trip weather assessments: ${res.status}`);
+  }
+  return res.json();
+}
+
+// ------------------------------------------------------------------
+// Explainability API
+// ------------------------------------------------------------------
+
+export async function explainRecommendation(data: ExplainRequest): Promise<Explanation> {
+  const res = await fetch(`${BASE_URL}/explain`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to get explanation: ${res.status}`);
   }
   return res.json();
 }

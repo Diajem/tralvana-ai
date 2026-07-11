@@ -6,11 +6,13 @@ from typing import Any
 from ai.concierge.decision_engine import Decision, DecisionEngine
 from ai.concierge.intent_classifier import Intent, IntentClassifier
 from ai.concierge.response_composer import ResponseComposer
+from ai.explainability.explainability_engine import explainability_engine
 from ai.manager.travel_manager import travel_manager
 from ai.shared.agent_context import AgentContext
 from ai.shared.agent_result import AgentResult
 from ai.shared.agent_status import AgentStatus
 from ai.trip_brain.coordinator import trip_brain
+from ai.trip_brain.models import UnifiedRecommendation
 
 
 # ---------------------------------------------------------------------------
@@ -37,6 +39,12 @@ class ConversationSession:
     active_goal: str | None = None
     pending_questions: list[str] = field(default_factory=list)
     context_summary: str = ""
+    # The most recent Trip Brain result for this conversation, cached so
+    # EXPLAIN_RECOMMENDATION follow-ups (and POST /explain) can reuse it
+    # without re-running the six Discovery modules
+    # (docs/EXPLAINABILITY_ENGINE.md's Conversation Integration section).
+    # Narrow, single-module intents don't populate this — only PLAN_TRIP.
+    last_recommendation: UnifiedRecommendation | None = None
 
     def add_message(self, role: str, content: str, intent: str | None = None) -> None:
         now = datetime.now(timezone.utc).isoformat()
@@ -73,6 +81,12 @@ class _SessionStore:
 
     def save(self, session: ConversationSession) -> None:
         self._sessions[session.conversation_id] = session
+
+    def get(self, conversation_id: str) -> ConversationSession | None:
+        return self._sessions.get(conversation_id)
+
+    def find_by_trip_id(self, trip_id: str) -> ConversationSession | None:
+        return next((s for s in self._sessions.values() if s.trip_id == trip_id), None)
 
 
 # ---------------------------------------------------------------------------
@@ -212,6 +226,7 @@ class ConversationEngine:
             results = unified.results
             synthesis_note = unified.synthesis_note
             confidence_override = unified.overall_confidence
+            session.last_recommendation = unified
         elif decision.has_enough_information and decision.requires_agents:
             ctx = AgentContext(
                 session_id=session.conversation_id,
@@ -230,9 +245,39 @@ class ConversationEngine:
                 },
             )
 
-        response_text = self._composer.compose(
-            classified.intent, decision, results, traveller_name, synthesis_note=synthesis_note
-        )
+        # EXPLAIN_RECOMMENDATION — a follow-up about the most recent Trip
+        # Brain result in this conversation (ai/explainability/). Never
+        # re-runs any Discovery module or Trip Brain — it only reads and
+        # phrases what session.last_recommendation already computed
+        # (docs/EXPLAINABILITY_ENGINE.md's Conversation Integration
+        # section). response_text is composed directly by
+        # ExplainabilityEngine.answer_question() rather than
+        # ResponseComposer.compose() — compose() would re-render every
+        # module's full section verbatim on every follow-up (its
+        # `_section_for` loop over `results`), which buries the actual
+        # answer under a repeat of the original PLAN_TRIP response.
+        # `results` is still kept so assumptions/missing_information from
+        # the underlying recommendation continue to populate the response
+        # envelope below (_build_output) — only the chat text bypasses
+        # ResponseComposer, which is otherwise unchanged for every intent.
+        response_text: str | None = None
+        if classified.intent == Intent.EXPLAIN_RECOMMENDATION:
+            if session.last_recommendation is None:
+                response_text = (
+                    "I don't have a recent recommendation to explain yet — ask me to plan "
+                    "a trip, and I'll be able to walk you through why once I have."
+                )
+            else:
+                results = session.last_recommendation.results
+                response_text = explainability_engine.answer_question(
+                    session.last_recommendation.explanation, message
+                )
+                confidence_override = session.last_recommendation.explanation["confidence"]
+
+        if response_text is None:
+            response_text = self._composer.compose(
+                classified.intent, decision, results, traveller_name, synthesis_note=synthesis_note
+            )
         session.add_message("assistant", response_text, intent=classified.intent.value)
         self._store.save(session)
 
@@ -282,6 +327,16 @@ class ConversationEngine:
             "goal_id": session.goal_id,
             "trip_id": session.trip_id,
         }
+
+    def get_session(self, conversation_id: str) -> ConversationSession | None:
+        """Look up a session by id — used by POST /explain to reuse the
+        latest Trip Brain result instead of recomputing it."""
+        return self._store.get(conversation_id)
+
+    def get_session_by_trip_id(self, trip_id: str) -> ConversationSession | None:
+        """Same as get_session, keyed by trip_id instead of conversation_id
+        — for callers that only have the trip, not the conversation."""
+        return self._store.find_by_trip_id(trip_id)
 
     def _update_session(
         self, session: ConversationSession, intent: Intent, decision: Decision
