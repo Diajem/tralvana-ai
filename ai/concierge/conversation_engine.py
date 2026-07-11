@@ -195,9 +195,12 @@ class ConversationEngine:
         # PLAN_TRIP — the broad-planning intent — routes through Trip Brain
         # (ai/trip_brain/), which calls the six real Discovery modules
         # directly, instead of TravelManager's placeholder specialist
-        # agents. See docs/ADR/ADR-017-trip-brain.md. TravelManager /
-        # AgentRegistry are left in place, unused for PLAN_TRIP, as a
-        # rollback path until T-023 removes them.
+        # agents. See docs/ADR/ADR-017-trip-brain.md and ADR-018. Below,
+        # TravelManager / AgentRegistry remain the live dispatcher for
+        # MODIFY_TRIP, DESTINATION_QUESTION, TRAVEL_ADVICE, and
+        # BUDGET_ADVICE — they were never made unused, only bypassed for
+        # PLAN_TRIP specifically (T-023 investigated full retirement and
+        # found this branch still load-bearing; see ADR-018).
         if classified.intent == Intent.PLAN_TRIP and decision.has_enough_information:
             unified = await trip_brain.plan(
                 traveller_id=session.traveller_id,

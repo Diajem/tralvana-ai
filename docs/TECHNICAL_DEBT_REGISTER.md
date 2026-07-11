@@ -237,6 +237,40 @@ The traveller profile routes live in `services/api/app/routers/traveller.py` and
 
 ---
 
+### TD-018 — Legacy specialist-agent orchestration still live for four intents
+**Severity**: Medium
+**Status**: Open
+**Introduced**: T-001B (Sprint 0); misdiagnosed as retirable in ADR-017 (T-021)
+
+`ai/manager/TravelManager`, `ai/registry/AgentRegistry`, and the five
+placeholder agents (`ai/agents/{flight,hotel,budget,experience,visa}_agent.py`)
+were expected, per ADR-017 and the original `docs/TASK_TRACKER.md` T-023
+entry, to be dormant rollback code once Trip Brain (T-022) shipped, ready
+for wholesale deletion. T-023's investigation found this was wrong:
+`ConversationEngine.process()` still dispatches `MODIFY_TRIP`,
+`DESTINATION_QUESTION`, `TRAVEL_ADVICE`, and `BUDGET_ADVICE` through
+`travel_manager.execute()` — Trip Brain only ever superseded `PLAN_TRIP`.
+These four intents return static "pending_live_data" stub output from
+Sprint-1 placeholder agents, the same limitation `PLAN_TRIP` had before
+T-022.
+
+**Files affected**:
+- `ai/manager/travel_manager.py`
+- `ai/registry/agent_registry.py`
+- `ai/agents/{flight,hotel,budget,experience,visa}_agent.py`
+- `ai/concierge/decision_engine.py` (`_AGENT_MAP` entries for these four intents)
+
+**Resolution**: Tracked as backlog item **T-032 — Migrate remaining
+intents off legacy TravelManager** (`docs/TASK_TRACKER.md`). Once
+`MODIFY_TRIP`/`DESTINATION_QUESTION`/`TRAVEL_ADVICE`/`BUDGET_ADVICE` have a
+real Discovery-module or Trip Brain equivalent, `ai/manager/`,
+`ai/registry/`, and the five placeholder agents become genuinely unused and
+can be deleted — the deletion T-023 was originally asked to perform. See
+`docs/ADR/ADR-018-legacy-orchestration-retirement.md` for the full
+investigation.
+
+---
+
 ## Resolved Items
 
 | ID | Description | Resolved in | Commit |
@@ -258,6 +292,6 @@ The traveller profile routes live in `services/api/app/routers/traveller.py` and
 
 | Sprint | Items to close |
 |--------|---------------|
-| Sprint 2 | ~~TD-001, TD-002, TD-003, TD-004, TD-005, TD-016, TD-017~~ — all closed in T-014; TD-015 (platform layer tests) remains open, tracked as T-012A |
+| Sprint 2 | ~~TD-001, TD-002, TD-003, TD-004, TD-005, TD-016, TD-017~~ — all closed in T-014; TD-015 (platform layer tests) remains open, tracked as T-012A; TD-018 (legacy orchestration retirement blocked on T-032) opened in T-023 |
 | Sprint 3 | TD-006 (AI↔API boundary), TD-010 (static KG enrichment), TD-011 (traveller domain), TD-013 (pagination) |
-| Sprint 4+ | TD-009 (demo isolation), TD-012 (ontology split), TD-014 (infra) |
+| Sprint 4+ | TD-009 (demo isolation), TD-012 (ontology split), TD-014 (infra), TD-018 (legacy orchestration, pending T-032) |
