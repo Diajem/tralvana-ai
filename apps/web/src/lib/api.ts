@@ -21,6 +21,7 @@ import type {
 import type { CheckVisaRequest, VisaAssessment } from "@/types/visa";
 import type { AnalyseWeatherRequest, WeatherAssessment } from "@/types/weather";
 import type { Explanation, ExplainRequest } from "@/types/explain";
+import type { PlanTripRequest, PlanTripResponse } from "@/types/planner";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -382,6 +383,22 @@ export async function explainRecommendation(data: ExplainRequest): Promise<Expla
   });
   if (!res.ok) {
     throw new Error(`Failed to get explanation: ${res.status}`);
+  }
+  return res.json();
+}
+
+// ------------------------------------------------------------------
+// AI Travel Planner API (T-040)
+// ------------------------------------------------------------------
+
+export async function planTrip(data: PlanTripRequest): Promise<PlanTripResponse> {
+  const res = await fetch(`${BASE_URL}/planner/plan`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to plan trip: ${res.status}`);
   }
   return res.json();
 }

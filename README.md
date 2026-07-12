@@ -2,6 +2,10 @@
 
 AI-native travel operating system.
 
+**Primary experience**: the AI Travel Planner — describe a trip in natural language at `/planner`
+(`POST /planner/plan`) and get back one coherent, consultant-style itinerary assembled from Trip
+Brain's six Discovery modules. See `docs/AI_TRAVEL_PLANNER.md`.
+
 ## Structure
 
 ```
@@ -16,7 +20,9 @@ tralvana-ai/
 │   ├── concierge/      # Intent classifier, decision engine, conversation engine
 │   ├── discovery/      # Six Discovery Layer modules (flights, accommodation, destinations,
 │   │                   #   budget, visa, weather)
-│   ├── trip_brain/     # Trip Brain — orchestrates the six Discovery modules for PLAN_TRIP
+│   ├── trip_brain/     # Trip Brain — orchestrates the six Discovery modules for PLAN_TRIP;
+│   │                   #   trip_assembly.py (T-040) assembles Trip Brain's own output into
+│   │                   #   one consultant-style itinerary, never recalculating any score
 │   ├── explainability/ # Explainability Engine — traveller-facing drivers/trade-offs/confidence
 │   ├── intelligence/   # Traveller DNA, knowledge graph
 │   ├── manager/        # TravelManager orchestrator

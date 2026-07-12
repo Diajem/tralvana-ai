@@ -93,7 +93,10 @@ The system is built for orchestration, not integration. Every capability is expr
 │               CONCIERGE / MANAGER LAYER                  │
 │   ai/concierge/  intent, decision, conversation engine    │
 │   ai/trip_brain/ Trip Brain — PLAN_TRIP orchestration,    │
-│                   calls the six Discovery modules         │
+│                   calls the six Discovery modules;        │
+│                   trip_assembly.py (T-040) is a second,   │
+│                   separate caller of Trip Brain's own     │
+│                   output — never a change to Trip Brain   │
 │   ai/explainability/ Explainability Engine — turns Trip   │
 │                   Brain's merged results into traveller-  │
 │                   facing drivers/trade-offs/confidence     │
@@ -143,6 +146,8 @@ Three of the six Discovery modules (Flight, Accommodation, Weather) obtain their
 **FLIGHTS and ACCOMMODATION each have a real, independently switchable live vendor (T-038, T-039)** — `DuffelFlightProvider` (T-027) and `DuffelStaysProvider` (T-039), both over `HttpxTransport` (T-037), selected by `TRALVANA_FLIGHT_PROVIDER_MODE`/`TRALVANA_ACCOMMODATION_PROVIDER_MODE` respectively (`MOCK` by default for both), via `IntelligenceGateway._environment_for(capability)`'s generalized per-capability lookup (`docs/INTELLIGENCE_GATEWAY.md`'s "Live Providers and Per-Capability Environment Resolution" section) — Weather still resolves its provider environment from the general `PROVIDER_ENVIRONMENT` var, untouched by either switch. See `docs/LIVE_FLIGHT_SEARCH.md`/`docs/ADR/ADR-024-live-flight-product-integration.md` and `docs/LIVE_ACCOMMODATION_SEARCH.md`/`docs/ADR/ADR-025-duffel-stays-integration.md`. **Accommodation's live path is fully built and tested but not yet verified against real Duffel Stays data** — the account's token lacks Stays access (`docs/DUFFEL_STAYS_INTEGRATION.md`'s Access Requirement section).
 
 Accommodation's live path also differs structurally from Flights': `DuffelStaysProvider` resolves a destination string to coordinates via Duffel's Places API internally, and its `parse_response()` output is absorbed by `AccommodationNormalizer` (a second raw-vocabulary branch alongside the mock's own), rather than mapping directly to canonical fields the way `DuffelFlightProvider` does — Accommodation's pipeline has an explicit Normaliser stage Flights' pipeline doesn't.
+
+**The AI Travel Planner (T-040) is now the primary user experience** — a traveller describes a trip in natural language via `POST /planner/plan` (`services/api/app/routers/planner.py`, backed by `apps/web/src/app/planner/page.tsx`) and receives one coherent, consultant-style itinerary. This reuses `travel_concierge.handle()`/`ConversationEngine.process()`/`TripBrain.plan()` entirely unchanged — the only new component is `ai/trip_brain/trip_assembly.py`'s `TripAssemblyEngine`, a second, separate caller of Trip Brain's own output (the same relationship `ConversationEngine` and `POST /explain` already have with it) that assembles an executive summary, per-module recommendations, a daily outline (reusing `ai/planning/itinerary_builder.py`, T-008 — not duplicated), risks, assumptions, confidence, and alternatives into one `TripItinerary`. See `docs/AI_TRAVEL_PLANNER.md` and `docs/ADR/ADR-026-trip-assembly-engine.md`. No module's score is ever recalculated by this layer.
 
 ---
 
