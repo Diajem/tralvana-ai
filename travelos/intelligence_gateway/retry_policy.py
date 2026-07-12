@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from travelos.intelligence_gateway.exceptions import (
     ProviderAuthenticationError,
     ProviderMisconfiguredError,
+    ProviderResponseError,
     ProviderTimeoutError,
     ProviderUnavailableError,
     ProviderValidationError,
@@ -20,6 +21,7 @@ from travelos.intelligence_gateway.exceptions import (
 _DEFAULT_RETRYABLE: tuple[type[Exception], ...] = (
     ProviderUnavailableError,
     ProviderTimeoutError,
+    ProviderResponseError,
     ConnectionError,
     TimeoutError,
 )

@@ -133,9 +133,19 @@ class ConfigurationManager:
     def provider_environment(self) -> str:
         """MOCK / SANDBOX / PRODUCTION — which provider environment the
         Intelligence Gateway selects from. Defaults to MOCK everywhere
-        except production, where it must be explicitly set."""
+        except production, where it must be explicitly set.
+
+        Reads `TRALVANA_PROVIDER_ENVIRONMENT` first (T-026's naming),
+        falling back to `PROVIDER_ENVIRONMENT` (T-025's original name,
+        still supported so nothing already deployed against it breaks) —
+        see docs/PROVIDER_ERROR_MODEL.md's sibling reconciliation note in
+        travelos/intelligence_gateway/exceptions.py for the same pattern
+        applied to error-type naming."""
         default = "MOCK" if not self.is_production else "PRODUCTION"
-        return os.environ.get("PROVIDER_ENVIRONMENT", default).upper()
+        return os.environ.get(
+            "TRALVANA_PROVIDER_ENVIRONMENT",
+            os.environ.get("PROVIDER_ENVIRONMENT", default),
+        ).upper()
 
     @property
     def cache_enabled(self) -> bool:
@@ -157,6 +167,26 @@ class ConfigurationManager:
         PROVIDER_FLIGHTS=some_other_mock_provider. Unset by default —
         the registry's own priority order applies."""
         return os.environ.get(f"PROVIDER_{capability_name.upper()}")
+
+    # ------------------------------------------------------------------
+    # Live Provider Framework settings (T-026) — see docs/LIVE_PROVIDER_FRAMEWORK.md.
+    # Every default here is safe for the current all-mock operation —
+    # none of these variables are required to run the app today.
+    # ------------------------------------------------------------------
+
+    @property
+    def provider_http_timeout_seconds(self) -> float:
+        raw = os.environ.get("PROVIDER_HTTP_TIMEOUT_SECONDS")
+        return float(raw) if raw else 10.0
+
+    @property
+    def provider_retry_max_attempts(self) -> int:
+        raw = os.environ.get("PROVIDER_RETRY_MAX_ATTEMPTS")
+        return int(raw) if raw else 3
+
+    @property
+    def provider_healthcheck_enabled(self) -> bool:
+        return self._bool_env("PROVIDER_HEALTHCHECK_ENABLED", default=True)
 
     def _bool_env(self, name: str, default: bool) -> bool:
         raw = os.environ.get(name)

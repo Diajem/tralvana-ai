@@ -314,6 +314,66 @@ module is scoped as its own task.
 
 ---
 
+### TD-021 — No real HTTP transport implementation for live providers
+**Severity**: Low
+**Status**: Open
+**Introduced**: T-026
+
+`travelos/live_providers/transport.py`'s `Transport` interface is
+complete (GET/POST, headers, query params, JSON body, timeout, status
+code, response body), but only `FakeTransport` exists as a concrete
+implementation. No real network call is possible anywhere in this
+framework today — a deliberate scope boundary (T-026 explicitly forbids
+live network requests), not an oversight.
+
+**Resolution**: Add an `httpx`-backed `Transport` implementation (httpx
+is already a dependency via FastAPI's `TestClient`) as part of whatever
+task first connects a real vendor — see
+`docs/LIVE_PROVIDER_ADAPTER_GUIDE.md`.
+
+---
+
+### TD-022 — OAuth2 client-credentials token exchange not implemented
+**Severity**: Low
+**Status**: Open
+**Introduced**: T-026
+
+`OAuth2ClientCredentialsAuthStrategy.headers()` raises
+`ProviderConfigurationError` unless a token has been pre-loaded via the
+test-only `set_cached_token()` — the actual `POST` to a vendor's token
+endpoint, response parsing, caching, and expiry-based refresh are not
+implemented (T-026's explicit constraint: interfaces only, no live
+authentication calls).
+
+**Resolution**: Implement the real token exchange inside a concrete
+adapter that needs OAuth2 client-credentials auth (e.g. an Amadeus
+integration) — `docs/PROVIDER_AUTHENTICATION.md` documents the exact
+shape expected.
+
+---
+
+### TD-023 — Mock providers (T-025) have no usage metrics
+**Severity**: Low
+**Status**: Open
+**Introduced**: T-026
+
+`ProviderMetricsTracker` (`travelos/live_providers/metrics/`) is
+recorded automatically by `BaseLiveProvider.execute()`, but T-025's mock
+providers (`mock_flight_provider`, `mock_accommodation_provider`,
+`mock_weather_provider`) never call it — `GET /internal/providers/status`
+correctly reports `0`/`0` request/failure counts for them, which is
+accurate but not useful for understanding mock-provider traffic
+volume.
+
+**Resolution**: Either have `ai/trip_brain/discovery_adapters.py`'s
+adapters record into the same shared `provider_metrics` tracker, or
+centralize metrics recording inside `IntelligenceGateway._call_provider`
+so every provider type is covered uniformly — deferred in T-026 to keep
+the dependency direction clean (`travelos/intelligence_gateway/` would
+otherwise need to import from `travelos/live_providers/`; see ADR-021).
+
+---
+
 ## Resolved Items
 
 | ID | Description | Resolved in | Commit |
@@ -335,6 +395,6 @@ module is scoped as its own task.
 
 | Sprint | Items to close |
 |--------|---------------|
-| Sprint 2 | ~~TD-001, TD-002, TD-003, TD-004, TD-005, TD-016, TD-017~~ — all closed in T-014; TD-015 (platform layer tests) partially addressed in T-025, remains open for SDK/EventBus/shared types, tracked as T-012A; TD-018 (legacy orchestration retirement blocked on T-032) opened in T-023; TD-019/TD-020 (deferred Intelligence Gateway integrations) opened in T-025 |
+| Sprint 2 | ~~TD-001, TD-002, TD-003, TD-004, TD-005, TD-016, TD-017~~ — all closed in T-014; TD-015 (platform layer tests) partially addressed in T-025, remains open for SDK/EventBus/shared types, tracked as T-012A; TD-018 (legacy orchestration retirement blocked on T-032) opened in T-023; TD-019/TD-020 (deferred Intelligence Gateway integrations) opened in T-025; TD-021/TD-022/TD-023 (deferred Live Provider Framework items) opened in T-026 |
 | Sprint 3 | TD-006 (AI↔API boundary), TD-010 (static KG enrichment), TD-011 (traveller domain), TD-013 (pagination), TD-019 (wire remaining Discovery providers to the gateway) |
-| Sprint 4+ | TD-009 (demo isolation), TD-012 (ontology split), TD-014 (infra), TD-018 (legacy orchestration, pending T-032), TD-020 (Maps/Currency/Events providers, pending new Discovery modules) |
+| Sprint 4+ | TD-009 (demo isolation), TD-012 (ontology split), TD-014 (infra), TD-018 (legacy orchestration, pending T-032), TD-020 (Maps/Currency/Events providers, pending new Discovery modules), TD-021/TD-022 (real transport + OAuth2 exchange, pending the first real vendor integration), TD-023 (mock provider metrics) |

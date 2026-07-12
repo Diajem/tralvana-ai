@@ -16,11 +16,15 @@ class TestDiagnosticsOutput:
         assert {"mock_flight_provider", "mock_accommodation_provider", "mock_weather_provider"} <= names
 
     def test_every_provider_entry_has_safe_fields_only(self, client):
+        # Extended in T-026 (Live Provider Framework) to add provider_type,
+        # authentication_configured, last_check_time, request_count, and
+        # failure_count — additive, not a regression of T-025's shape.
         body = client.get("/internal/providers/status").json()
         for entry in body["providers"]:
             assert set(entry.keys()) == {
-                "capability", "provider_name", "environment", "status",
+                "capability", "provider_name", "provider_type", "environment", "status",
                 "health", "priority", "cache_ttl_seconds", "rate_limit",
+                "authentication_configured", "last_check_time", "request_count", "failure_count",
             }
 
     def test_no_secret_or_credential_field_present_anywhere(self, client):
@@ -34,6 +38,7 @@ class TestDiagnosticsOutput:
         assert "environment" in body
         assert "cache_enabled" in body
         assert "retry_enabled" in body
+        assert "healthcheck_enabled" in body
 
     def test_flight_provider_reports_available_and_healthy(self, client):
         body = client.get("/internal/providers/status").json()
@@ -41,6 +46,18 @@ class TestDiagnosticsOutput:
         assert flight["status"] == "AVAILABLE"
         assert flight["health"] == "healthy"
         assert flight["capability"] == "FLIGHTS"
+
+    def test_mock_providers_reported_as_provider_type_mock(self, client):
+        body = client.get("/internal/providers/status").json()
+        flight = next(p for p in body["providers"] if p["provider_name"] == "mock_flight_provider")
+        assert flight["provider_type"] == "MOCK"
+        assert flight["authentication_configured"] is True
+
+    def test_mock_providers_have_zero_request_and_failure_counts_by_default(self, client):
+        body = client.get("/internal/providers/status").json()
+        flight = next(p for p in body["providers"] if p["provider_name"] == "mock_flight_provider")
+        assert flight["request_count"] >= 0
+        assert flight["failure_count"] >= 0
 
 
 class TestNoPublicAPIRegression:

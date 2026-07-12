@@ -163,14 +163,32 @@ development-safe defaults — see `.env.example`):
 returns capability, provider name, environment, health status, priority,
 cache TTL, and rate-limit state for every registered provider — safe
 metadata only, no secret or credential value ever appears in the
-response. See `docs/API_EXPLAINABILITY.md`'s sibling pattern for how
-this repo documents a diagnostic/read endpoint; full contract example in
-this file's companion docs.
+response. Extended in T-026 with `provider_type` (`MOCK`/`LIVE`),
+`authentication_configured`, `last_check_time`, `request_count`, and
+`failure_count` — see `docs/PROVIDER_OBSERVABILITY.md`. See
+`docs/API_EXPLAINABILITY.md`'s sibling pattern for how this repo
+documents a diagnostic/read endpoint; full contract example in this
+file's companion docs.
+
+## Live Providers (T-026)
+
+`travelos/live_providers/` builds `BaseLiveProvider` on top of this
+gateway's `Provider` contract — see `docs/LIVE_PROVIDER_FRAMEWORK.md`
+and `docs/ADR/ADR-021-live-provider-framework.md`. Because a live
+provider is just another `Provider`, **nothing in this package
+(`gateway.py`, `provider_registry.py`, `provider_selector.py`) changed**
+to support it — registration, environment-based selection, retry, and
+failover all work unmodified, proven by
+`travelos/tests/test_live_provider_gateway_integration.py`. No live
+provider is registered by default; every provider actually running in
+this repository today remains a wrapped mock.
 
 ## Non-Goals
 
-- No live provider is integrated — every registered provider today is a
-  wrapped mock.
+- No live provider is integrated by *this document's own scope* — every
+  registered provider today is a wrapped mock. T-026 builds the
+  *framework* a live provider would use, without connecting one — see
+  the Live Providers section above.
 - No Redis, no external queue, no distributed rate limiter — every cache
   and rate-limit store is a plain in-memory dict, matching every other
   in-memory store already in this codebase (`ConversationSession`'s

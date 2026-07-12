@@ -119,9 +119,11 @@ The system is built for orchestration, not integration. Every capability is expr
                 │ rate limit               │
                 └──────┬────────────────────┘
                        │
-                ┌──────▼──────┐
-                │Mock Provider│  (future: live provider, same contract)
-                └─────────────┘
+                ┌──────▼──────┐         ┌──────────────────┐
+                │Mock Provider│         │ BaseLiveProvider │
+                │  (T-025)    │         │ travelos/live_providers/
+                └─────────────┘         │ (T-026, no vendor connected yet)
+                                         └──────────────────┘
 ```
 
 `PLAN_TRIP` is the only intent Trip Brain handles; `TravelManager`/`AgentRegistry` remain the active dispatcher for the four intents above. See `docs/TRIP_BRAIN_ARCHITECTURE.md` and `docs/ADR/ADR-018-legacy-orchestration-retirement.md` for why full retirement of `ai/manager/`/`ai/registry/` is not yet possible.
@@ -129,6 +131,8 @@ The system is built for orchestration, not integration. Every capability is expr
 Trip Brain's `plan()` also calls the Explainability Engine once per request, right after merging module results — see `docs/EXPLAINABILITY_ENGINE.md` and `docs/ADR/ADR-019-explainability-engine.md`. It is presentation-only: it explains `ai/discovery/` and Trip Brain's existing output, never scores or recommends anything itself.
 
 Three of the six Discovery modules (Flight, Accommodation, Weather) obtain their provider through the Intelligence Gateway (`travelos/intelligence_gateway/`) rather than constructing a mock provider directly — see `docs/INTELLIGENCE_GATEWAY.md` and `docs/ADR/ADR-020-intelligence-gateway.md`. Only Discovery modules call the gateway; the Trip Brain is never wired to a provider directly, preserving the same layering ADR-017 established.
+
+`travelos/live_providers/` (T-026) is the reusable base a real vendor integration would extend — `BaseLiveProvider` implements the same `Provider` contract a mock provider does, so the gateway above needed zero changes to support it. No live provider is registered anywhere by default; see `docs/LIVE_PROVIDER_FRAMEWORK.md` and `docs/ADR/ADR-021-live-provider-framework.md`.
 
 ---
 
@@ -165,9 +169,12 @@ tralvana-ai/
 │
 ├── travelos/              Platform layer — SDK, DI container, service registry,
 │   │                      configuration, structured logging, event bus (docs/PLATFORM_LAYER.md)
-│   └── intelligence_gateway/  Provider-access infrastructure — mock/future-live
-│                          knowledge sources behind one contract, with caching,
-│                          retry, failover, and rate limiting (docs/INTELLIGENCE_GATEWAY.md)
+│   ├── intelligence_gateway/  Provider-access infrastructure — mock/future-live
+│   │                      knowledge sources behind one contract, with caching,
+│   │                      retry, failover, and rate limiting (docs/INTELLIGENCE_GATEWAY.md)
+│   └── live_providers/    Reusable base for a real vendor integration — auth,
+│                          transport, request/response mapping, error model,
+│                          health/tracing/metrics (docs/LIVE_PROVIDER_FRAMEWORK.md)
 │
 ├── docs/                 Architecture authority (this folder)
 ├── handoff/              Agent-to-agent start documents

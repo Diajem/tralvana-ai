@@ -25,8 +25,11 @@ tralvana-ai/
 │   ├── registry/       # Agent registry
 │   └── tests/          # AI unit tests
 ├── travelos/           # Platform layer (SDK, events, config, logging, DI)
-│   └── intelligence_gateway/  # Provider-access infrastructure — contract, registry,
-│                       #   selection, cache, retry, failover, rate limiting
+│   ├── intelligence_gateway/  # Provider-access infrastructure — contract, registry,
+│   │                   #   selection, cache, retry, failover, rate limiting
+│   └── live_providers/ # Reusable base for a real vendor integration — auth,
+│                       #   transport, request/response mapping, error model,
+│                       #   health/tracing/metrics. No live vendor connected.
 ├── docs/               # Architecture docs, ADRs, task tracker
 └── docker-compose.yml
 ```

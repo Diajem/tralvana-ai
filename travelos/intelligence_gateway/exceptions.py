@@ -39,6 +39,14 @@ class ProviderMisconfiguredError(ProviderError):
     secret). Never retryable."""
 
 
+class ProviderResponseError(ProviderError):
+    """The provider responded, but the response could not be understood
+    (malformed body, unexpected shape). Retryable — a vendor endpoint
+    occasionally returns a truncated/corrupted body under load, and a
+    second attempt often succeeds; contrast with ProviderValidationError,
+    which is about a request that will *never* succeed as sent."""
+
+
 class AllProvidersFailedError(ProviderError):
     """Every eligible provider for a capability failed or was
     unavailable. Raised only where a caller explicitly asks the gateway
@@ -47,3 +55,16 @@ class AllProvidersFailedError(ProviderError):
 
 class MissingSecretError(ProviderMisconfiguredError):
     """A required SecretReference has no value in the environment."""
+
+
+# ---------------------------------------------------------------------------
+# T-026 naming reconciliation — the Live Provider Framework's brief names
+# these two slightly differently than the names T-025 already shipped and
+# that this whole exception hierarchy, RetryPolicy, and every existing test
+# already use. Rather than rename the originals (a breaking change to
+# already-committed T-025 code) or maintain two divergent types for the
+# same concept, both names resolve to the exact same class — see
+# docs/PROVIDER_ERROR_MODEL.md.
+# ---------------------------------------------------------------------------
+ProviderRateLimitError = ProviderRateLimitedError
+ProviderConfigurationError = ProviderMisconfiguredError
