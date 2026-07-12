@@ -29,6 +29,20 @@ const BUDGET_STYLES = [
   { value: "luxury", label: "Luxury" },
 ];
 
+const DATA_SOURCE_LABELS: Record<string, { label: string; className: string; banner: string | null }> = {
+  MOCK: { label: "Test data", className: "bg-gray-100 text-gray-600", banner: null },
+  DUFFEL_STAYS_SANDBOX: {
+    label: "Duffel Stays sandbox",
+    className: "bg-sky-100 text-sky-700",
+    banner: "Duffel Stays sandbox data — not available for purchase.",
+  },
+  MOCK_FALLBACK: {
+    label: "Mock fallback",
+    className: "bg-amber-100 text-amber-700",
+    banner: "Duffel Stays sandbox was unavailable — showing mock fallback data, not real inventory.",
+  },
+};
+
 const RECOMMENDATION_LABELS: Record<string, { label: string; className: string }> = {
   BEST_OVERALL: { label: "Best Overall", className: "bg-blue-600 text-white" },
   BEST_VALUE: { label: "Best Value", className: "bg-emerald-600 text-white" },
@@ -98,6 +112,14 @@ function AccommodationCard({ accommodation }: { accommodation: AccommodationOpti
         </div>
       </div>
 
+      <p className="text-xs text-gray-500">
+        {accommodation.breakfast_included ? "✓ Breakfast included" : "✗ Breakfast not included"}
+        {" · "}
+        {accommodation.cancellation_policy.replace(/_/g, " ")}
+        {" · Stay total "}
+        {accommodation.currency} {accommodation.total_price.toLocaleString()}
+      </p>
+
       <MatchScoreBar score={accommodation.match_score} />
 
       <p className="text-sm text-gray-700">{accommodation.reasoning}</p>
@@ -146,6 +168,7 @@ export default function RecommendAccommodationPage() {
     budget_style: string;
     adults: number;
     children: number;
+    rooms: number;
     business_trip: boolean;
     accessibility_required: boolean;
   }>({
@@ -158,6 +181,7 @@ export default function RecommendAccommodationPage() {
     budget_style: "balanced",
     adults: 1,
     children: 0,
+    rooms: 1,
     business_trip: false,
     accessibility_required: false,
   });
@@ -177,6 +201,7 @@ export default function RecommendAccommodationPage() {
       budget_style: form.budget_style,
       adults: form.adults,
       children: form.children,
+      rooms: form.rooms,
       business_trip: form.business_trip,
       accessibility_required: form.accessibility_required,
     };
@@ -313,7 +338,7 @@ export default function RecommendAccommodationPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Adults</label>
               <input
@@ -334,6 +359,17 @@ export default function RecommendAccommodationPage() {
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={form.children}
                 onChange={(e) => setForm({ ...form, children: parseInt(e.target.value) || 0 })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Rooms</label>
+              <input
+                type="number"
+                min={1}
+                max={8}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={form.rooms}
+                onChange={(e) => setForm({ ...form, rooms: parseInt(e.target.value) || 1 })}
               />
             </div>
           </div>
@@ -368,8 +404,26 @@ export default function RecommendAccommodationPage() {
 
         {result && (
           <div className="space-y-6">
+            {(() => {
+              const source = DATA_SOURCE_LABELS[result.data_source] ?? DATA_SOURCE_LABELS.MOCK;
+              return source.banner ? (
+                <div className="rounded-lg bg-sky-50 border border-sky-200 p-4 text-sky-800 text-sm font-medium">
+                  {source.banner}
+                </div>
+              ) : null;
+            })()}
+
             <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">Summary</h2>
+              <div className="flex items-start justify-between gap-4 flex-wrap mb-2">
+                <h2 className="text-lg font-semibold text-gray-900">Summary</h2>
+                <span
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                    (DATA_SOURCE_LABELS[result.data_source] ?? DATA_SOURCE_LABELS.MOCK).className
+                  }`}
+                >
+                  Source: {(DATA_SOURCE_LABELS[result.data_source] ?? DATA_SOURCE_LABELS.MOCK).label}
+                </span>
+              </div>
               <p className="text-sm text-gray-700">{result.summary}</p>
             </div>
 

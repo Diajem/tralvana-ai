@@ -30,13 +30,18 @@ tralvana-ai/
 │   └── live_providers/ # Reusable base for a real vendor integration — auth,
 │                       #   transport, request/response mapping, error model,
 │                       #   health/tracing/metrics. Includes DuffelFlightProvider
-│                       #   (adapters/), HttpxTransport (the first real, non-fake
-│                       #   Transport), and flight_provider_bootstrap.py — the
+│                       #   and DuffelStaysProvider (adapters/), HttpxTransport
+│                       #   (the first real, non-fake Transport), and
+│                       #   {flight,accommodation}_provider_bootstrap.py — the
 │                       #   composition-root wiring that turns real Duffel sandbox
-│                       #   flight search on for TRALVANA_FLIGHT_PROVIDER_MODE=
-│                       #   LIVE_SANDBOX (MOCK by default). See docs/LIVE_FLIGHT_SEARCH.md.
+│                       #   search on for TRALVANA_FLIGHT_PROVIDER_MODE=LIVE_SANDBOX /
+│                       #   TRALVANA_ACCOMMODATION_PROVIDER_MODE=LIVE_SANDBOX (both
+│                       #   MOCK by default). See docs/LIVE_FLIGHT_SEARCH.md and
+│                       #   docs/LIVE_ACCOMMODATION_SEARCH.md (Stays access not yet
+│                       #   granted on this account — see the latter's Status section).
 ├── scripts/            # Operational scripts — e.g. verify_duffel_live_sandbox.py,
-│                       #   a manual (never-in-CI) live sandbox verification
+│                       #   verify_duffel_stays_live_sandbox.py — manual (never-in-CI)
+│                       #   live sandbox verification
 ├── docs/               # Architecture docs, ADRs, task tracker
 └── docker-compose.yml
 ```

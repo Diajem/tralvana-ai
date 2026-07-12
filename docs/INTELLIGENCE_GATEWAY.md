@@ -123,6 +123,27 @@ and all three weather operations. The full 833-test suite (unchanged
 649 pre-existing Discovery/Trip Brain tests plus everything since) passes
 with the gateway wired in.
 
+### Live Providers and Per-Capability Environment Resolution (T-038, T-039)
+
+`GatewayFlightProvider` and `GatewayAccommodationProvider` both gained
+`last_result`/`used_mock_fallback` and a live-provider failure/fallback
+policy — see `docs/LIVE_FLIGHT_SEARCH.md` and
+`docs/LIVE_ACCOMMODATION_SEARCH.md`. More significantly, `IntelligenceGateway.execute()`'s
+environment resolution is now **per-capability**: `_environment_for(capability)`
+looks up a small `Capability -> ConfigurationManager attribute` map
+(`_CAPABILITY_MODE_CONFIG_ATTR` in `gateway.py`) — FLIGHTS reads
+`flight_provider_mode`, ACCOMMODATION reads `accommodation_provider_mode`,
+and any capability not in the map (Weather, and Destinations/Budget/Visa
+whenever they're eventually wired) still resolves from the general
+`provider_environment`, exactly as before either task existed. This
+solved a real problem T-038 first ran into: `IntelligenceGateway.environment`
+was originally one scalar shared by every capability, so flipping it to
+`SANDBOX` to enable one live vendor would have simultaneously broken
+every other capability's mock-provider selection (a mismatched
+`environment` on the provider vs. the gateway makes `ProviderSelector`
+filter it out entirely). Adding a new live-enabled capability now costs
+one dict entry and one config property, not a second gateway instance.
+
 ### Deferred Integrations
 
 Only Flights, Accommodation, and Weather are wired to the gateway in this

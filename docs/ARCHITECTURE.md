@@ -124,9 +124,11 @@ The system is built for orchestration, not integration. Every capability is expr
                 │  (T-025)    │         │ travelos/live_providers/
                 └─────────────┘         │ (T-026)          │
                                          │ DuffelFlightProvider
+                                         │ + DuffelStaysProvider
                                          │ + HttpxTransport │
                                          │ (T-027/T-037,    │
-                                         │  FLIGHTS only)   │
+                                         │  T-039; FLIGHTS  │
+                                         │  + ACCOMMODATION)│
                                          └──────────────────┘
 ```
 
@@ -138,7 +140,9 @@ Three of the six Discovery modules (Flight, Accommodation, Weather) obtain their
 
 `travelos/live_providers/` (T-026) is the reusable base a real vendor integration would extend — `BaseLiveProvider` implements the same `Provider` contract a mock provider does, so the gateway above needed zero changes to support it. See `docs/LIVE_PROVIDER_FRAMEWORK.md` and `docs/ADR/ADR-021-live-provider-framework.md`.
 
-**FLIGHTS is the one capability with a real, switchable live vendor (T-038)** — `DuffelFlightProvider` (T-027) over `HttpxTransport` (T-037), selected by `TRALVANA_FLIGHT_PROVIDER_MODE` (`MOCK` by default, `LIVE_SANDBOX` to enable it), a setting scoped to FLIGHTS alone via `IntelligenceGateway._environment_for(capability)` — Accommodation and Weather still resolve their provider environment from the general `PROVIDER_ENVIRONMENT` var, untouched by this switch. See `docs/LIVE_FLIGHT_SEARCH.md` and `docs/ADR/ADR-024-live-flight-product-integration.md`.
+**FLIGHTS and ACCOMMODATION each have a real, independently switchable live vendor (T-038, T-039)** — `DuffelFlightProvider` (T-027) and `DuffelStaysProvider` (T-039), both over `HttpxTransport` (T-037), selected by `TRALVANA_FLIGHT_PROVIDER_MODE`/`TRALVANA_ACCOMMODATION_PROVIDER_MODE` respectively (`MOCK` by default for both), via `IntelligenceGateway._environment_for(capability)`'s generalized per-capability lookup (`docs/INTELLIGENCE_GATEWAY.md`'s "Live Providers and Per-Capability Environment Resolution" section) — Weather still resolves its provider environment from the general `PROVIDER_ENVIRONMENT` var, untouched by either switch. See `docs/LIVE_FLIGHT_SEARCH.md`/`docs/ADR/ADR-024-live-flight-product-integration.md` and `docs/LIVE_ACCOMMODATION_SEARCH.md`/`docs/ADR/ADR-025-duffel-stays-integration.md`. **Accommodation's live path is fully built and tested but not yet verified against real Duffel Stays data** — the account's token lacks Stays access (`docs/DUFFEL_STAYS_INTEGRATION.md`'s Access Requirement section).
+
+Accommodation's live path also differs structurally from Flights': `DuffelStaysProvider` resolves a destination string to coordinates via Duffel's Places API internally, and its `parse_response()` output is absorbed by `AccommodationNormalizer` (a second raw-vocabulary branch alongside the mock's own), rather than mapping directly to canonical fields the way `DuffelFlightProvider` does — Accommodation's pipeline has an explicit Normaliser stage Flights' pipeline doesn't.
 
 ---
 

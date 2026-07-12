@@ -52,6 +52,7 @@ class AccommodationIntelligence:
         budget_style: str = "balanced",
         adults: int = 1,
         children: int = 0,
+        rooms: int = 1,
         business_trip: bool = False,
         accessibility_required: bool = False,
         profile: dict[str, Any] | None = None,
@@ -85,7 +86,9 @@ class AccommodationIntelligence:
 
         goal_type = (goal or {}).get("goal_type")
 
-        raw_candidates = self._provider.search(destination, resolved_check_in, nights)
+        raw_candidates = self._provider.search(
+            destination, resolved_check_in, nights, adults=adults, children=children, rooms=rooms
+        )
         normalized = [accommodation_normalizer.normalize(r) for r in raw_candidates]
 
         price_anchor = _NIGHTLY_BASE_USD * _BUDGET_STYLE_MULTIPLIER.get(budget_style, 1.1)
@@ -112,8 +115,30 @@ class AccommodationIntelligence:
             a.pop("_price_anchor", None)
             a.pop("_persona_scores", None)
             a.pop("_amenities", None)
+            # Preserved for future booking-readiness work only (T-039
+            # explicitly excludes booking) — renamed out of the
+            # underscore-prefixed internal-field convention so
+            # service.py can read it, but never surfaced in
+            # AccommodationOption.to_dict()'s public shape.
+            a["provider_property_id"] = a.pop("_provider_property_id", None)
+            a["provider_rate_id"] = a.pop("_provider_rate_id", None)
 
-        assumptions.append("Prices and availability are deterministic mock data — no live provider inventory was queried.")
+        source = self._source_metadata(default_raw_count=len(raw_candidates))
+        for a in ranked:
+            a["data_source"] = source["data_source"]
+
+        if source["data_source"] == "DUFFEL_STAYS_SANDBOX":
+            assumptions.append(
+                "Accommodation data is from Duffel Stays' SANDBOX test environment — "
+                "real property shapes and pricing, but not available for purchase (T-039)."
+            )
+        elif source["data_source"] == "MOCK_FALLBACK":
+            assumptions.append(
+                "Duffel Stays sandbox was unavailable for this search — showing mock "
+                "fallback data, not real property inventory."
+            )
+        else:
+            assumptions.append("Prices and availability are deterministic mock data — no live provider inventory was queried.")
         assumptions.append(f"Scoring assumes a '{budget_style}' budget style for a {nights}-night stay.")
 
         return {
@@ -122,6 +147,48 @@ class AccommodationIntelligence:
             "next_actions": self._next_actions(ranked),
             "recommended_agents": ["hotel_agent"],
             "summary": self._summary(destination, ranked),
+            "raw_results_count": source.pop("raw_results_count"),
+            "normalised_results_count": len(raw_candidates),
+            "ranked_results_count": len(ranked),
+            **source,
+        }
+
+    def _source_metadata(self, default_raw_count: int) -> dict[str, Any]:
+        """Safe-only provenance metadata for the public API (T-039) —
+        never a header, token, or raw provider payload, only what
+        docs/LIVE_ACCOMMODATION_SEARCH.md documents as the public
+        contract. Duck-types on `self._provider` so a plain
+        MockAccommodationProvider (no gateway involved) still gets a
+        sensible default. `raw_results_count` is the provider's own
+        raw-response count (before any normalisation) — from
+        ProviderResult.source_metadata when the provider reports one
+        (DuffelStaysProvider does — see raw_result_count vs.
+        mapped_result_count in duffel_stays_provider.py's parse_response()),
+        else `default_raw_count` (the search's own candidate count,
+        since a mock response has no separate "raw vs. mapped" stage)."""
+        now = datetime.now(timezone.utc).isoformat()
+        last_result = getattr(self._provider, "last_result", None)
+        if last_result is None:
+            return {
+                "data_source": "MOCK", "provider_status": "AVAILABLE", "retrieved_at": now,
+                "request_id": "", "raw_results_count": default_raw_count,
+            }
+
+        if getattr(self._provider, "used_mock_fallback", False):
+            data_source = "MOCK_FALLBACK"
+        elif last_result.provider_name == "duffel_stays_provider":
+            data_source = "DUFFEL_STAYS_SANDBOX"
+        else:
+            data_source = "MOCK"
+
+        raw_count = last_result.source_metadata.get("raw_result_count", default_raw_count)
+
+        return {
+            "data_source": data_source,
+            "provider_status": last_result.status.value,
+            "retrieved_at": last_result.retrieved_at or now,
+            "request_id": last_result.request_id,
+            "raw_results_count": raw_count,
         }
 
     # ------------------------------------------------------------------

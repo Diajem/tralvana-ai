@@ -17,6 +17,16 @@ checklist is actually completed. Every other section below (Monitoring,
 Rate Limits, Cost Controls, Production Approval, Incident Response,
 ...) remains unchecked.
 
+T-039 (`docs/ADR/ADR-025-duffel-stays-integration.md`,
+`docs/LIVE_ACCOMMODATION_SEARCH.md`) built and fully unit-tested
+`duffel_stays_provider` the same way, but **cannot check off Sandbox
+Validation** the way flights did — the account's `DUFFEL_API_TOKEN`
+does not have Duffel Stays access (a confirmed, documented 403,
+`docs/DUFFEL_STAYS_INTEGRATION.md`'s Access Requirement section), so
+no live call has actually returned real property data. Requesting
+Stays access is the literal next step before this provider can move
+past this checklist's first section at all.
+
 Use this per-provider, not once for the whole system — a new vendor
 integration (e.g. adding Amadeus once `OAuth2ClientCredentialsAuthStrategy`
 has a real token exchange, TD-022) goes through this checklist again on
@@ -157,12 +167,22 @@ its own merits.
       via `HttpxTransport`. Found and fixed a real `parse_response()`
       bug along the way (a day-component ISO 8601 duration,
       `docs/ADR/ADR-023-real-http-transport-and-live-verification.md`)
-      that `FakeTransport`-only testing had no way to surface. No other
-      provider has exercised this item.
+      that `FakeTransport`-only testing had no way to surface.
+      **`duffel_stays_provider` (T-039): partially exercised.** The
+      Places API call (`_resolve_destination()`) succeeded live and
+      surfaced a real bug (a city place with null coordinates,
+      `docs/DUFFEL_STAYS_INTEGRATION.md`'s Destination Resolution
+      section, fixed) — but the actual `POST /stays/search` call itself
+      has never succeeded, since this account has no Stays access (a
+      confirmed 403, not a bug). `build_request`/`send_request`/`map_error`/`health_check`
+      have all been exercised against the real API; `parse_response`
+      has not, since no successful response body has ever been
+      received to parse.
 - [ ] At least one deliberately malformed/error-triggering request has
       been sent to `SANDBOX` and confirmed to map to the correct
-      standard error type — not yet done for `duffel_flight_provider`;
-      T-037's live call was a valid, well-formed search only
+      standard error type — not yet done for `duffel_flight_provider`
+      (T-037's live call was a valid, well-formed search only) or for
+      `duffel_stays_provider` (blocked on Stays access)
 
 ## Production Approval
 

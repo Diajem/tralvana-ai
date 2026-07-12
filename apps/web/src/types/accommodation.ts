@@ -18,6 +18,8 @@ export type RecommendationType =
   | "BEST_BUDGET"
   | "AVOID";
 
+export type AccommodationDataSource = "MOCK" | "DUFFEL_STAYS_SANDBOX" | "MOCK_FALLBACK";
+
 export interface AccommodationOption {
   accommodation_option_id: string;
   traveller_id: string | null;
@@ -47,6 +49,7 @@ export interface AccommodationOption {
   assumptions: string[];
   recommendation_type: RecommendationType;
   created_at: string;
+  data_source: AccommodationDataSource;
 }
 
 export interface AccommodationRecommendationResponse {
@@ -58,6 +61,15 @@ export interface AccommodationRecommendationResponse {
   next_actions: string[];
   recommended_agents: string[];
   summary: string;
+  // Safe provenance metadata (T-039) — never a header, token, or raw
+  // provider payload, see docs/LIVE_ACCOMMODATION_SEARCH.md.
+  data_source: AccommodationDataSource;
+  provider_status: string;
+  retrieved_at: string;
+  request_id: string;
+  raw_results_count: number;
+  normalised_results_count: number;
+  ranked_results_count: number;
 }
 
 export interface RecommendAccommodationRequest {
@@ -70,6 +82,7 @@ export interface RecommendAccommodationRequest {
   budget_style?: string;
   adults?: number;
   children?: number;
+  rooms?: number;
   business_trip?: boolean;
   accessibility_required?: boolean;
 }

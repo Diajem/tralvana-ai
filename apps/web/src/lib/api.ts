@@ -182,7 +182,18 @@ export async function recommendAccommodation(
     body: JSON.stringify(data),
   });
   if (!res.ok) {
-    throw new Error(`Failed to get accommodation recommendations: ${res.status}`);
+    // 422 (validation, e.g. a missing check-in date in live sandbox
+    // mode) and 503 (Duffel Stays sandbox unavailable) both carry a
+    // `detail` field worth surfacing directly rather than just the
+    // status code.
+    const detail = await res.json().catch(() => null);
+    const message =
+      detail && typeof detail.detail === "object" && Array.isArray(detail.detail.errors)
+        ? detail.detail.errors.join("; ")
+        : detail && typeof detail.detail === "string"
+          ? detail.detail
+          : `Failed to get accommodation recommendations: ${res.status}`;
+    throw new Error(message);
   }
   return res.json();
 }

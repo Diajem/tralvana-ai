@@ -32,6 +32,15 @@ from travelos.logging.travel_logger import TravelLogger
 
 _logger = TravelLogger.for_service("IntelligenceGateway")
 
+# Capability -> the ConfigurationManager property name governing its own
+# per-capability live/mock switch (T-038 introduced FLIGHTS, T-039 added
+# ACCOMMODATION). A capability absent from this map falls back to the
+# general `provider_environment` — unchanged since T-025.
+_CAPABILITY_MODE_CONFIG_ATTR: dict[Capability, str] = {
+    Capability.FLIGHTS: "flight_provider_mode",
+    Capability.ACCOMMODATION: "accommodation_provider_mode",
+}
+
 
 class IntelligenceGateway:
     def __init__(
@@ -80,19 +89,23 @@ class IntelligenceGateway:
             return ProviderEnvironment.MOCK
 
     def _environment_for(self, capability: Capability) -> ProviderEnvironment:
-        """Per-capability environment resolution (T-038). FLIGHTS reads
-        `config.flight_provider_mode` — a dedicated switch independent of
-        the general `provider_environment` above — so enabling live
-        Duffel data never changes Accommodation/Weather's provider
-        selection, which still reads `provider_environment` exactly as
-        before. An explicit constructor `environment=` override (used
-        throughout the test suite) always wins, for both paths, unchanged."""
+        """Per-capability environment resolution (T-038, extended T-039).
+        Each capability in `_CAPABILITY_MODE_CONFIG_ATTR` reads its own
+        dedicated `ConfigurationManager` switch — independent of the
+        general `provider_environment` above and of every other
+        capability's own switch — so enabling live Duffel flight or
+        accommodation data never changes any other capability's provider
+        selection (e.g. Weather still reads `provider_environment`
+        exactly as before T-038 ever existed). An explicit constructor
+        `environment=` override (used throughout the test suite) always
+        wins, for every capability, unchanged."""
         if self._environment_override is not None:
             return self._environment_override
-        if capability == Capability.FLIGHTS:
+        config_attr = _CAPABILITY_MODE_CONFIG_ATTR.get(capability)
+        if config_attr is not None:
             try:
                 from travelos.config.configuration_manager import config
-                return ProviderEnvironment.SANDBOX if config.flight_provider_mode == "LIVE_SANDBOX" else ProviderEnvironment.MOCK
+                return ProviderEnvironment.SANDBOX if getattr(config, config_attr) == "LIVE_SANDBOX" else ProviderEnvironment.MOCK
             except Exception:
                 return ProviderEnvironment.MOCK
         return self.environment

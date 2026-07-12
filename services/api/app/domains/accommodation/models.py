@@ -56,6 +56,16 @@ class AccommodationOption:
     assumptions: list[str] = field(default_factory=list)
     recommendation_type: str = RecommendationType.BEST_OVERALL.value
     created_at: str = ""
+    # Preserved for future booking-readiness work only (T-039 explicitly
+    # excludes booking) — deliberately NOT included in to_dict()'s
+    # public shape; see docs/LIVE_ACCOMMODATION_SEARCH.md's "Provider
+    # Property and Rate Identifiers" section.
+    provider_property_id: str | None = None
+    provider_rate_id: str | None = None
+    # Safe provenance label (T-039) — MOCK | DUFFEL_STAYS_SANDBOX | MOCK_FALLBACK.
+    # Public (unlike the two ids above) so a single option fetched via
+    # GET /accommodation/{id} still carries its own sandbox/mock label.
+    data_source: str = "MOCK"
 
     def to_dict(self) -> dict:
         return {
@@ -87,4 +97,5 @@ class AccommodationOption:
             "assumptions": self.assumptions,
             "recommendation_type": self.recommendation_type,
             "created_at": self.created_at,
+            "data_source": self.data_source,
         }

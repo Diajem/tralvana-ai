@@ -7,6 +7,8 @@ from typing import Any
 from app.domains.accommodation.models import AccommodationOption
 from app.domains.accommodation.repository import AccommodationRepository
 from app.domains.accommodation.schemas import RecommendAccommodationRequest
+from ai.discovery.accommodation.live_search_validator import validate_live_accommodation_search
+from travelos.config.configuration_manager import config
 
 
 class AccommodationIntelligenceService:
@@ -37,6 +39,18 @@ class AccommodationIntelligenceService:
             destination = trip.get("destination") or destination
             nights = trip.get("duration_days") or nights
 
+        if config.accommodation_provider_mode == "LIVE_SANDBOX":
+            # Validate before any Duffel Stays call is made (T-039,
+            # section 4) — MOCK mode is intentionally exempt; see
+            # live_search_validator's module docstring for why.
+            validate_live_accommodation_search(
+                destination=destination,
+                check_in_date=request.check_in_date,
+                nights=nights,
+                adults=request.adults,
+                rooms=request.rooms,
+            )
+
         output = accommodation_intelligence.recommend(
             destination=destination,
             check_in_date=request.check_in_date,
@@ -45,6 +59,7 @@ class AccommodationIntelligenceService:
             budget_style=request.budget_style,
             adults=request.adults,
             children=request.children,
+            rooms=request.rooms,
             business_trip=request.business_trip,
             accessibility_required=request.accessibility_required,
             profile=profile,
@@ -82,6 +97,9 @@ class AccommodationIntelligenceService:
                 assumptions=option["assumptions"],
                 recommendation_type=option["recommendation_type"],
                 created_at=now,
+                provider_property_id=option.get("provider_property_id"),
+                provider_rate_id=option.get("provider_rate_id"),
+                data_source=option.get("data_source", "MOCK"),
             )
             for option in output["accommodation_options"]
         ]
@@ -96,6 +114,13 @@ class AccommodationIntelligenceService:
             "next_actions": output["next_actions"],
             "recommended_agents": output["recommended_agents"],
             "summary": output["summary"],
+            "data_source": output.get("data_source", "MOCK"),
+            "provider_status": output.get("provider_status", "AVAILABLE"),
+            "retrieved_at": output.get("retrieved_at", ""),
+            "request_id": output.get("request_id", ""),
+            "raw_results_count": output.get("raw_results_count", 0),
+            "normalised_results_count": output.get("normalised_results_count", len(options)),
+            "ranked_results_count": output.get("ranked_results_count", len(options)),
         }
 
     def get(self, accommodation_option_id: str) -> dict[str, Any] | None:

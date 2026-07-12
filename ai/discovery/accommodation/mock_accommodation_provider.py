@@ -153,6 +153,11 @@ class MockAccommodationProvider:
     Swapping in Booking.com or Expedia later means implementing this method
     against their API and passing the instance to
     AccommodationIntelligence(provider=...) — nothing downstream changes.
+
+    adults/children/rooms (T-039) are accepted for interface parity with
+    DuffelStaysProvider — which needs them to build a real Duffel
+    request — and deliberately ignored here: mock inventory has never
+    varied by occupancy, and this task didn't ask for that to change.
     """
 
     def search(
@@ -160,6 +165,9 @@ class MockAccommodationProvider:
         destination: str,
         check_in_date: str,
         nights: int,
+        adults: int = 1,
+        children: int = 0,
+        rooms: int = 1,
     ) -> list[dict[str, Any]]:
         seed = sum(ord(c) for c in destination.lower()) or 1
         route_price_factor = 0.7 + (seed % 61) / 100

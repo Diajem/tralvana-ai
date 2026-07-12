@@ -225,19 +225,76 @@ class GatewayFlightProvider:
         )
 
 
+class LiveAccommodationSearchUnavailableError(Exception):
+    """Raised when TRALVANA_ACCOMMODATION_PROVIDER_MODE=LIVE_SANDBOX and
+    the Duffel Stays search failed (auth, timeout, rate limit,
+    malformed response, destination not resolvable, or simply no
+    eligible provider) with mock fallback disabled — T-039's "LIVE_SANDBOX
+    errors must be safe and clear" rule. Caught at the API boundary
+    (services/api/app/domains/accommodation/router.py) and converted to
+    a 503, never silently swallowed into an empty result."""
+
+
 class GatewayAccommodationProvider:
-    """Same interface as MockAccommodationProvider — see GatewayFlightProvider."""
+    """Same interface as MockAccommodationProvider — see GatewayFlightProvider.
+
+    T-039 additions: `last_result` exposes the full ProviderResult from
+    the most recent search() call (data_source/provider_status/request_id
+    for the public API — see ai/discovery/accommodation/accommodation_intelligence.py),
+    adults/children/rooms are accepted and forwarded to the provider
+    (MockAccommodationProvider ignores them, matching its pre-T-039
+    behaviour exactly), and a LIVE_SANDBOX failure either raises
+    LiveAccommodationSearchUnavailableError or falls back to mock data,
+    per TRALVANA_ACCOMMODATION_MOCK_FALLBACK_ENABLED — mock and live
+    properties are never blended into one result set; a fallback
+    response is 100% mock, clearly labelled as such."""
 
     def __init__(self, gateway: IntelligenceGateway | None = None) -> None:
         self._gateway = gateway or intelligence_gateway
+        self.last_result: ProviderResult | None = None
+        self.used_mock_fallback: bool = False
 
-    def search(self, destination: str, check_in_date: str, nights: int) -> list[dict[str, Any]]:
+    def search(
+        self,
+        destination: str,
+        check_in_date: str,
+        nights: int,
+        adults: int = 1,
+        children: int = 0,
+        rooms: int = 1,
+    ) -> list[dict[str, Any]]:
+        self.used_mock_fallback = False
         request = ProviderRequest(
             capability=Capability.ACCOMMODATION, operation="search",
-            params={"destination": destination, "check_in_date": check_in_date, "nights": nights},
+            params={
+                "destination": destination, "check_in_date": check_in_date, "nights": nights,
+                "adults": adults, "children": children, "rooms": rooms,
+            },
         )
         result = self._gateway.execute(Capability.ACCOMMODATION, request)
-        return result.data if result.ok and result.data is not None else []
+        self.last_result = result
+        if result.ok and result.data is not None:
+            return result.data
+
+        from travelos.config.configuration_manager import config
+
+        if config.accommodation_provider_mode != "LIVE_SANDBOX":
+            # MOCK mode's own provider effectively never fails this way —
+            # preserve the pre-T-039 behaviour of a quiet empty list.
+            return []
+
+        if config.accommodation_mock_fallback_enabled:
+            from ai.discovery.accommodation.mock_accommodation_provider import MockAccommodationProvider
+            self.used_mock_fallback = True
+            return MockAccommodationProvider().search(
+                destination, check_in_date, nights, adults=adults, children=children, rooms=rooms
+            )
+
+        raise LiveAccommodationSearchUnavailableError(
+            "Duffel Stays sandbox search is unavailable "
+            f"(provider_status={result.status.value}); "
+            "set TRALVANA_ACCOMMODATION_MOCK_FALLBACK_ENABLED=true to fall back to mock data instead."
+        )
 
 
 class GatewayWeatherProvider:

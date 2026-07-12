@@ -1,11 +1,13 @@
 from fastapi import APIRouter, HTTPException
 
+from ai.discovery.accommodation.live_search_validator import LiveAccommodationSearchValidationError
 from app.domains.accommodation.schemas import (
     AccommodationOptionResponse,
     AccommodationRecommendationResponse,
     RecommendAccommodationRequest,
 )
 from app.domains.accommodation.service import accommodation_intelligence_service
+from travelos.intelligence_gateway.discovery_adapters import LiveAccommodationSearchUnavailableError
 
 router = APIRouter(tags=["accommodation"])
 
@@ -36,7 +38,12 @@ async def recommend_accommodation(request: RecommendAccommodationRequest) -> dic
         except Exception:
             pass
 
-    return accommodation_intelligence_service.recommend(request, trip=trip, goal=goal, profile=profile)
+    try:
+        return accommodation_intelligence_service.recommend(request, trip=trip, goal=goal, profile=profile)
+    except LiveAccommodationSearchValidationError as exc:
+        raise HTTPException(status_code=422, detail={"errors": exc.errors}) from exc
+    except LiveAccommodationSearchUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.get("/accommodation/{accommodation_option_id}", response_model=AccommodationOptionResponse)
