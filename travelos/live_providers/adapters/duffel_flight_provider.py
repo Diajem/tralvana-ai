@@ -53,7 +53,13 @@ _DUFFEL_API_VERSION = "v2"
 _CABIN_TO_DUFFEL = {"economy": "economy", "business": "business", "first": "first"}
 _CABIN_FROM_DUFFEL = {"economy": "economy", "premium_economy": "business", "business": "business", "first": "first"}
 
-_ISO8601_DURATION_RE = re.compile(r"^PT(?:(\d+)H)?(?:(\d+)M)?$")
+# Duffel durations aren't always "PT#H#M" — a connection spanning past
+# midnight (e.g. a long layover) is returned as "P1DT5H15M" (1 day, 5
+# hours, 15 minutes), confirmed against a real SANDBOX response during
+# T-037's live verification (docs/FIRST_LIVE_PROVIDER.md). The day
+# component was absent from every documentation example this adapter
+# was originally built against.
+_ISO8601_DURATION_RE = re.compile(r"^P(?:(\d+)D)?T(?:(\d+)H)?(?:(\d+)M)?$")
 
 
 class DuffelFlightProvider(BaseLiveProvider):
@@ -289,9 +295,10 @@ def _parse_iso8601_duration(duration: str) -> int:
     match = _ISO8601_DURATION_RE.match(duration)
     if not match:
         raise ValueError(f"unrecognised ISO 8601 duration: {duration!r}")
-    hours = int(match.group(1) or 0)
-    minutes = int(match.group(2) or 0)
-    return hours * 60 + minutes
+    days = int(match.group(1) or 0)
+    hours = int(match.group(2) or 0)
+    minutes = int(match.group(3) or 0)
+    return days * 24 * 60 + hours * 60 + minutes
 
 
 def _fmt_duration(minutes: int) -> str:

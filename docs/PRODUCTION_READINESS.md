@@ -3,12 +3,15 @@
 A practical checklist for taking any live provider built on
 `BaseLiveProvider` (`docs/LIVE_PROVIDER_FRAMEWORK.md`) from a
 `SANDBOX`-environment adapter tested against `FakeTransport` to a real
-`PRODUCTION` credential serving live traveller requests. **Nothing in
-this repository has passed this checklist yet** — T-025 and T-026 are
-infrastructure only, and T-027's `duffel_flight_provider`
-(`docs/FIRST_LIVE_PROVIDER.md`) is a fully-built, fully-tested adapter
-that has still never made a real network call and is not registered by
-default; it starts this checklist at zero, same as any other provider.
+`PRODUCTION` credential serving live traveller requests. **No provider
+has passed this checklist in full yet.** T-025 and T-026 were
+infrastructure only. T-027 built `duffel_flight_provider` fully tested
+against `FakeTransport`. T-037 (`docs/ADR/ADR-023-real-http-transport-and-live-verification.md`)
+closed the Sandbox Validation item below with one real, successful
+`SANDBOX` call — but every other section (Monitoring, Rate Limits,
+Cost Controls, Production Approval, Incident Response, ...) remains
+unchecked, and the provider is still not registered by default in the
+running application.
 
 Use this per-provider, not once for the whole system — a new vendor
 integration (e.g. adding Amadeus once `OAuth2ClientCredentialsAuthStrategy`
@@ -142,13 +145,20 @@ its own merits.
 
 ## Sandbox Validation
 
-- [ ] Every method in the lifecycle (`build_request`, `send_request`,
+- [x] Every method in the lifecycle (`build_request`, `send_request`,
       `parse_response`, `map_error`, `health_check`) has been exercised
       against the vendor's real `SANDBOX` environment, not only
-      `FakeTransport`
+      `FakeTransport` — **`duffel_flight_provider` only**, T-037: one
+      successful live call (HTTP 201, 235 offers, all mapped correctly)
+      via `HttpxTransport`. Found and fixed a real `parse_response()`
+      bug along the way (a day-component ISO 8601 duration,
+      `docs/ADR/ADR-023-real-http-transport-and-live-verification.md`)
+      that `FakeTransport`-only testing had no way to surface. No other
+      provider has exercised this item.
 - [ ] At least one deliberately malformed/error-triggering request has
       been sent to `SANDBOX` and confirmed to map to the correct
-      standard error type
+      standard error type — not yet done for `duffel_flight_provider`;
+      T-037's live call was a valid, well-formed search only
 
 ## Production Approval
 

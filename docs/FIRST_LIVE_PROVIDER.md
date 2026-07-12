@@ -67,33 +67,43 @@ exactly, so nothing above the Intelligence Gateway needed to change
 
 ## What Remains Before Real Production Use
 
-Nothing in this repository has made a real network call to Duffel or
-any other vendor. Before this adapter could serve a real traveller
-request:
+**Updated after T-037** (`docs/ADR/ADR-023-real-http-transport-and-live-verification.md`):
+items 1 and 2 below are now closed — a real `Transport` exists and has
+been exercised against Duffel's actual `SANDBOX` API with a real
+token, returning 235 real offers that all mapped cleanly into the
+existing internal flight-option shape. The items that remain:
 
-1. **A real HTTP transport.** Only `FakeTransport` exists (TD-021,
-   inherited unchanged from T-026). `DuffelFlightProvider` takes any
-   `Transport`, so this is additive — no adapter code changes — but it
-   is genuinely new code that has never run, and per the same
-   reasoning ADR-021 gave for deferring it in T-026: nothing in this
-   task's scope can safely exercise a real transport without a live
-   network call, which the task's own constraints forbid.
-2. **A real Duffel sandbox account and test-mode token**, set as
-   `DUFFEL_API_TOKEN`, to exercise the adapter against Duffel's actual
-   `SANDBOX` environment rather than only `FakeTransport` — the
-   Sandbox Validation section of `docs/PRODUCTION_READINESS.md`.
+1. ~~A real HTTP transport~~ — **closed by T-037.**
+   `travelos/live_providers/httpx_transport.py`'s `HttpxTransport`
+   exists, is unit-tested against `httpx.MockTransport`, and has made a
+   genuine, successful live call.
+2. ~~A real Duffel sandbox account and test-mode token exercised
+   against Duffel's actual `SANDBOX` environment~~ — **closed by
+   T-037.** One real call returned HTTP 201 with 235 offers, all
+   successfully parsed. This also surfaced and fixed a real bug
+   `FakeTransport`-only testing couldn't have found: some Duffel
+   durations include a day component (`P1DT5H15M`), which the
+   original ISO 8601 parser (built from documentation examples alone)
+   didn't handle.
 3. **The full `docs/PRODUCTION_READINESS.md` checklist**, per-provider,
-   for `duffel_flight_provider` specifically — secrets, monitoring,
-   rate limits tuned to Duffel's documented limits, a second
-   engineer's review of the request/response mapping against Duffel's
-   real API docs, and a rollback plan.
-4. **Passenger count.** `GatewayFlightProvider.search()`'s signature
+   for `duffel_flight_provider` specifically — most items remain open:
+   monitoring wired to external tooling, rate limits tuned to Duffel's
+   documented limits (not yet confirmed against real numbers), a
+   second engineer's review of the request/response mapping against
+   Duffel's real API docs, secret rotation exercised, and a rollback
+   plan.
+4. **Application-startup wiring.** `register_duffel_flight_provider()`
+   is still never called automatically — T-037 proved the transport
+   works via a manual, uncommitted verification script, it did not
+   wire Duffel into `services/api/app/main.py`'s startup path. Nothing
+   about default application behaviour has changed.
+5. **Passenger count.** `GatewayFlightProvider.search()`'s signature
    (unchanged, matching `MockFlightProvider.search()`) does not accept
    an `adults` count, so `build_request()` always sends exactly one
    adult passenger to Duffel — a pre-existing Discovery-layer
    limitation this task did not introduce and was explicitly
    constrained not to fix (no Discovery Layer redesign).
-5. **Multi-offer price anchoring.** `_price_anchor` is set equal to
+6. **Multi-offer price anchoring.** `_price_anchor` is set equal to
    each offer's own price (no independent baseline exists from a
    single `offer_requests` call) — this only affects one DNA-based
    scoring heuristic (`budget_consciousness`, `flight_scorer.py`) and

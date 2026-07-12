@@ -30,9 +30,11 @@ tralvana-ai/
 │   └── live_providers/ # Reusable base for a real vendor integration — auth,
 │                       #   transport, request/response mapping, error model,
 │                       #   health/tracing/metrics. Includes DuffelFlightProvider
-│                       #   (adapters/), the first real vendor adapter — built and
-│                       #   tested, but not registered by default; no real network
-│                       #   call is made anywhere (see docs/FIRST_LIVE_PROVIDER.md).
+│                       #   (adapters/), the first real vendor adapter, and
+│                       #   HttpxTransport, the first real (non-fake) Transport —
+│                       #   verified with one live Duffel SANDBOX call (T-037),
+│                       #   but not registered by default in the running app
+│                       #   (see docs/FIRST_LIVE_PROVIDER.md).
 ├── docs/               # Architecture docs, ADRs, task tracker
 └── docker-compose.yml
 ```

@@ -208,6 +208,23 @@ class TestResponseMapping:
         assert option["refundability"] == "non_refundable"
         assert option["flexibility"] == "fixed"
 
+    def test_duration_spanning_more_than_a_day_is_parsed(self, monkeypatch):
+        """Confirmed against a real Duffel SANDBOX response during T-037's
+        live verification (docs/FIRST_LIVE_PROVIDER.md) — a long
+        connection can push total duration past 24 hours, and Duffel
+        then includes a day component ("P1DT5H15M") this adapter's
+        original ISO 8601 parser (built from documentation examples
+        only, which never showed a day component) didn't handle."""
+        monkeypatch.setenv(_ENV_VAR, "duffel_test_abc123")
+        long_offer = {**_DIRECT_OFFER, "slices": [{**_DIRECT_OFFER["slices"][0], "duration": "P1DT5H15M"}]}
+        transport = FakeTransport.always_returning(status_code=200, body=_offer_request_body(long_offer))
+        provider = DuffelFlightProvider(transport=transport)
+        result = provider.execute(_req())
+
+        option = result.data[0]
+        assert option["_total_duration_minutes"] == 24 * 60 + 5 * 60 + 15
+        assert option["total_duration"] == "29h 15m"
+
     def test_every_option_reaches_the_flight_scorer_without_error(self, monkeypatch):
         """The real contract this adapter must satisfy: its output can be
         scored exactly like MockFlightProvider output, with no adapter-

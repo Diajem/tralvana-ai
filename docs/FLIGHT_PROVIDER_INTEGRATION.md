@@ -149,38 +149,41 @@ captured from a real account:
 
 ## Enabling It
 
-Registration is **not automatic** — unlike the T-025 mock providers
-(`travelos/intelligence_gateway/discovery_adapters.py`'s
+Registration is **still not automatic** — unlike the T-025 mock
+providers (`travelos/intelligence_gateway/discovery_adapters.py`'s
 `register_default_providers()`, called at import time),
 `register_duffel_flight_provider()` must be called explicitly and
-requires a `Transport` to be supplied by the caller:
+requires a `Transport` to be supplied by the caller. As of T-037, a
+real one exists:
 
 ```python
 from travelos.live_providers.adapters.duffel_flight_provider import register_duffel_flight_provider
-from travelos.live_providers.transport import FakeTransport  # real Transport: not yet built, see below
+from travelos.live_providers.httpx_transport import HttpxTransport
 
-register_duffel_flight_provider(transport=FakeTransport())
+register_duffel_flight_provider(transport=HttpxTransport())
 ```
 
 This is a deliberate difference from the mock-provider pattern: mock
 providers are always safe to auto-register (they never make an
 external call), but auto-registering `DuffelFlightProvider` at import
-time would force a choice between defaulting to `FakeTransport` (which
-would silently serve canned data to anyone who flips
-`PROVIDER_ENVIRONMENT=SANDBOX`, looking configured while not being
-real) or requiring a real `Transport` that doesn't exist yet (TD-021).
-Explicit registration avoids both.
+time — even now that `HttpxTransport` exists — would make every app
+boot capable of a real outbound call to Duffel the moment
+`PROVIDER_ENVIRONMENT=SANDBOX`/`PRODUCTION` is set, without an explicit
+decision point. Explicit registration keeps that decision deliberate.
 
-Once a real `Transport` exists and `docs/PRODUCTION_READINESS.md` is
-checked off for this provider, wiring it into `services/api/app/main.py`'s
-startup (or an equivalent bootstrap step), gated by
-`PROVIDER_ENVIRONMENT=SANDBOX`/`PRODUCTION` and `DUFFEL_API_TOKEN` both
-being set, is the natural next step — not done here, since it would
-require the real transport this task explicitly does not build.
+T-037 proved `HttpxTransport` works — one real call through this exact
+registration pattern reached Duffel's SANDBOX API and returned 235
+offers (`docs/FIRST_LIVE_PROVIDER.md`) — but did **not** wire it into
+`services/api/app/main.py`'s startup. Doing so, gated by
+`PROVIDER_ENVIRONMENT` and `DUFFEL_API_TOKEN` both being set, plus
+checking off `docs/PRODUCTION_READINESS.md` for this provider, remains
+the next step before any real application traffic reaches Duffel.
 
 ## Known Limitations
 
 See `docs/FIRST_LIVE_PROVIDER.md`'s "What Remains Before Real
-Production Use" — no real transport, no real sandbox call ever made,
-adult-only passenger count, and `_price_anchor` set to each offer's own
-price rather than an independent baseline.
+Production Use" — most of `docs/PRODUCTION_READINESS.md`'s checklist,
+application-startup wiring, adult-only passenger count, and
+`_price_anchor` set to each offer's own price rather than an
+independent baseline. The real-transport and real-sandbox-call items
+are now closed (T-037).
