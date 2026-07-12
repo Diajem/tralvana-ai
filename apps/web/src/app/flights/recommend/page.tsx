@@ -19,6 +19,20 @@ const BUDGET_STYLES = [
   { value: "luxury", label: "Luxury" },
 ];
 
+const DATA_SOURCE_LABELS: Record<string, { label: string; className: string; banner: string | null }> = {
+  MOCK: { label: "Test data", className: "bg-gray-100 text-gray-600", banner: null },
+  DUFFEL_SANDBOX: {
+    label: "Duffel sandbox",
+    className: "bg-sky-100 text-sky-700",
+    banner: "Sandbox flight data — not available for purchase.",
+  },
+  MOCK_FALLBACK: {
+    label: "Mock fallback",
+    className: "bg-amber-100 text-amber-700",
+    banner: "Duffel sandbox was unavailable — showing mock fallback data, not real inventory.",
+  },
+};
+
 const RECOMMENDATION_LABELS: Record<string, { label: string; className: string }> = {
   BEST_OVERALL: { label: "Best Overall", className: "bg-blue-600 text-white" },
   LOWEST_PRICE: { label: "Lowest Price", className: "bg-emerald-600 text-white" },
@@ -89,6 +103,14 @@ function FlightCard({ flight }: { flight: FlightOption }) {
           </p>
         </div>
       </div>
+
+      <p className="text-xs text-gray-500">
+        {flight.baggage_included ? "✓ Checked baggage included" : "✗ Checked baggage not included"}
+        {" · "}
+        {flight.refundability.replace(/_/g, " ")}
+        {" · "}
+        {flight.flexibility.replace(/_/g, " ")}
+      </p>
 
       <MatchScoreBar score={flight.match_score} />
 
@@ -234,10 +256,12 @@ export default function RecommendFlightsPage() {
               <input
                 type="text"
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g. London, or LHR for sandbox search"
                 value={form.origin}
                 onChange={(e) => setForm({ ...form, origin: e.target.value })}
                 required
               />
+              <p className="text-xs text-gray-400 mt-1">Use a 3-letter IATA code (e.g. LHR) if sandbox flight data is enabled.</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -246,7 +270,7 @@ export default function RecommendFlightsPage() {
               <input
                 type="text"
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g. Tokyo"
+                placeholder="e.g. Tokyo, or NRT for sandbox search"
                 value={form.destination}
                 onChange={(e) => setForm({ ...form, destination: e.target.value })}
                 required
@@ -366,8 +390,26 @@ export default function RecommendFlightsPage() {
 
         {result && (
           <div className="space-y-6">
+            {(() => {
+              const source = DATA_SOURCE_LABELS[result.data_source] ?? DATA_SOURCE_LABELS.MOCK;
+              return source.banner ? (
+                <div className="rounded-lg bg-sky-50 border border-sky-200 p-4 text-sky-800 text-sm font-medium">
+                  {source.banner}
+                </div>
+              ) : null;
+            })()}
+
             <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">Summary</h2>
+              <div className="flex items-start justify-between gap-4 flex-wrap mb-2">
+                <h2 className="text-lg font-semibold text-gray-900">Summary</h2>
+                <span
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                    (DATA_SOURCE_LABELS[result.data_source] ?? DATA_SOURCE_LABELS.MOCK).className
+                  }`}
+                >
+                  Source: {(DATA_SOURCE_LABELS[result.data_source] ?? DATA_SOURCE_LABELS.MOCK).label}
+                </span>
+              </div>
               <p className="text-sm text-gray-700">{result.summary}</p>
             </div>
 

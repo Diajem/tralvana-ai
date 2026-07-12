@@ -8,10 +8,14 @@ has passed this checklist in full yet.** T-025 and T-026 were
 infrastructure only. T-027 built `duffel_flight_provider` fully tested
 against `FakeTransport`. T-037 (`docs/ADR/ADR-023-real-http-transport-and-live-verification.md`)
 closed the Sandbox Validation item below with one real, successful
-`SANDBOX` call — but every other section (Monitoring, Rate Limits,
-Cost Controls, Production Approval, Incident Response, ...) remains
-unchecked, and the provider is still not registered by default in the
-running application.
+`SANDBOX` call. T-038 (`docs/ADR/ADR-024-live-flight-product-integration.md`,
+`docs/LIVE_FLIGHT_SEARCH.md`) made this reachable from a real traveller
+request — but only when an operator explicitly sets
+`TRALVANA_FLIGHT_PROVIDER_MODE=LIVE_SANDBOX`; `MOCK` remains the
+default in every environment, including production, until this
+checklist is actually completed. Every other section below (Monitoring,
+Rate Limits, Cost Controls, Production Approval, Incident Response,
+...) remains unchecked.
 
 Use this per-provider, not once for the whole system — a new vendor
 integration (e.g. adding Amadeus once `OAuth2ClientCredentialsAuthStrategy`

@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException
 
+from ai.discovery.flights.live_search_validator import LiveFlightSearchValidationError
 from app.domains.flights.schemas import FlightOptionResponse, FlightRecommendationResponse, RecommendFlightsRequest
 from app.domains.flights.service import flight_intelligence_service
+from travelos.intelligence_gateway.discovery_adapters import LiveFlightSearchUnavailableError
 
 router = APIRouter(tags=["flights"])
 
@@ -32,7 +34,12 @@ async def recommend_flights(request: RecommendFlightsRequest) -> dict:
         except Exception:
             pass
 
-    return flight_intelligence_service.recommend(request, trip=trip, goal=goal, profile=profile)
+    try:
+        return flight_intelligence_service.recommend(request, trip=trip, goal=goal, profile=profile)
+    except LiveFlightSearchValidationError as exc:
+        raise HTTPException(status_code=422, detail={"errors": exc.errors}) from exc
+    except LiveFlightSearchUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.get("/flights/{flight_option_id}", response_model=FlightOptionResponse)

@@ -7,6 +7,8 @@ from typing import Any
 from app.domains.flights.models import FlightOption
 from app.domains.flights.repository import FlightRepository
 from app.domains.flights.schemas import RecommendFlightsRequest
+from ai.discovery.flights.live_search_validator import validate_live_flight_search
+from travelos.config.configuration_manager import config
 
 
 class FlightIntelligenceService:
@@ -37,6 +39,19 @@ class FlightIntelligenceService:
             origin = trip.get("origin") or origin
             destination = trip.get("destination") or destination
             duration_days = trip.get("duration_days") or duration_days
+
+        if config.flight_provider_mode == "LIVE_SANDBOX":
+            # Validate before any Duffel call is made (T-038, section 3) —
+            # MOCK mode is intentionally exempt; see live_search_validator's
+            # module docstring for why.
+            validate_live_flight_search(
+                origin=origin,
+                destination=destination,
+                departure_date=request.departure_date,
+                return_date=request.return_date,
+                adults=request.adults,
+                cabin_class=request.cabin_class,
+            )
 
         output = flight_intelligence.recommend(
             origin=origin,
@@ -81,6 +96,8 @@ class FlightIntelligenceService:
                 assumptions=option["assumptions"],
                 recommendation_type=option["recommendation_type"],
                 created_at=now,
+                provider_offer_id=option.get("provider_offer_id"),
+                data_source=option.get("data_source", "MOCK"),
             )
             for option in output["flight_options"]
         ]
@@ -96,6 +113,11 @@ class FlightIntelligenceService:
             "next_actions": output["next_actions"],
             "recommended_agents": output["recommended_agents"],
             "summary": output["summary"],
+            "data_source": output.get("data_source", "MOCK"),
+            "retrieved_at": output.get("retrieved_at", ""),
+            "provider_status": output.get("provider_status", "AVAILABLE"),
+            "results_count": output.get("results_count", len(flights)),
+            "request_id": output.get("request_id", ""),
         }
 
     def get(self, flight_option_id: str) -> dict[str, Any] | None:

@@ -47,9 +47,22 @@ export default async function FlightOptionPage({
     className: "bg-gray-500 text-white",
   };
 
+  const sandboxBanner =
+    flight.data_source === "DUFFEL_SANDBOX"
+      ? "Sandbox flight data — not available for purchase."
+      : flight.data_source === "MOCK_FALLBACK"
+        ? "Duffel sandbox was unavailable — showing mock fallback data, not real inventory."
+        : null;
+
   return (
     <main className="min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-3xl mx-auto space-y-8">
+
+        {sandboxBanner && (
+          <div className="rounded-lg bg-sky-50 border border-sky-200 p-4 text-sky-800 text-sm font-medium">
+            {sandboxBanner}
+          </div>
+        )}
 
         {/* Header */}
         <div className="bg-white rounded-2xl shadow p-8">

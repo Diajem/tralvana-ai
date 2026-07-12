@@ -163,14 +163,25 @@ class DuffelFlightProvider(BaseLiveProvider):
         if not isinstance(offers, list):
             raise ProviderResponseError(f"{self.provider_name}: 'data.offers' is not a list")
 
+        # Partial mapping failure (T-038): one malformed offer in a batch
+        # of otherwise-good offers is skipped, not treated as a whole-
+        # response failure — real Duffel responses can carry 200+ offers,
+        # and discarding all of them over one bad entry would be a worse
+        # outcome than surfacing the rest with a warning. Only if *every*
+        # offer in a non-empty batch fails to map is this actually a
+        # response-shape problem worth raising ProviderResponseError for.
         options: list[dict[str, Any]] = []
+        failed_count = 0
         for offer in offers:
             try:
                 options.append(self._map_offer(offer))
-            except (KeyError, IndexError, TypeError, ValueError) as exc:
-                raise ProviderResponseError(
-                    f"{self.provider_name}: malformed offer in response — {exc}"
-                ) from exc
+            except (KeyError, IndexError, TypeError, ValueError):
+                failed_count += 1
+
+        if offers and not options:
+            raise ProviderResponseError(
+                f"{self.provider_name}: all {len(offers)} offer(s) in the response failed to map"
+            )
 
         return ProviderResult(
             provider_name=self.provider_name,
@@ -178,7 +189,16 @@ class DuffelFlightProvider(BaseLiveProvider):
             status=ProviderStatus.AVAILABLE,
             data=options,
             confidence=0.9,
-            source_metadata={"provider_request_id": data.get("id", "")},
+            warnings=(
+                [f"{failed_count} of {len(offers)} offer(s) failed to map and were skipped"]
+                if failed_count
+                else []
+            ),
+            source_metadata={
+                "provider_request_id": data.get("id", ""),
+                "raw_offer_count": len(offers),
+                "mapped_offer_count": len(options),
+            },
         )
 
     def map_error(self, error: Exception) -> Exception:
@@ -265,6 +285,11 @@ class DuffelFlightProvider(BaseLiveProvider):
             # neutral default (docs/FIRST_LIVE_PROVIDER.md's Known
             # Limitations), never an invented "typical" fare.
             "_price_anchor": float(offer["total_amount"]),
+            # Preserved for future booking work only (T-038 explicitly
+            # excludes booking) — popped before the public API response
+            # in FlightIntelligence.recommend(), same as every other
+            # underscore-prefixed internal field.
+            "_provider_offer_id": offer["id"],
         }
 
 

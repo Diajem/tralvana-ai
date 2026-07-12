@@ -2,9 +2,15 @@
 
 T-027 — the first real vendor adapter built on the Live Provider
 Framework (T-026, `docs/LIVE_PROVIDER_FRAMEWORK.md`). Answers the
-question T-026 deliberately left open: which vendor, and why. **Not
-connected to a real network anywhere in this repository — see "What
-Remains Before Real Production Use" below.**
+question T-026 deliberately left open: which vendor, and why.
+
+**Status as of T-038**: fully wired into the product — see
+`docs/LIVE_FLIGHT_SEARCH.md` for the user-facing capability and
+`docs/DUFFEL_SANDBOX_OPERATIONS.md` for day-to-day operation. This
+document remains the record of *why Duffel* and the adapter's own
+mapping/error-handling design; it no longer describes current
+production-readiness status in full — see "What Remains Before Real
+Production Use" below for what's actually still open.
 
 See also `docs/FLIGHT_PROVIDER_INTEGRATION.md` (how the adapter is
 built and how to enable it) and `docs/ADR/ADR-022-first-live-provider.md`.
@@ -92,11 +98,14 @@ existing internal flight-option shape. The items that remain:
    second engineer's review of the request/response mapping against
    Duffel's real API docs, secret rotation exercised, and a rollback
    plan.
-4. **Application-startup wiring.** `register_duffel_flight_provider()`
-   is still never called automatically — T-037 proved the transport
-   works via a manual, uncommitted verification script, it did not
-   wire Duffel into `services/api/app/main.py`'s startup path. Nothing
-   about default application behaviour has changed.
+4. ~~Application-startup wiring~~ — **closed by T-038.**
+   `travelos/live_providers/flight_provider_bootstrap.py`'s
+   `configure_flight_provider()` is now called from
+   `services/api/app/main.py`'s composition root — but it's still
+   opt-in, not automatic: it only registers Duffel when
+   `TRALVANA_FLIGHT_PROVIDER_MODE=LIVE_SANDBOX` is explicitly set, and
+   `MOCK` (the default) remains a true no-op. See
+   `docs/LIVE_FLIGHT_SEARCH.md`.
 5. **Passenger count.** `GatewayFlightProvider.search()`'s signature
    (unchanged, matching `MockFlightProvider.search()`) does not accept
    an `adults` count, so `build_request()` always sends exactly one

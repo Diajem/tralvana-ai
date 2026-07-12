@@ -134,7 +134,17 @@ export async function recommendFlights(
     body: JSON.stringify(data),
   });
   if (!res.ok) {
-    throw new Error(`Failed to get flight recommendations: ${res.status}`);
+    // 422 (validation, e.g. an invalid IATA code in live sandbox mode)
+    // and 503 (Duffel sandbox unavailable) both carry a `detail` field
+    // worth surfacing directly rather than just the status code.
+    const detail = await res.json().catch(() => null);
+    const message =
+      detail && typeof detail.detail === "object" && Array.isArray(detail.detail.errors)
+        ? detail.detail.errors.join("; ")
+        : detail && typeof detail.detail === "string"
+          ? detail.detail
+          : `Failed to get flight recommendations: ${res.status}`;
+    throw new Error(message);
   }
   return res.json();
 }

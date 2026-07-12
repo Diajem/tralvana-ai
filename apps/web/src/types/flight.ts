@@ -35,7 +35,10 @@ export interface FlightOption {
   assumptions: string[];
   recommendation_type: RecommendationType;
   created_at: string;
+  data_source: FlightDataSource;
 }
+
+export type FlightDataSource = "MOCK" | "DUFFEL_SANDBOX" | "MOCK_FALLBACK";
 
 export interface FlightRecommendationResponse {
   traveller_id: string | null;
@@ -47,6 +50,13 @@ export interface FlightRecommendationResponse {
   next_actions: string[];
   recommended_agents: string[];
   summary: string;
+  // Safe provenance metadata (T-038) — never a header, token, or raw
+  // provider payload, see docs/LIVE_FLIGHT_SEARCH.md.
+  data_source: FlightDataSource;
+  retrieved_at: string;
+  provider_status: string;
+  results_count: number;
+  request_id: string;
 }
 
 export interface RecommendFlightsRequest {

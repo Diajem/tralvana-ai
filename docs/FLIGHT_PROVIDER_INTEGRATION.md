@@ -149,41 +149,41 @@ captured from a real account:
 
 ## Enabling It
 
-Registration is **still not automatic** — unlike the T-025 mock
-providers (`travelos/intelligence_gateway/discovery_adapters.py`'s
-`register_default_providers()`, called at import time),
-`register_duffel_flight_provider()` must be called explicitly and
-requires a `Transport` to be supplied by the caller. As of T-037, a
-real one exists:
+**As of T-038, this is wired into application startup** — see
+`docs/LIVE_FLIGHT_SEARCH.md` for the full picture and
+`docs/DUFFEL_SANDBOX_OPERATIONS.md` for the operational how-to.
+`travelos/live_providers/flight_provider_bootstrap.py`'s
+`configure_flight_provider()` is called once from
+`services/api/app/main.py`, and does the registration this section
+used to describe as a manual code snippet:
 
 ```python
-from travelos.live_providers.adapters.duffel_flight_provider import register_duffel_flight_provider
-from travelos.live_providers.httpx_transport import HttpxTransport
-
-register_duffel_flight_provider(transport=HttpxTransport())
+# services/api/app/main.py, already wired — nothing further to call manually
+from travelos.live_providers.flight_provider_bootstrap import configure_flight_provider
+configure_flight_provider()
 ```
 
-This is a deliberate difference from the mock-provider pattern: mock
-providers are always safe to auto-register (they never make an
-external call), but auto-registering `DuffelFlightProvider` at import
-time — even now that `HttpxTransport` exists — would make every app
-boot capable of a real outbound call to Duffel the moment
-`PROVIDER_ENVIRONMENT=SANDBOX`/`PRODUCTION` is set, without an explicit
-decision point. Explicit registration keeps that decision deliberate.
+Set `TRALVANA_FLIGHT_PROVIDER_MODE=LIVE_SANDBOX` and `DUFFEL_API_TOKEN`
+in `.env`, restart the API process, and `duffel_flight_provider` is
+registered automatically — `MOCK` (the default) remains a true no-op,
+registering nothing and requiring no credential. Note this is a
+FLIGHTS-specific switch (`TRALVANA_FLIGHT_PROVIDER_MODE`), not the
+general `PROVIDER_ENVIRONMENT`/`TRALVANA_PROVIDER_ENVIRONMENT` this
+document originally referenced — see `docs/LIVE_FLIGHT_SEARCH.md`'s
+"Switching Between MOCK and LIVE_SANDBOX" for why they're deliberately
+separate.
 
-T-037 proved `HttpxTransport` works — one real call through this exact
-registration pattern reached Duffel's SANDBOX API and returned 235
-offers (`docs/FIRST_LIVE_PROVIDER.md`) — but did **not** wire it into
-`services/api/app/main.py`'s startup. Doing so, gated by
-`PROVIDER_ENVIRONMENT` and `DUFFEL_API_TOKEN` both being set, plus
-checking off `docs/PRODUCTION_READINESS.md` for this provider, remains
-the next step before any real application traffic reaches Duffel.
+The underlying `register_duffel_flight_provider(transport=HttpxTransport())`
+call this section previously described manually invoking is still
+exactly what `configure_flight_provider()` does internally — nothing
+about the registration mechanism itself changed, only that something
+now calls it automatically at the right time.
 
 ## Known Limitations
 
-See `docs/FIRST_LIVE_PROVIDER.md`'s "What Remains Before Real
-Production Use" — most of `docs/PRODUCTION_READINESS.md`'s checklist,
-application-startup wiring, adult-only passenger count, and
-`_price_anchor` set to each offer's own price rather than an
-independent baseline. The real-transport and real-sandbox-call items
-are now closed (T-037).
+See `docs/LIVE_FLIGHT_SEARCH.md`'s "What Remains Before Production and
+Booking" — most of `docs/PRODUCTION_READINESS.md`'s checklist,
+adult-only passenger count, and `_price_anchor` set to each offer's own
+price rather than an independent baseline. The real-transport,
+real-sandbox-call, and application-startup-wiring items are now closed
+(T-037, T-038).

@@ -79,6 +79,24 @@ class IntelligenceGateway:
         except Exception:
             return ProviderEnvironment.MOCK
 
+    def _environment_for(self, capability: Capability) -> ProviderEnvironment:
+        """Per-capability environment resolution (T-038). FLIGHTS reads
+        `config.flight_provider_mode` — a dedicated switch independent of
+        the general `provider_environment` above — so enabling live
+        Duffel data never changes Accommodation/Weather's provider
+        selection, which still reads `provider_environment` exactly as
+        before. An explicit constructor `environment=` override (used
+        throughout the test suite) always wins, for both paths, unchanged."""
+        if self._environment_override is not None:
+            return self._environment_override
+        if capability == Capability.FLIGHTS:
+            try:
+                from travelos.config.configuration_manager import config
+                return ProviderEnvironment.SANDBOX if config.flight_provider_mode == "LIVE_SANDBOX" else ProviderEnvironment.MOCK
+            except Exception:
+                return ProviderEnvironment.MOCK
+        return self.environment
+
     def execute(self, capability: Capability, request: ProviderRequest) -> ProviderResult:
         request_id = str(uuid.uuid4())
         cache_enabled = self._cache_enabled()
@@ -95,7 +113,7 @@ class IntelligenceGateway:
             _logger.debug("Cache miss", capability=capability.value, operation=request.operation, request_id=request_id)
 
         providers = self._registry.get_providers(capability)
-        eligible = self._selector.select(providers, request, self.environment)
+        eligible = self._selector.select(providers, request, self._environment_for(capability))
 
         if not eligible:
             _logger.warning(

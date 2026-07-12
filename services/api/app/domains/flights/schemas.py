@@ -44,6 +44,7 @@ class FlightOptionResponse(BaseModel):
     assumptions: list[str]
     recommendation_type: str
     created_at: str
+    data_source: str = "MOCK"
 
 
 class FlightRecommendationResponse(BaseModel):
@@ -56,3 +57,11 @@ class FlightRecommendationResponse(BaseModel):
     next_actions: list[str]
     recommended_agents: list[str]
     summary: str
+    # Safe provenance metadata only (T-038, docs/LIVE_FLIGHT_SEARCH.md) —
+    # never a header, token, or raw provider payload. Additive fields
+    # with defaults, so this is not a breaking change to the response shape.
+    data_source: str = "MOCK"              # MOCK | DUFFEL_SANDBOX | MOCK_FALLBACK
+    retrieved_at: str = ""
+    provider_status: str = "AVAILABLE"
+    results_count: int = 0
+    request_id: str = ""

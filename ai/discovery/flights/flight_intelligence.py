@@ -276,8 +276,28 @@ class FlightIntelligence:
             f.pop("_layover_minutes", None)
             f.pop("_price_anchor", None)
             f.pop("_persona_scores", None)
+            # Preserved for future booking work only (T-038 explicitly
+            # excludes booking) — renamed out of the underscore-prefixed
+            # internal-field convention so service.py can read it, but
+            # never surfaced in FlightOption.to_dict()'s public shape.
+            f["provider_offer_id"] = f.pop("_provider_offer_id", None)
 
-        assumptions.append("Prices and schedules are deterministic mock data — no live airline inventory was queried.")
+        source = self._source_metadata()
+        for f in ranked:
+            f["data_source"] = source["data_source"]
+
+        if source["data_source"] == "DUFFEL_SANDBOX":
+            assumptions.append(
+                "Flight data is from Duffel's SANDBOX test environment — real airline "
+                "schedules and pricing shapes, but not available for purchase (T-038)."
+            )
+        elif source["data_source"] == "MOCK_FALLBACK":
+            assumptions.append(
+                "Duffel sandbox was unavailable for this search — showing mock fallback "
+                "data, not real airline inventory."
+            )
+        else:
+            assumptions.append("Prices and schedules are deterministic mock data — no live airline inventory was queried.")
         assumptions.append(f"Scoring assumes a {preferences['cabin_class']} cabin preference and '{budget_style}' budget style.")
 
         return {
@@ -286,6 +306,33 @@ class FlightIntelligence:
             "next_actions": self._next_actions(ranked),
             "recommended_agents": ["flight_agent"],
             "summary": self._summary(origin, destination, ranked),
+            "results_count": len(ranked),
+            **source,
+        }
+
+    def _source_metadata(self) -> dict[str, Any]:
+        """Safe-only provenance metadata for the public API (T-038) —
+        never a header, token, or raw provider payload, only what
+        docs/LIVE_FLIGHT_SEARCH.md documents as the public contract.
+        Duck-types on `self._provider` so a plain MockFlightProvider
+        (no gateway involved) still gets a sensible default."""
+        now = datetime.now(timezone.utc).isoformat()
+        last_result = getattr(self._provider, "last_result", None)
+        if last_result is None:
+            return {"data_source": "MOCK", "provider_status": "AVAILABLE", "retrieved_at": now, "request_id": ""}
+
+        if getattr(self._provider, "used_mock_fallback", False):
+            data_source = "MOCK_FALLBACK"
+        elif last_result.provider_name == "duffel_flight_provider":
+            data_source = "DUFFEL_SANDBOX"
+        else:
+            data_source = "MOCK"
+
+        return {
+            "data_source": data_source,
+            "provider_status": last_result.status.value,
+            "retrieved_at": last_result.retrieved_at or now,
+            "request_id": last_result.request_id,
         }
 
     # ------------------------------------------------------------------

@@ -11,6 +11,14 @@ from app.domains.budget.router import router as budget_router
 from app.domains.visa.router import router as visa_router
 from app.domains.weather.router import router as weather_router
 from app.demo.demo_router import router as demo_router
+from travelos.live_providers.flight_provider_bootstrap import configure_flight_provider
+
+# Composition root (T-038) — the one place that decides whether Duffel
+# gets registered for real. A no-op in MOCK mode (the default); in
+# LIVE_SANDBOX mode without DUFFEL_API_TOKEN, this fails the process at
+# startup rather than serving requests from a mode it can't actually
+# fulfil. See docs/LIVE_FLIGHT_SEARCH.md.
+configure_flight_provider()
 
 app = FastAPI(title="Tralvana API", version="0.1.0")
 

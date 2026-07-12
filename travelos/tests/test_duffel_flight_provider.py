@@ -208,6 +208,39 @@ class TestResponseMapping:
         assert option["refundability"] == "non_refundable"
         assert option["flexibility"] == "fixed"
 
+    def test_provider_offer_id_is_preserved_internally(self, monkeypatch):
+        monkeypatch.setenv(_ENV_VAR, "duffel_test_abc123")
+        transport = FakeTransport.always_returning(status_code=200, body=_offer_request_body(_DIRECT_OFFER))
+        provider = DuffelFlightProvider(transport=transport)
+        result = provider.execute(_req())
+        assert result.data[0]["_provider_offer_id"] == _DIRECT_OFFER["id"]
+
+    def test_partial_mapping_failure_skips_the_bad_offer_and_keeps_the_rest(self, monkeypatch):
+        """T-038's 'partial mapping failure' requirement — one malformed
+        offer among several good ones must not discard the whole batch."""
+        monkeypatch.setenv(_ENV_VAR, "duffel_test_abc123")
+        broken_offer = {"id": "off_broken", "total_amount": "100.00", "total_currency": "GBP"}  # no slices
+        transport = FakeTransport.always_returning(
+            status_code=200, body=_offer_request_body(_DIRECT_OFFER, broken_offer, _ONE_STOP_OFFER)
+        )
+        provider = DuffelFlightProvider(transport=transport)
+        result = provider.execute(_req())
+
+        assert result.status == ProviderStatus.AVAILABLE
+        assert len(result.data) == 2
+        assert {o["airline"] for o in result.data} == {"British Airways", "Iberia"}
+        assert result.warnings == ["1 of 3 offer(s) failed to map and were skipped"]
+        assert result.source_metadata["raw_offer_count"] == 3
+        assert result.source_metadata["mapped_offer_count"] == 2
+
+    def test_every_offer_failing_to_map_still_raises(self, monkeypatch):
+        monkeypatch.setenv(_ENV_VAR, "duffel_test_abc123")
+        broken_offer = {"id": "off_broken", "total_amount": "100.00", "total_currency": "GBP"}
+        transport = FakeTransport.always_returning(status_code=200, body=_offer_request_body(broken_offer))
+        provider = DuffelFlightProvider(transport=transport)
+        with pytest.raises(ProviderResponseError):
+            provider.execute(_req())
+
     def test_duration_spanning_more_than_a_day_is_parsed(self, monkeypatch):
         """Confirmed against a real Duffel SANDBOX response during T-037's
         live verification (docs/FIRST_LIVE_PROVIDER.md) — a long

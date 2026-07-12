@@ -122,7 +122,11 @@ The system is built for orchestration, not integration. Every capability is expr
                 ┌──────▼──────┐         ┌──────────────────┐
                 │Mock Provider│         │ BaseLiveProvider │
                 │  (T-025)    │         │ travelos/live_providers/
-                └─────────────┘         │ (T-026, no vendor connected yet)
+                └─────────────┘         │ (T-026)          │
+                                         │ DuffelFlightProvider
+                                         │ + HttpxTransport │
+                                         │ (T-027/T-037,    │
+                                         │  FLIGHTS only)   │
                                          └──────────────────┘
 ```
 
@@ -132,7 +136,9 @@ Trip Brain's `plan()` also calls the Explainability Engine once per request, rig
 
 Three of the six Discovery modules (Flight, Accommodation, Weather) obtain their provider through the Intelligence Gateway (`travelos/intelligence_gateway/`) rather than constructing a mock provider directly — see `docs/INTELLIGENCE_GATEWAY.md` and `docs/ADR/ADR-020-intelligence-gateway.md`. Only Discovery modules call the gateway; the Trip Brain is never wired to a provider directly, preserving the same layering ADR-017 established.
 
-`travelos/live_providers/` (T-026) is the reusable base a real vendor integration would extend — `BaseLiveProvider` implements the same `Provider` contract a mock provider does, so the gateway above needed zero changes to support it. No live provider is registered anywhere by default; see `docs/LIVE_PROVIDER_FRAMEWORK.md` and `docs/ADR/ADR-021-live-provider-framework.md`.
+`travelos/live_providers/` (T-026) is the reusable base a real vendor integration would extend — `BaseLiveProvider` implements the same `Provider` contract a mock provider does, so the gateway above needed zero changes to support it. See `docs/LIVE_PROVIDER_FRAMEWORK.md` and `docs/ADR/ADR-021-live-provider-framework.md`.
+
+**FLIGHTS is the one capability with a real, switchable live vendor (T-038)** — `DuffelFlightProvider` (T-027) over `HttpxTransport` (T-037), selected by `TRALVANA_FLIGHT_PROVIDER_MODE` (`MOCK` by default, `LIVE_SANDBOX` to enable it), a setting scoped to FLIGHTS alone via `IntelligenceGateway._environment_for(capability)` — Accommodation and Weather still resolve their provider environment from the general `PROVIDER_ENVIRONMENT` var, untouched by this switch. See `docs/LIVE_FLIGHT_SEARCH.md` and `docs/ADR/ADR-024-live-flight-product-integration.md`.
 
 ---
 

@@ -188,6 +188,32 @@ class ConfigurationManager:
     def provider_healthcheck_enabled(self) -> bool:
         return self._bool_env("PROVIDER_HEALTHCHECK_ENABLED", default=True)
 
+    # ------------------------------------------------------------------
+    # Live Flight Search product settings (T-038) — see docs/LIVE_FLIGHT_SEARCH.md.
+    # Scoped to FLIGHTS specifically, independent of the general
+    # provider_environment above (which still governs Accommodation/Weather) —
+    # so switching flights to live Duffel data never affects any other
+    # Discovery module's provider selection.
+    # ------------------------------------------------------------------
+
+    @property
+    def flight_provider_mode(self) -> str:
+        """MOCK / LIVE_SANDBOX. Defaults to MOCK, and only ever changes on
+        an explicit TRALVANA_FLIGHT_PROVIDER_MODE=LIVE_SANDBOX — never
+        inferred from DUFFEL_API_TOKEN's mere presence. An unrecognised
+        value falls back to MOCK rather than failing open into a live
+        vendor call."""
+        raw = os.environ.get("TRALVANA_FLIGHT_PROVIDER_MODE", "MOCK").strip().upper()
+        return raw if raw in ("MOCK", "LIVE_SANDBOX") else "MOCK"
+
+    @property
+    def flight_mock_fallback_enabled(self) -> bool:
+        """When True, a failed LIVE_SANDBOX flight search falls back to
+        mock data (clearly labelled `data_source: MOCK_FALLBACK`) instead
+        of returning an error. False (the safe default) means a live
+        failure is reported as an error, never silently masked."""
+        return self._bool_env("TRALVANA_FLIGHT_MOCK_FALLBACK_ENABLED", default=False)
+
     def _bool_env(self, name: str, default: bool) -> bool:
         raw = os.environ.get(name)
         if raw is None:

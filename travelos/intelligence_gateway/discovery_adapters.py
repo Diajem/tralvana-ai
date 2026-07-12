@@ -158,13 +158,32 @@ def register_default_providers(registry: ProviderRegistry | None = None) -> None
 # ---------------------------------------------------------------------------
 
 
+class LiveFlightSearchUnavailableError(Exception):
+    """Raised when TRALVANA_FLIGHT_PROVIDER_MODE=LIVE_SANDBOX and the
+    Duffel search failed (auth, timeout, rate limit, malformed response,
+    or simply no eligible provider) with mock fallback disabled — T-038's
+    "LIVE_SANDBOX failure returns a clear safe error by default" rule.
+    Caught at the API boundary (services/api/app/domains/flights/router.py)
+    and converted to a 503, never silently swallowed into an empty result."""
+
+
 class GatewayFlightProvider:
     """Same interface as ai.discovery.flights.flight_intelligence.MockFlightProvider
     — pass to FlightIntelligence(provider=GatewayFlightProvider()) and every
-    call routes through the Intelligence Gateway instead."""
+    call routes through the Intelligence Gateway instead.
+
+    T-038 additions: `last_result` exposes the full ProviderResult from the
+    most recent search() call (data_source/provider_status/request_id for
+    the public API — see ai/discovery/flights/flight_intelligence.py),
+    and a LIVE_SANDBOX failure either raises LiveFlightSearchUnavailableError
+    or falls back to mock data, per TRALVANA_FLIGHT_MOCK_FALLBACK_ENABLED —
+    but mock and live offers are never blended into one result set; a
+    fallback response is 100% mock, clearly labelled as such."""
 
     def __init__(self, gateway: IntelligenceGateway | None = None) -> None:
         self._gateway = gateway or intelligence_gateway
+        self.last_result: ProviderResult | None = None
+        self.used_mock_fallback: bool = False
 
     def search(
         self,
@@ -174,6 +193,7 @@ class GatewayFlightProvider:
         return_date: str | None,
         cabin_class: str,
     ) -> list[dict[str, Any]]:
+        self.used_mock_fallback = False
         request = ProviderRequest(
             capability=Capability.FLIGHTS, operation="search",
             params={
@@ -182,7 +202,27 @@ class GatewayFlightProvider:
             },
         )
         result = self._gateway.execute(Capability.FLIGHTS, request)
-        return result.data if result.ok and result.data is not None else []
+        self.last_result = result
+        if result.ok and result.data is not None:
+            return result.data
+
+        from travelos.config.configuration_manager import config
+
+        if config.flight_provider_mode != "LIVE_SANDBOX":
+            # MOCK mode's own provider effectively never fails this way —
+            # preserve the pre-T-038 behaviour of a quiet empty list.
+            return []
+
+        if config.flight_mock_fallback_enabled:
+            from ai.discovery.flights.flight_intelligence import MockFlightProvider
+            self.used_mock_fallback = True
+            return MockFlightProvider().search(origin, destination, departure_date, return_date, cabin_class)
+
+        raise LiveFlightSearchUnavailableError(
+            "Duffel sandbox flight search is unavailable "
+            f"(provider_status={result.status.value}); "
+            "set TRALVANA_FLIGHT_MOCK_FALLBACK_ENABLED=true to fall back to mock data instead."
+        )
 
 
 class GatewayAccommodationProvider:

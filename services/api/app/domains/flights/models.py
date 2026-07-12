@@ -43,6 +43,14 @@ class FlightOption:
     assumptions: list[str] = field(default_factory=list)
     recommendation_type: str = RecommendationType.BEST_OVERALL.value
     created_at: str = ""
+    # Preserved for future booking work only (T-038 explicitly excludes
+    # booking) — deliberately NOT included in to_dict()'s public shape;
+    # see docs/LIVE_FLIGHT_SEARCH.md's "Provider Offer Identifiers" section.
+    provider_offer_id: str | None = None
+    # Safe provenance label (T-038) — MOCK | DUFFEL_SANDBOX | MOCK_FALLBACK.
+    # Public (unlike provider_offer_id above) so a single flight fetched
+    # via GET /flights/{id} still carries its own sandbox/mock label.
+    data_source: str = "MOCK"
 
     def to_dict(self) -> dict:
         return {
@@ -72,4 +80,5 @@ class FlightOption:
             "assumptions": self.assumptions,
             "recommendation_type": self.recommendation_type,
             "created_at": self.created_at,
+            "data_source": self.data_source,
         }
