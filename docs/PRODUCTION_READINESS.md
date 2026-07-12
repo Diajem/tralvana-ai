@@ -5,11 +5,15 @@ A practical checklist for taking any live provider built on
 `SANDBOX`-environment adapter tested against `FakeTransport` to a real
 `PRODUCTION` credential serving live traveller requests. **Nothing in
 this repository has passed this checklist yet** — T-025 and T-026 are
-infrastructure only, with zero live providers registered.
+infrastructure only, and T-027's `duffel_flight_provider`
+(`docs/FIRST_LIVE_PROVIDER.md`) is a fully-built, fully-tested adapter
+that has still never made a real network call and is not registered by
+default; it starts this checklist at zero, same as any other provider.
 
 Use this per-provider, not once for the whole system — a new vendor
-integration (e.g. adding Amadeus after Duffel is already live) goes
-through this checklist again on its own merits.
+integration (e.g. adding Amadeus once `OAuth2ClientCredentialsAuthStrategy`
+has a real token exchange, TD-022) goes through this checklist again on
+its own merits.
 
 ## Secrets
 

@@ -29,7 +29,10 @@ tralvana-ai/
 │   │                   #   selection, cache, retry, failover, rate limiting
 │   └── live_providers/ # Reusable base for a real vendor integration — auth,
 │                       #   transport, request/response mapping, error model,
-│                       #   health/tracing/metrics. No live vendor connected.
+│                       #   health/tracing/metrics. Includes DuffelFlightProvider
+│                       #   (adapters/), the first real vendor adapter — built and
+│                       #   tested, but not registered by default; no real network
+│                       #   call is made anywhere (see docs/FIRST_LIVE_PROVIDER.md).
 ├── docs/               # Architecture docs, ADRs, task tracker
 └── docker-compose.yml
 ```
