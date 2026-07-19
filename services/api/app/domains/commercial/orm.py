@@ -52,6 +52,7 @@ class OutboundClickRow(Base):
     __tablename__ = "outbound_clicks"
     __table_args__ = (
         Index("ix_click_programme_occurred", "programme_id", "occurred_at"),
+        Index("ix_click_programme_sub_id", "programme_id", "sub_id"),
         Index("ix_click_trip_reference", "trip_reference"),
     )
 

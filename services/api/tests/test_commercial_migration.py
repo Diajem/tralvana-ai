@@ -20,6 +20,8 @@ def test_commercial_migration_upgrades_and_downgrades(tmp_path: Path, monkeypatc
     } <= set(inspect(engine).get_table_names())
     columns = {column["name"] for column in inspect(engine).get_columns("affiliate_programmes")}
     assert {"allowed_destination_hosts", "allowed_tracking_hosts"} <= columns
+    indexes = {index["name"] for index in inspect(engine).get_indexes("outbound_clicks")}
+    assert "ix_click_programme_sub_id" in indexes
 
     command.downgrade(config, "base")
     assert set(inspect(engine).get_table_names()) == {"alembic_version"}
