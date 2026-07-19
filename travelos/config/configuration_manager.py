@@ -27,7 +27,7 @@ _DEFAULTS: dict[str, EnvironmentConfig] = {
         api_port=8000,
         log_level="DEBUG",
         debug=True,
-        cors_origins=["http://localhost:3000"],
+        cors_origins=["http://localhost:3001"],
     ),
     "test": EnvironmentConfig(
         name="test",
@@ -35,7 +35,7 @@ _DEFAULTS: dict[str, EnvironmentConfig] = {
         api_port=8001,
         log_level="WARNING",
         debug=False,
-        cors_origins=["http://localhost:3000"],
+        cors_origins=["http://localhost:3001"],
     ),
     "production": EnvironmentConfig(
         name="production",
@@ -116,7 +116,7 @@ class ConfigurationManager:
 
     @property
     def cors_origins(self) -> list[str]:
-        return self._env.cors_origins
+        return _cors_from_env(self._env.cors_origins)
 
     def get(self, key: str, default: Any = None) -> Any:
         """Read any environment variable with an optional default."""

@@ -9,7 +9,30 @@
 | npm | 10+ | `npm -v` |
 | Docker (optional) | 24+ | `docker -v` |
 
-## Option A — Run Services Individually
+## Recommended — Windows PowerShell
+
+From the repository root:
+
+```powershell
+.\scripts\start-local.ps1
+```
+
+This opens the API and web app in separate PowerShell windows. The first API
+run creates `.venv` and installs the pinned Python dependencies. The first web
+run installs the locked npm dependencies.
+
+- Web: http://localhost:3001
+- API: http://localhost:8000
+- Swagger: http://localhost:8000/docs
+
+To run either service by itself:
+
+```powershell
+.\scripts\start-api.ps1
+.\scripts\start-web.ps1
+```
+
+## Option A — Run Services Individually (macOS/Linux)
 
 ### 1. Environment
 
@@ -23,30 +46,23 @@ cp .env.example .env
 
 ```bash
 cd apps/web
-npm install
-npm run dev
-# → http://localhost:3000
+npm ci
+npm run dev:local
+# → http://localhost:3001
 ```
 
 ### 3. Backend
 
 ```bash
-cd services/api
-
-# Create and activate virtual environment
 python -m venv .venv
 
-# Windows
-.venv\Scripts\activate
-
-# macOS / Linux
 source .venv/bin/activate
 
 # Install dependencies
-pip install -r requirements.txt
+pip install -r services/api/requirements.txt
 
 # Start server with auto-reload
-uvicorn app.main:app --reload --port 8000
+PYTHONPATH=.:services/api python -m uvicorn app.main:app --app-dir services/api --reload --port 8000
 # → http://localhost:8000
 # → http://localhost:8000/docs  (Swagger UI)
 ```
@@ -57,7 +73,7 @@ uvicorn app.main:app --reload --port 8000
 # From repo root
 cp .env.example .env
 docker-compose up --build
-# Frontend → http://localhost:3000
+# Frontend → http://localhost:3001
 # Backend  → http://localhost:8000
 ```
 
@@ -69,15 +85,15 @@ curl http://localhost:8000/health
 # Expected: {"status": "ok"}
 
 # Frontend
-# Open http://localhost:3000 in browser
+# Open http://localhost:3001 in browser
 ```
 
 ## Common Issues
 
 | Problem | Fix |
 |---------|-----|
-| Port 3000 in use | `npx kill-port 3000` |
+| Port 3001 in use | Run `.\scripts\start-web.ps1 -Port 3002` |
 | Port 8000 in use | `npx kill-port 8000` |
 | Python venv not activated | Run the activate command above |
-| Module not found (Python) | Run `pip install -r requirements.txt` again |
-| `npm install` errors | Delete `node_modules/` and retry |
+| Module not found (Python) | Start from the repository root with `scripts/start-api.ps1` |
+| `npm ci` errors | Delete `node_modules/` and retry |

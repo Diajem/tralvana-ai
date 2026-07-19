@@ -13,7 +13,8 @@ it, see `docs/ADR/ADR-024-live-flight-product-integration.md`.
    DUFFEL_API_TOKEN=duffel_test_your_real_token_here
    TRALVANA_FLIGHT_PROVIDER_MODE=LIVE_SANDBOX
    ```
-3. Restart the API process (`uvicorn app.main:app --reload` picks up
+3. Restart the API process (`.\scripts\start-api.ps1` on Windows, or the
+   repository-root command in `scripts/local-start.md`, picks up
    `.env` on start — registration happens once, at startup, not per
    request).
 4. Confirm it registered: `GET /internal/providers/status` should list

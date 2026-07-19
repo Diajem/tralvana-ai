@@ -9,10 +9,10 @@ T-013 — GitHub Actions pipeline for TravelOS.
 | Job | Command | Gate |
 |-----|---------|------|
 | `backend-tests` | `pytest -v` | **Required** — must pass to merge |
-| `backend-lint` | `ruff check .` | Advisory — see TD-017 |
-| `frontend` | `npm run lint` && `npm run build` (in `apps/web/`) | Advisory — see TD-016 |
+| `backend-lint` | `ruff check .` | **Required** |
+| `frontend` | `npm run lint` && `npm run build` (in `apps/web/`) | **Required** |
 
-See [ADR-008](ADR/ADR-008-cicd-pipeline.md) for the full decision record, including why the lint/build jobs are advisory rather than required today.
+ADR-008 records the original advisory rollout. T-014 cleared TD-016 and TD-017; T-041 removed `continue-on-error`, so failures now block the workflow.
 
 ## Versions
 
@@ -21,18 +21,13 @@ Pinned to what the repository's own Dockerfiles already use — not chosen indep
 - Python **3.12** (`services/api/Dockerfile`)
 - Node **22** (`apps/web/Dockerfile`)
 
-## Why `npm install` and not `npm ci`
+## Reproducible frontend install
 
-`apps/web/` has no committed `package-lock.json`. `npm ci` requires a lockfile and fails without one. `apps/web/Dockerfile` already uses `npm install` for the same reason — the workflow matches existing practice rather than introducing a new one.
+T-041 added `apps/web/package-lock.json`. CI and the frontend Docker image use `npm ci`, so dependency resolution is identical across clean builds.
 
-## Advisory jobs
+## Required jobs
 
-`backend-lint` and `frontend` run `continue-on-error: true`. Both would fail immediately today for reasons unrelated to any given PR's changes:
-
-- **TD-017**: 72 pre-existing Ruff violations in the backend/AI codebase.
-- **TD-016**: a broken ESLint rule reference in `apps/web/src/lib/api.ts` that fails `npm run lint` and `npm run build` on unmodified `main`.
-
-Making either required now would block every PR on unrelated pre-existing debt. Both jobs still run and report on every PR — the failures are visible, just not blocking. Once T-014 (repository refactoring) clears TD-016/TD-017, remove `continue-on-error: true` from the relevant job and mark it as a required status check in GitHub branch protection settings.
+`backend-tests`, `backend-lint`, and `frontend` must all succeed. Repository branch protection should also name them as required checks so GitHub prevents a failing change from merging.
 
 ## Branch protection
 
@@ -50,7 +45,7 @@ ruff check .
 
 # Frontend lint + build (same as CI)
 cd apps/web
-npm install
+npm ci
 npm run lint
 npm run build
 ```

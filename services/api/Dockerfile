@@ -2,11 +2,15 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY services/api/requirements.txt services/api/requirements.txt
+RUN pip install --no-cache-dir -r services/api/requirements.txt
 
-COPY . .
+COPY services services
+COPY ai ai
+COPY travelos travelos
+
+ENV PYTHONPATH=/app:/app/services/api
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "app.main:app", "--app-dir", "services/api", "--host", "0.0.0.0", "--port", "8000", "--reload"]
