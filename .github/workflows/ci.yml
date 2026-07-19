@@ -26,8 +26,6 @@ jobs:
   backend-lint:
     name: Backend Lint (Ruff)
     runs-on: ubuntu-latest
-    # Advisory only until TD-017 (72 pre-existing violations) is cleared in T-014.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -44,8 +42,6 @@ jobs:
   frontend:
     name: Frontend Lint & Build
     runs-on: ubuntu-latest
-    # Advisory only until TD-016 (broken ESLint rule reference) is fixed.
-    continue-on-error: true
     defaults:
       run:
         working-directory: apps/web
@@ -57,7 +53,7 @@ jobs:
           node-version: "22"
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Lint
         run: npm run lint

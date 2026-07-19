@@ -58,21 +58,28 @@ tralvana-ai/
 
 ```bash
 cd apps/web
-npm install
-npm run dev
-# → http://localhost:3000
+npm ci
+npm run dev:local
+# → http://localhost:3001
 ```
 
-### Backend (services/api)
+### Backend (run from the repository root)
 
 ```bash
-cd services/api
 python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+source .venv/bin/activate
+pip install -r services/api/requirements.txt
+PYTHONPATH=.:services/api python -m uvicorn app.main:app --app-dir services/api --reload
 # → http://localhost:8000
 ```
+
+On Windows PowerShell, start both services from the repository root:
+
+```powershell
+.\scripts\start-local.ps1
+```
+
+Tralvana uses port `3001` because port `3000` is reserved for Luxorahut POS.
 
 ### Docker (all services)
 
@@ -110,6 +117,6 @@ See [`docs/TESTING_FRAMEWORK.md`](docs/TESTING_FRAMEWORK.md) for full details.
 
 ## CI
 
-GitHub Actions runs `pytest` (required), plus Ruff and frontend lint/build (advisory — see [`docs/TECHNICAL_DEBT_REGISTER.md`](docs/TECHNICAL_DEBT_REGISTER.md) TD-016/TD-017) on every push and pull request to `main`.
+GitHub Actions requires pytest, Ruff, frontend lint, and the frontend production build to pass on every push and pull request to `main`.
 
 See [`docs/CI_CD.md`](docs/CI_CD.md) for full details.

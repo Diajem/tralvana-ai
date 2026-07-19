@@ -24,7 +24,7 @@ export TRAVELOS_ENV=production
 | `api_port` | `8000` | `8001` | `8000` |
 | `log_level` | `DEBUG` | `WARNING` | `INFO` |
 | `debug` | `True` | `False` | `False` |
-| `cors_origins` | `["http://localhost:3000"]` | `["http://localhost:3000"]` | from `CORS_ORIGINS` |
+| `cors_origins` | `["http://localhost:3001"]` | `["http://localhost:3001"]` | from `CORS_ORIGINS` |
 
 ## Environment Variable Overrides
 
@@ -54,7 +54,7 @@ config.log_level           # â†’ "DEBUG"
 config.debug               # â†’ True
 config.api_host            # â†’ "localhost"
 config.api_port            # â†’ 8000
-config.cors_origins        # â†’ ["http://localhost:3000"]
+config.cors_origins        # → ["http://localhost:3001"]
 
 # Read any env var with a default
 config.get("DATABASE_URL", "sqlite:///local.db")

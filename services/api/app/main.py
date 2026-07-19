@@ -13,6 +13,7 @@ from app.domains.weather.router import router as weather_router
 from app.demo.demo_router import router as demo_router
 from travelos.live_providers.accommodation_provider_bootstrap import configure_accommodation_provider
 from travelos.live_providers.flight_provider_bootstrap import configure_flight_provider
+from travelos.config import config
 
 # Composition root (T-038, extended T-039) — the one place that decides
 # whether Duffel gets registered for real. A no-op in MOCK mode (the
@@ -27,7 +28,7 @@ app = FastAPI(title="Tralvana API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=config.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
