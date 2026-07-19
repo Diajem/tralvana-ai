@@ -9,6 +9,7 @@ from app.domains.commercial.entities import (
     AffiliateConversion,
     AffiliateProgramme,
     CommissionRecord,
+    CommissionStatus,
     CommercialVertical,
     ConversionStatus,
     OutboundClick,
@@ -37,9 +38,20 @@ class CommercialRepository(Protocol):
     def list_active_programmes(self) -> list[AffiliateProgramme]: ...
     def add_click(self, click: OutboundClick) -> OutboundClick: ...
     def get_click(self, click_id: str) -> OutboundClick | None: ...
+    def get_latest_click_by_sub_id(
+        self, programme_id: str, sub_id: str
+    ) -> OutboundClick | None: ...
     def add_conversion(self, conversion: AffiliateConversion) -> AffiliateConversion: ...
     def get_conversion(self, conversion_id: str) -> AffiliateConversion | None: ...
+    def get_conversion_by_external_reference(
+        self, programme_id: str, external_reference: str
+    ) -> AffiliateConversion | None: ...
+    def update_conversion(self, conversion: AffiliateConversion) -> AffiliateConversion: ...
     def add_commission(self, commission: CommissionRecord) -> CommissionRecord: ...
+    def get_commission_by_external_reference(
+        self, external_reference: str
+    ) -> CommissionRecord | None: ...
+    def update_commission(self, commission: CommissionRecord) -> CommissionRecord: ...
     def counts(self) -> dict[str, int]: ...
 
 
@@ -119,6 +131,20 @@ class SqlAlchemyCommercialRepository:
         row = self._session.get(OutboundClickRow, click_id)
         return _click(row) if row else None
 
+    def get_latest_click_by_sub_id(
+        self, programme_id: str, sub_id: str
+    ) -> OutboundClick | None:
+        row = self._session.scalar(
+            select(OutboundClickRow)
+            .where(
+                OutboundClickRow.programme_id == programme_id,
+                OutboundClickRow.sub_id == sub_id,
+            )
+            .order_by(OutboundClickRow.occurred_at.desc())
+            .limit(1)
+        )
+        return _click(row) if row else None
+
     def add_conversion(self, entity: AffiliateConversion) -> AffiliateConversion:
         self._session.add(AffiliateConversionRow(
             id=entity.id, programme_id=entity.programme_id, click_id=entity.click_id,
@@ -135,6 +161,32 @@ class SqlAlchemyCommercialRepository:
         row = self._session.get(AffiliateConversionRow, conversion_id)
         return _conversion(row) if row else None
 
+    def get_conversion_by_external_reference(
+        self, programme_id: str, external_reference: str
+    ) -> AffiliateConversion | None:
+        row = self._session.scalar(
+            select(AffiliateConversionRow).where(
+                AffiliateConversionRow.programme_id == programme_id,
+                AffiliateConversionRow.external_reference == external_reference,
+            )
+        )
+        return _conversion(row) if row else None
+
+    def update_conversion(self, entity: AffiliateConversion) -> AffiliateConversion:
+        row = self._session.get(AffiliateConversionRow, entity.id)
+        if row is None:
+            raise ValueError("conversion does not exist")
+        row.click_id = entity.click_id
+        row.gross_value = entity.gross_value
+        row.currency = entity.currency
+        row.status = entity.status.value
+        row.booked_at = entity.booked_at
+        row.confirmed_at = entity.confirmed_at
+        row.conversion_metadata = entity.conversion_metadata
+        row.updated_at = entity.updated_at
+        self._session.flush()
+        return entity
+
     def add_commission(self, entity: CommissionRecord) -> CommissionRecord:
         self._session.add(CommissionRecordRow(
             id=entity.id, conversion_id=entity.conversion_id, amount=entity.amount,
@@ -143,6 +195,30 @@ class SqlAlchemyCommercialRepository:
             approved_at=entity.approved_at, paid_at=entity.paid_at,
             created_at=entity.created_at, updated_at=entity.updated_at,
         ))
+        self._session.flush()
+        return entity
+
+    def get_commission_by_external_reference(
+        self, external_reference: str
+    ) -> CommissionRecord | None:
+        row = self._session.scalar(
+            select(CommissionRecordRow).where(
+                CommissionRecordRow.external_reference == external_reference
+            )
+        )
+        return _commission(row) if row else None
+
+    def update_commission(self, entity: CommissionRecord) -> CommissionRecord:
+        row = self._session.get(CommissionRecordRow, entity.id)
+        if row is None:
+            raise ValueError("commission does not exist")
+        row.amount = entity.amount
+        row.currency = entity.currency
+        row.status = entity.status.value
+        row.expected_at = entity.expected_at
+        row.approved_at = entity.approved_at
+        row.paid_at = entity.paid_at
+        row.updated_at = entity.updated_at
         self._session.flush()
         return entity
 
@@ -194,4 +270,20 @@ def _conversion(row: AffiliateConversionRow) -> AffiliateConversion:
         currency=row.currency, status=ConversionStatus(row.status), booked_at=row.booked_at,
         confirmed_at=row.confirmed_at, conversion_metadata=row.conversion_metadata,
         created_at=row.created_at, updated_at=row.updated_at,
+    )
+
+
+def _commission(row: CommissionRecordRow) -> CommissionRecord:
+    return CommissionRecord(
+        id=row.id,
+        conversion_id=row.conversion_id,
+        amount=row.amount,
+        currency=row.currency,
+        status=CommissionStatus(row.status),
+        external_reference=row.external_reference,
+        expected_at=row.expected_at,
+        approved_at=row.approved_at,
+        paid_at=row.paid_at,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
     )
