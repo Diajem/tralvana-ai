@@ -91,6 +91,15 @@ docker compose up --build
 Compose starts PostgreSQL, applies the commercial schema migration, then starts
 the API and web app. See [`docs/COMMERCIAL_DATA_FOUNDATION.md`](docs/COMMERCIAL_DATA_FOUNDATION.md).
 
+To load the verified Tralvana affiliate catalogue after migration:
+
+```bash
+PYTHONPATH=services/api python services/api/scripts/seed_commercial_catalogue.py
+```
+
+See [`docs/SAFE_AFFILIATE_LINKS.md`](docs/SAFE_AFFILIATE_LINKS.md) for disclosure,
+allow-listing, click attribution, and the programmes still awaiting tracked links.
+
 ## Tests
 
 Install test dependencies (once):

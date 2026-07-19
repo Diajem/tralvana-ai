@@ -1,4 +1,5 @@
-import { getAccommodationOption } from "@/lib/api";
+import { AffiliateCheckout } from "@/components/commercial/AffiliateCheckout";
+import { getAccommodationOption, getAffiliateProgrammes } from "@/lib/api";
 import type { AccommodationOption } from "@/types/accommodation";
 import { notFound } from "next/navigation";
 
@@ -51,6 +52,8 @@ export default async function AccommodationOptionPage({
 }) {
   const { id } = await params;
   let accommodation: AccommodationOption;
+  const affiliateProgrammes = await getAffiliateProgrammes().catch(() => []);
+  const expedia = affiliateProgrammes.find((programme) => programme.partner === "Expedia");
   try {
     accommodation = await getAccommodationOption(id);
   } catch {
@@ -77,6 +80,13 @@ export default async function AccommodationOptionPage({
           <div className="rounded-lg bg-sky-50 border border-sky-200 p-4 text-sky-800 text-sm font-medium">
             {sandboxBanner}
           </div>
+        )}
+
+        {expedia && accommodation.data_source !== "DUFFEL_STAYS_SANDBOX" && (
+          <AffiliateCheckout
+            programme={expedia}
+            recommendationReference={accommodation.accommodation_option_id}
+          />
         )}
 
         {/* Header */}

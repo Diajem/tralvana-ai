@@ -1,4 +1,5 @@
-import { getFlightOption } from "@/lib/api";
+import { AffiliateCheckout } from "@/components/commercial/AffiliateCheckout";
+import { getAffiliateProgrammes, getFlightOption } from "@/lib/api";
 import type { FlightOption } from "@/types/flight";
 import { notFound } from "next/navigation";
 
@@ -36,6 +37,8 @@ export default async function FlightOptionPage({
 }) {
   const { id } = await params;
   let flight: FlightOption;
+  const affiliateProgrammes = await getAffiliateProgrammes().catch(() => []);
+  const expedia = affiliateProgrammes.find((programme) => programme.partner === "Expedia");
   try {
     flight = await getFlightOption(id);
   } catch {
@@ -62,6 +65,10 @@ export default async function FlightOptionPage({
           <div className="rounded-lg bg-sky-50 border border-sky-200 p-4 text-sky-800 text-sm font-medium">
             {sandboxBanner}
           </div>
+        )}
+
+        {expedia && flight.data_source !== "DUFFEL_SANDBOX" && (
+          <AffiliateCheckout programme={expedia} recommendationReference={flight.flight_option_id} />
         )}
 
         {/* Header */}

@@ -34,6 +34,12 @@ class CommercialVertical(str, Enum):
     ACCOMMODATION = "ACCOMMODATION"
     ACTIVITIES = "ACTIVITIES"
     INSURANCE = "INSURANCE"
+    CARS = "CARS"
+    PARKING = "PARKING"
+    ESIM = "ESIM"
+    RETAIL = "RETAIL"
+    TRANSFERS = "TRANSFERS"
+    PACKAGES = "PACKAGES"
     OTHER = "OTHER"
 
 
@@ -69,6 +75,8 @@ class AffiliateProgramme:
     vertical: CommercialVertical
     tracking_template: str
     affiliate_identifier: str
+    allowed_destination_hosts: tuple[str, ...] = ()
+    allowed_tracking_hosts: tuple[str, ...] = ()
     default_currency: str = "GBP"
     disclosure_text: str = "Tralvana may earn a commission from this link."
     terms_url: str | None = None
