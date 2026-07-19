@@ -13,7 +13,7 @@ tralvana-ai/
 ├── apps/
 │   └── web/          # Next.js 15 frontend
 ├── services/
-│   └── api/          # FastAPI backend
+│   └── api/          # FastAPI backend, Alembic migrations, commercial ledger
 ├── ai/
 │   ├── agents/         # Specialist agents (flight, hotel, budget, visa, experience) —
 │   │                   #   still live for MODIFY_TRIP/DESTINATION_QUESTION/TRAVEL_ADVICE/BUDGET_ADVICE
@@ -85,8 +85,11 @@ Tralvana uses port `3001` because port `3000` is reserved for Luxorahut POS.
 
 ```bash
 cp .env.example .env
-docker-compose up --build
+docker compose up --build
 ```
+
+Compose starts PostgreSQL, applies the commercial schema migration, then starts
+the API and web app. See [`docs/COMMERCIAL_DATA_FOUNDATION.md`](docs/COMMERCIAL_DATA_FOUNDATION.md).
 
 ## Tests
 
@@ -100,7 +103,7 @@ Run all tests from the project root:
 
 ```bash
 pytest
-# 92 tests — 30 backend API + 62 AI layer
+# 1,200 tests across API, AI, and TravelOS platform layers
 ```
 
 Run by suite:
@@ -111,7 +114,8 @@ pytest ai/tests/              # AI classifiers and planner
 pytest travelos/tests/        # platform layer (Intelligence Gateway)
 ```
 
-No external services required — all tests run against in-memory stores.
+No external services are required for tests. Commercial persistence tests use
+an isolated SQLite database; deployments use PostgreSQL.
 
 See [`docs/TESTING_FRAMEWORK.md`](docs/TESTING_FRAMEWORK.md) for full details.
 

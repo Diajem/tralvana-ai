@@ -72,9 +72,17 @@ PYTHONPATH=.:services/api python -m uvicorn app.main:app --app-dir services/api 
 ```bash
 # From repo root
 cp .env.example .env
-docker-compose up --build
+docker compose up --build
 # Frontend → http://localhost:3001
 # Backend  → http://localhost:8000
+# PostgreSQL → localhost:5432; migrations run before API startup
+```
+
+When running the API outside Docker and using commercial persistence, start a
+PostgreSQL instance, set `DATABASE_URL`, and apply migrations first:
+
+```bash
+PYTHONPATH=.:services/api python -m alembic -c services/api/alembic.ini upgrade head
 ```
 
 ## Verify Everything Is Running

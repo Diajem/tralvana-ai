@@ -37,6 +37,7 @@ Any default can be overridden with an environment variable:
 | `API_HOST` | `config.api_host` |
 | `API_PORT` | `config.api_port` |
 | `CORS_ORIGINS` | `config.cors_origins` (comma-separated) |
+| `DATABASE_URL` | SQLAlchemy PostgreSQL connection URL used by Alembic and commercial persistence |
 
 ## Usage
 
@@ -57,8 +58,11 @@ config.api_port            # â†’ 8000
 config.cors_origins        # → ["http://localhost:3001"]
 
 # Read any env var with a default
-config.get("DATABASE_URL", "sqlite:///local.db")
+config.get("DATABASE_URL")
 ```
+
+Production and Docker use a `postgresql+psycopg://` URL. SQLite is supported
+only by isolated automated tests; see `docs/COMMERCIAL_DATA_FOUNDATION.md`.
 
 ## Singleton
 
