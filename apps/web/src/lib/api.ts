@@ -22,9 +22,39 @@ import type { CheckVisaRequest, VisaAssessment } from "@/types/visa";
 import type { AnalyseWeatherRequest, WeatherAssessment } from "@/types/weather";
 import type { Explanation, ExplainRequest } from "@/types/explain";
 import type { PlanTripRequest, PlanTripResponse } from "@/types/planner";
+import type { AffiliateProgramme, OutboundLink } from "@/types/commercial";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
+export async function getAffiliateProgrammes(): Promise<AffiliateProgramme[]> {
+  const res = await fetch(`${BASE_URL}/commercial/programmes`, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`Failed to load affiliate programmes: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function followAffiliateProgramme(
+  programme: AffiliateProgramme,
+  recommendationReference: string
+): Promise<void> {
+  const res = await fetch(`${BASE_URL}/commercial/outbound-links`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      programme_id: programme.id,
+      destination_url: programme.destination_url,
+      disclosure_acknowledged: true,
+      recommendation_reference: recommendationReference,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(`Unable to open partner: ${res.status}`);
+  }
+  const link: OutboundLink = await res.json();
+  window.location.assign(`${BASE_URL}${link.redirect_path}`);
+}
 
 export async function createProfile(
   data: CreateProfileRequest

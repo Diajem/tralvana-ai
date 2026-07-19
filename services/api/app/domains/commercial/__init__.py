@@ -1,1 +1,1 @@
-"""Commercial attribution and commission ledger domain (T-042)."""
+"""Commercial attribution, safe outbound links, and commission ledger."""

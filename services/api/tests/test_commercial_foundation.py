@@ -142,8 +142,12 @@ def test_commercial_status_is_safe_when_database_is_unconfigured(client, monkeyp
     assert all(term not in str(body).lower() for term in ("password", "database_url", "hostname"))
 
 
-def test_no_public_booking_or_redirect_route_was_added(client):
+def test_no_public_booking_route_and_only_safe_commercial_routes_exist(client):
     routes = {route.path for route in client.app.routes}
     assert "/book" not in routes
     assert "/redirect" not in routes
-    assert all(not route.startswith("/commercial/") for route in routes)
+    assert {route for route in routes if route.startswith("/commercial/")} == {
+        "/commercial/programmes",
+        "/commercial/outbound-links",
+        "/commercial/outbound-links/{click_id}/redirect",
+    }

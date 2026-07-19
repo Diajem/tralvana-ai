@@ -36,6 +36,8 @@ class AffiliateProgrammeRow(Base):
     vertical: Mapped[str] = mapped_column(String(30), nullable=False)
     tracking_template: Mapped[str] = mapped_column(Text, nullable=False)
     affiliate_identifier: Mapped[str] = mapped_column(String(255), nullable=False)
+    allowed_destination_hosts: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    allowed_tracking_hosts: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     default_currency: Mapped[str] = mapped_column(String(3), nullable=False)
     disclosure_text: Mapped[str] = mapped_column(Text, nullable=False)
     terms_url: Mapped[str | None] = mapped_column(Text)

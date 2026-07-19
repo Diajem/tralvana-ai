@@ -11,6 +11,7 @@ from app.domains.budget.router import router as budget_router
 from app.domains.visa.router import router as visa_router
 from app.domains.weather.router import router as weather_router
 from app.demo.demo_router import router as demo_router
+from app.domains.commercial.router import public_router as commercial_public_router
 from app.domains.commercial.router import router as commercial_router
 from travelos.live_providers.accommodation_provider_bootstrap import configure_accommodation_provider
 from travelos.live_providers.flight_provider_bootstrap import configure_flight_provider
@@ -51,6 +52,7 @@ app.include_router(visa_router)
 app.include_router(weather_router)
 app.include_router(demo_router)
 app.include_router(commercial_router)
+app.include_router(commercial_public_router)
 
 
 @app.get("/")

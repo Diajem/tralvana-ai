@@ -28,8 +28,13 @@ from app.domains.commercial.orm import (
 class CommercialRepository(Protocol):
     def add_partner(self, partner: Partner) -> Partner: ...
     def get_partner(self, partner_id: str) -> Partner | None: ...
+    def get_partner_by_slug(self, slug: str) -> Partner | None: ...
     def add_programme(self, programme: AffiliateProgramme) -> AffiliateProgramme: ...
     def get_programme(self, programme_id: str) -> AffiliateProgramme | None: ...
+    def get_programme_by_partner_and_name(
+        self, partner_id: str, name: str
+    ) -> AffiliateProgramme | None: ...
+    def list_active_programmes(self) -> list[AffiliateProgramme]: ...
     def add_click(self, click: OutboundClick) -> OutboundClick: ...
     def get_click(self, click_id: str) -> OutboundClick | None: ...
     def add_conversion(self, conversion: AffiliateConversion) -> AffiliateConversion: ...
@@ -57,11 +62,17 @@ class SqlAlchemyCommercialRepository:
         row = self._session.get(PartnerRow, partner_id)
         return _partner(row) if row else None
 
+    def get_partner_by_slug(self, slug: str) -> Partner | None:
+        row = self._session.scalar(select(PartnerRow).where(PartnerRow.slug == slug))
+        return _partner(row) if row else None
+
     def add_programme(self, entity: AffiliateProgramme) -> AffiliateProgramme:
         self._session.add(AffiliateProgrammeRow(
             id=entity.id, partner_id=entity.partner_id, name=entity.name,
             vertical=entity.vertical.value, tracking_template=entity.tracking_template,
             affiliate_identifier=entity.affiliate_identifier,
+            allowed_destination_hosts=list(entity.allowed_destination_hosts),
+            allowed_tracking_hosts=list(entity.allowed_tracking_hosts),
             default_currency=entity.default_currency, disclosure_text=entity.disclosure_text,
             terms_url=entity.terms_url, status=entity.status.value,
             created_at=entity.created_at, updated_at=entity.updated_at,
@@ -72,6 +83,23 @@ class SqlAlchemyCommercialRepository:
     def get_programme(self, programme_id: str) -> AffiliateProgramme | None:
         row = self._session.get(AffiliateProgrammeRow, programme_id)
         return _programme(row) if row else None
+
+    def get_programme_by_partner_and_name(
+        self, partner_id: str, name: str
+    ) -> AffiliateProgramme | None:
+        row = self._session.scalar(select(AffiliateProgrammeRow).where(
+            AffiliateProgrammeRow.partner_id == partner_id,
+            AffiliateProgrammeRow.name == name,
+        ))
+        return _programme(row) if row else None
+
+    def list_active_programmes(self) -> list[AffiliateProgramme]:
+        rows = self._session.scalars(
+            select(AffiliateProgrammeRow)
+            .where(AffiliateProgrammeRow.status == ProgrammeStatus.ACTIVE.value)
+            .order_by(AffiliateProgrammeRow.vertical, AffiliateProgrammeRow.name)
+        ).all()
+        return [_programme(row) for row in rows]
 
     def add_click(self, entity: OutboundClick) -> OutboundClick:
         self._session.add(OutboundClickRow(
@@ -142,6 +170,8 @@ def _programme(row: AffiliateProgrammeRow) -> AffiliateProgramme:
         id=row.id, partner_id=row.partner_id, name=row.name,
         vertical=CommercialVertical(row.vertical), tracking_template=row.tracking_template,
         affiliate_identifier=row.affiliate_identifier, default_currency=row.default_currency,
+        allowed_destination_hosts=tuple(row.allowed_destination_hosts),
+        allowed_tracking_hosts=tuple(row.allowed_tracking_hosts),
         disclosure_text=row.disclosure_text, terms_url=row.terms_url,
         status=ProgrammeStatus(row.status), created_at=row.created_at, updated_at=row.updated_at,
     )
