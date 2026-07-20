@@ -39,9 +39,7 @@ def test_render_blueprint_preserves_current_site_and_uses_safe_provider_modes():
     blueprint = yaml.safe_load((ROOT / "render.yaml").read_text(encoding="utf-8"))
     services = {service["name"]: service for service in blueprint["services"]}
 
-    assert services["tralvana-web"]["domains"] == ["app.tralvana.com"]
-    assert services["tralvana-api"]["domains"] == ["api.tralvana.com"]
-    assert all("tralvana.com" not in service["domains"] for service in services.values())
+    assert all("domains" not in service for service in services.values())
 
     api_environment = {
         item["key"]: item.get("value")
@@ -51,7 +49,15 @@ def test_render_blueprint_preserves_current_site_and_uses_safe_provider_modes():
     assert api_environment["TRALVANA_PROVIDER_ENVIRONMENT"] == "MOCK"
     assert api_environment["TRALVANA_FLIGHT_PROVIDER_MODE"] == "MOCK"
     assert api_environment["TRALVANA_ACCOMMODATION_PROVIDER_MODE"] == "MOCK"
+    assert api_environment["CORS_ORIGINS"] == "https://tralvana-web.onrender.com"
     assert services["tralvana-api"]["healthCheckPath"] == "/health/ready"
+
+    web_environment = {
+        item["key"]: item.get("value")
+        for item in services["tralvana-web"]["envVars"]
+        if "key" in item
+    }
+    assert web_environment["NEXT_PUBLIC_API_URL"] == "https://tralvana-api.onrender.com"
 
 
 def test_render_beta_uses_free_private_database_and_no_secret_is_committed():
