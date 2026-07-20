@@ -16,6 +16,11 @@ def database_url() -> str | None:
 
 def create_engine_from_url(url: str, *, echo: bool = False) -> Engine:
     """Create an engine; in-memory SQLite is supported for isolated tests."""
+    # Managed Postgres providers commonly expose a plain ``postgresql://``
+    # connection string. SQLAlchemy otherwise assumes psycopg2 for that URL,
+    # while Tralvana deliberately installs psycopg 3.
+    if url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+psycopg://", 1)
     kwargs: dict = {"pool_pre_ping": True, "echo": echo}
     if url in {"sqlite://", "sqlite+pysqlite:///:memory:"}:
         kwargs.update(
