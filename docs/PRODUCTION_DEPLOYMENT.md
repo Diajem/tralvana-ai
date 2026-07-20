@@ -8,8 +8,10 @@ T-045 prepares a protected beta deployment without replacing the existing
 | Host | Purpose | Change in T-045 |
 |---|---|---|
 | `tralvana.com` | Existing public affiliate/content website | No change |
-| `app.tralvana.com` | Tralvana AI beta web application | New Render web service |
-| `api.tralvana.com` | FastAPI backend | New Render web service |
+| `app.tralvana.com` | Planned paid-production web host | No DNS change during free acceptance |
+| `api.tralvana.com` | Planned paid-production API host | No DNS change during free acceptance |
+| `tralvana-web.onrender.com` | Free acceptance web application | Active temporary Render host |
+| `tralvana-api.onrender.com` | Free acceptance FastAPI backend | Active temporary Render host |
 
 The root `render.yaml` initially deploys the two services and PostgreSQL on
 Render's free plans in Frankfurt so the complete hosted journey can be tested
@@ -36,10 +38,12 @@ migrations and idempotently seeds the 11 already-verified affiliate programmes.
    should show the Free instance type; do not continue if a paid plan appears.
 2. Wait for `tralvana-api` and `tralvana-web` to deploy successfully using their
    temporary Render addresses.
-3. Add the DNS records Render supplies for `api.tralvana.com` and
-   `app.tralvana.com`. Do not alter the root `tralvana.com` records.
-4. Wait for both custom-domain certificates to become active.
-5. Run the read-only smoke test:
+3. During free hosted acceptance, use `tralvana-web.onrender.com` and
+   `tralvana-api.onrender.com`. Do not add or alter any `tralvana.com` DNS
+   records.
+4. Confirm `/health/ready` reports the database, schema, and affiliate
+   catalogue as ready.
+5. Run the read-only smoke test against the temporary Render addresses:
 
    ```bash
    python scripts/smoke-production.py
@@ -53,9 +57,10 @@ migrations and idempotently seeds the 11 already-verified affiliate programmes.
 
 The existing website is independent, so a beta failure does not affect
 `tralvana.com`. Disable or roll back the `tralvana-web`/`tralvana-api` Render
-services and remove only the two new subdomain records if rollback is needed.
-The PostgreSQL database should be retained for audit history unless deletion is
-separately authorised.
+services. No DNS rollback is needed during free acceptance. If custom subdomains
+are added at a later paid-production cutover, remove only those two subdomain
+records during rollback. The PostgreSQL database should be retained for audit
+history unless deletion is separately authorised.
 
 ## Free-test limitations
 
