@@ -11,10 +11,10 @@ T-045 prepares a protected beta deployment without replacing the existing
 | `app.tralvana.com` | Tralvana AI beta web application | New Render web service |
 | `api.tralvana.com` | FastAPI backend | New Render web service |
 
-The root `render.yaml` is a Render Blueprint for the two paid Starter services
-and a paid, private-network-only PostgreSQL database in Frankfurt. Deployments
-wait for GitHub checks. The API pre-deploy step applies Alembic migrations and
-idempotently seeds the 11 already-verified affiliate programmes.
+The root `render.yaml` initially deploys the two services and PostgreSQL on
+Render's free plans in Frankfurt so the complete hosted journey can be tested
+before any recurring hosting commitment. The API startup applies Alembic
+migrations and idempotently seeds the 11 already-verified affiliate programmes.
 
 ## Safety defaults
 
@@ -32,8 +32,8 @@ idempotently seeds the 11 already-verified affiliate programmes.
 
 ## First deployment
 
-1. In Render, create a Blueprint from `Diajem/tralvana-ai` and review the three
-   paid resources before confirming charges.
+1. In Render, create a Blueprint from `Diajem/tralvana-ai`. All three resources
+   should show the Free instance type; do not continue if a paid plan appears.
 2. Wait for `tralvana-api` and `tralvana-web` to deploy successfully using their
    temporary Render addresses.
 3. Add the DNS records Render supplies for `api.tralvana.com` and
@@ -57,13 +57,17 @@ services and remove only the two new subdomain records if rollback is needed.
 The PostgreSQL database should be retained for audit history unless deletion is
 separately authorised.
 
-## Inputs still needed from the owner
+## Free-test limitations
 
-- A Render account/workspace connected to the approved GitHub repository.
-- Approval of the displayed monthly cost for two Starter services and one
-  Basic-256MB PostgreSQL database.
-- Access to the DNS manager for `tralvana.com` when Render provides the exact
-  records.
+- Free web services sleep when inactive, so the first request can be slow.
+- The free PostgreSQL database expires after 30 days and must not become the
+  permanent commission ledger.
+- Testing uses Render's temporary service addresses first. Custom-domain DNS is
+  deferred until the paid production cutover is separately approved.
+
+After hosted acceptance testing passes, change both services to `starter` and
+PostgreSQL to `basic-256mb`, then approve the displayed recurring cost before
+connecting `app.tralvana.com` and `api.tralvana.com`.
 
 Fresh affiliate IDs are not required for this first beta: the seed contains the
 11 verified programmes already carried over from the current website. New or
