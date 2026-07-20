@@ -40,12 +40,23 @@ def test_render_blueprint_preserves_current_site_and_uses_safe_provider_modes():
     assert services["tralvana-api"]["healthCheckPath"] == "/health/ready"
 
 
-def test_render_database_is_paid_private_and_no_secret_is_committed():
+def test_render_beta_uses_free_private_database_and_no_secret_is_committed():
     blueprint_text = (ROOT / "render.yaml").read_text(encoding="utf-8")
     blueprint = yaml.safe_load(blueprint_text)
     database = blueprint["databases"][0]
 
-    assert database["plan"] == "basic-256mb"
+    assert database["plan"] == "free"
     assert database["ipAllowList"] == []
+    assert all(service["plan"] == "free" for service in blueprint["services"])
     assert "DUFFEL_API_TOKEN" not in blueprint_text
     assert "OPENAI_API_KEY" not in blueprint_text
+
+
+def test_free_api_runs_migrations_and_seed_at_startup():
+    startup = (ROOT / "services/api/scripts/start-production.sh").read_text(encoding="utf-8")
+    dockerfile = (ROOT / "services/api/Dockerfile").read_text(encoding="utf-8")
+
+    assert "alembic -c services/api/alembic.ini upgrade head" in startup
+    assert "seed_commercial_catalogue.py" in startup
+    assert "exec uvicorn" in startup
+    assert 'CMD ["sh", "services/api/scripts/start-production.sh"]' in dockerfile
