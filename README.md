@@ -133,3 +133,10 @@ See [`docs/TESTING_FRAMEWORK.md`](docs/TESTING_FRAMEWORK.md) for full details.
 GitHub Actions requires pytest, Ruff, frontend lint, and the frontend production build to pass on every push and pull request to `main`.
 
 See [`docs/CI_CD.md`](docs/CI_CD.md) for full details.
+
+## Protected beta deployment
+
+`render.yaml` prepares the AI beta at `app.tralvana.com` with the API at
+`api.tralvana.com`; it does not change the existing `tralvana.com` website.
+See [`docs/PRODUCTION_DEPLOYMENT.md`](docs/PRODUCTION_DEPLOYMENT.md) for first
+deployment, DNS, smoke-test, and rollback instructions.

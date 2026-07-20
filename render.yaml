@@ -1,0 +1,56 @@
+services:
+  - type: web
+    name: tralvana-api
+    runtime: docker
+    plan: starter
+    region: frankfurt
+    dockerfilePath: ./services/api/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health/ready
+    preDeployCommand: >-
+      alembic -c services/api/alembic.ini upgrade head &&
+      PYTHONPATH=.:services/api python services/api/scripts/seed_commercial_catalogue.py
+    autoDeployTrigger: checksPass
+    domains:
+      - api.tralvana.com
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tralvana-production
+          property: connectionString
+      - key: TRAVELOS_ENV
+        value: production
+      - key: APP_ENV
+        value: production
+      - key: CORS_ORIGINS
+        value: https://app.tralvana.com
+      - key: TRALVANA_PROVIDER_ENVIRONMENT
+        value: MOCK
+      - key: TRALVANA_FLIGHT_PROVIDER_MODE
+        value: MOCK
+      - key: TRALVANA_ACCOMMODATION_PROVIDER_MODE
+        value: MOCK
+
+  - type: web
+    name: tralvana-web
+    runtime: docker
+    plan: starter
+    region: frankfurt
+    dockerfilePath: ./apps/web/Dockerfile
+    dockerContext: ./apps/web
+    healthCheckPath: /
+    autoDeployTrigger: checksPass
+    domains:
+      - app.tralvana.com
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://api.tralvana.com
+
+databases:
+  - name: tralvana-production
+    plan: basic-256mb
+    region: frankfurt
+    postgresMajorVersion: "17"
+    databaseName: tralvana
+    user: tralvana
+    ipAllowList: []
