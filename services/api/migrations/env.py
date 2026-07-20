@@ -7,6 +7,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from app.database.base import Base
+from app.database.session import normalize_database_url
 import app.domains.commercial.orm  # noqa: F401
 
 config = context.config
@@ -20,7 +21,7 @@ def get_url() -> str:
     url = os.environ.get("DATABASE_URL", "").strip()
     if not url:
         raise RuntimeError("DATABASE_URL is required to run database migrations")
-    return url
+    return normalize_database_url(url)
 
 
 def run_migrations_offline() -> None:
