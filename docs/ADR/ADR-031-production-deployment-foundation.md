@@ -18,10 +18,10 @@ enable supplier booking/payment behaviour.
 1. Preserve `tralvana.com` unchanged.
 2. Deploy the AI web application at `app.tralvana.com` and FastAPI at
    `api.tralvana.com` through one Render Blueprint.
-3. Use paid Starter compute and paid Basic PostgreSQL; keep the database off the
-   public network.
-4. Run migrations and the idempotent verified-affiliate seed before each API
-   deployment, then gate traffic on database/schema/catalogue readiness.
+3. Begin hosted acceptance testing on free compute and free PostgreSQL; keep the
+   database off the public network and upgrade before public launch.
+4. Run migrations and the idempotent verified-affiliate seed at API startup,
+   then gate traffic on database/schema/catalogue readiness.
 5. Keep every live-provider switch explicitly in mock mode.
 6. Promote the AI experience to the root domain only after beta validation,
    legal/commercial readiness, monitoring, and a separate approved cutover.
@@ -31,3 +31,6 @@ enable supplier booking/payment behaviour.
 The current revenue/content site remains the rollback boundary. The AI beta can
 be commissioned and tested independently, while ticketing, payments, refunds,
 packages, and network-specific commission imports remain outside this task.
+The free database is disposable after 30 days and is never the permanent
+commission ledger; paid production activation is a separate owner-approved
+cutover after hosted acceptance testing.

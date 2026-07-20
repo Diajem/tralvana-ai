@@ -2,14 +2,11 @@ services:
   - type: web
     name: tralvana-api
     runtime: docker
-    plan: starter
+    plan: free
     region: frankfurt
     dockerfilePath: ./services/api/Dockerfile
     dockerContext: .
     healthCheckPath: /health/ready
-    preDeployCommand: >-
-      alembic -c services/api/alembic.ini upgrade head &&
-      PYTHONPATH=.:services/api python services/api/scripts/seed_commercial_catalogue.py
     autoDeployTrigger: checksPass
     domains:
       - api.tralvana.com
@@ -34,7 +31,7 @@ services:
   - type: web
     name: tralvana-web
     runtime: docker
-    plan: starter
+    plan: free
     region: frankfurt
     dockerfilePath: ./apps/web/Dockerfile
     dockerContext: ./apps/web
@@ -48,7 +45,7 @@ services:
 
 databases:
   - name: tralvana-production
-    plan: basic-256mb
+    plan: free
     region: frankfurt
     postgresMajorVersion: "17"
     databaseName: tralvana
