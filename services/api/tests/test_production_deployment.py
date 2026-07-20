@@ -21,6 +21,20 @@ def test_plain_managed_postgres_url_uses_installed_psycopg_driver(monkeypatch):
     assert captured["url"] == "postgresql+psycopg://user:secret@db/tralvana"
 
 
+def test_managed_postgres_urls_are_normalized_for_migrations_and_runtime():
+    assert database_session.normalize_database_url(
+        "postgresql://user:secret@db/tralvana"
+    ) == "postgresql+psycopg://user:secret@db/tralvana"
+    assert database_session.normalize_database_url(
+        "postgres://user:secret@db/tralvana"
+    ) == "postgresql+psycopg://user:secret@db/tralvana"
+
+    migration_environment = (
+        ROOT / "services/api/migrations/env.py"
+    ).read_text(encoding="utf-8")
+    assert "return normalize_database_url(url)" in migration_environment
+
+
 def test_render_blueprint_preserves_current_site_and_uses_safe_provider_modes():
     blueprint = yaml.safe_load((ROOT / "render.yaml").read_text(encoding="utf-8"))
     services = {service["name"]: service for service in blueprint["services"]}
