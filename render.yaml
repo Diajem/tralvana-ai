@@ -8,8 +8,6 @@ services:
     dockerContext: .
     healthCheckPath: /health/ready
     autoDeployTrigger: checksPass
-    domains:
-      - api.tralvana.com
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -20,7 +18,7 @@ services:
       - key: APP_ENV
         value: production
       - key: CORS_ORIGINS
-        value: https://app.tralvana.com
+        value: https://tralvana-web.onrender.com
       - key: TRALVANA_PROVIDER_ENVIRONMENT
         value: MOCK
       - key: TRALVANA_FLIGHT_PROVIDER_MODE
@@ -37,11 +35,9 @@ services:
     dockerContext: ./apps/web
     healthCheckPath: /
     autoDeployTrigger: checksPass
-    domains:
-      - app.tralvana.com
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        value: https://api.tralvana.com
+        value: https://tralvana-api.onrender.com
 
 databases:
   - name: tralvana-production
