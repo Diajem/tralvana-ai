@@ -207,6 +207,12 @@ class TestEntityExtraction:
         result = classifier.classify("I want to visit London next month")
         assert result.entities.get("date_hint") == "next month"
 
+    def test_extracts_date_hint_from_explicit_date_range(self, classifier):
+        result = classifier.classify(
+            "We want to travel from 10 August to 17 August 2026"
+        )
+        assert result.entities.get("date_hint") == "august"
+
     def test_no_destination_when_not_present(self, classifier):
         # "Hello there" has no location markers
         result = classifier.classify("Hello there")

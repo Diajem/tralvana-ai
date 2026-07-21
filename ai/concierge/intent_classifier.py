@@ -245,6 +245,11 @@ class IntentClassifier:
         ), start=1):
             if f" {name} " in padded or f" {name}?" in padded or f" {name}." in padded:
                 entities["month"] = str(i)
+                # PLAN_TRIP completeness uses date_hint. A bare month also
+                # appears inside explicit ranges such as "10 August to 17
+                # August 2026", so preserve it as a usable date hint rather
+                # than repeatedly asking the traveller for dates.
+                entities.setdefault("date_hint", name)
                 break
 
         return entities

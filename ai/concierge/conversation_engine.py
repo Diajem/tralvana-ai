@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from ai.concierge.decision_engine import Decision, DecisionEngine
-from ai.concierge.intent_classifier import Intent, IntentClassifier
+from ai.concierge.intent_classifier import ClassifiedIntent, Intent, IntentClassifier
 from ai.concierge.response_composer import ResponseComposer
 from ai.explainability.explainability_engine import explainability_engine
 from ai.manager.travel_manager import travel_manager
@@ -38,6 +38,11 @@ class ConversationSession:
     history: list[ConversationMessage] = field(default_factory=list)
     active_goal: str | None = None
     pending_questions: list[str] = field(default_factory=list)
+    # Planning facts are often supplied over several chat turns. Keep the
+    # extracted facts with the session so a follow-up answer (for example,
+    # just a date range) completes the active PLAN_TRIP request instead of
+    # being classified as unrelated general conversation.
+    planning_entities: dict[str, str] = field(default_factory=dict)
     context_summary: str = ""
     # The most recent Trip Brain result for this conversation, cached so
     # EXPLAIN_RECOMMENDATION follow-ups (and POST /explain) can reuse it
@@ -122,7 +127,9 @@ class ConversationEngine:
         session = self._store.get_or_create(conversation_id, traveller_id)
         session.add_message("user", message)
 
-        classified = self._classifier.classify(message)
+        classified = self._continue_plan_if_needed(
+            session, self._classifier.classify(message)
+        )
         profile = self._fetch_profile(session.traveller_id)
         traveller_name = profile.get("identity", {}).get("name") if profile else None
 
@@ -348,6 +355,38 @@ class ConversationEngine:
         if intent in goal_intents:
             session.active_goal = intent.value
         session.pending_questions = decision.follow_up_questions
+
+    def _continue_plan_if_needed(
+        self,
+        session: ConversationSession,
+        classified: ClassifiedIntent,
+    ) -> ClassifiedIntent:
+        """Merge facts across turns while a trip plan is awaiting answers.
+
+        A reply such as "10 August to 17 August" has no standalone planning
+        verb, so the rule-based classifier correctly sees it as general
+        conversation. In an unfinished PLAN_TRIP session, however, it is an
+        answer to the planner's pending question and must retain that intent.
+        """
+        continuing_plan = (
+            session.active_goal == Intent.PLAN_TRIP.value
+            and bool(session.pending_questions)
+            and session.last_recommendation is None
+        )
+        if classified.intent != Intent.PLAN_TRIP and not continuing_plan:
+            return classified
+
+        merged = {**session.planning_entities, **classified.entities}
+        session.planning_entities = merged
+        return ClassifiedIntent(
+            intent=Intent.PLAN_TRIP,
+            confidence=(
+                classified.confidence
+                if classified.intent == Intent.PLAN_TRIP
+                else max(0.8, classified.confidence)
+            ),
+            entities=merged,
+        )
 
     def _fetch_profile(self, traveller_id: str | None) -> dict[str, Any] | None:
         if not traveller_id:
