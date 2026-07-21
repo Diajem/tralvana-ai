@@ -74,6 +74,32 @@ def test_conversation_id_is_reused_across_turns(client):
     assert second.json()["conversation_id"] == conversation_id
 
 
+def test_plan_trip_accumulates_details_and_completes_across_turns(client):
+    first = client.post("/planner/plan", json={
+        "message": (
+            "I want to go to Jamaica with my partner. We are travelling from Leeds, "
+            "we are British and Nigerian, and we like beaches, culture, food and music."
+        ),
+    })
+    assert first.status_code == 200
+    first_body = first.json()
+    assert first_body["intent"] == "PLAN_TRIP"
+    assert first_body["itinerary"] is None
+    assert "When are you planning to travel?" in first_body["missing_information"]
+
+    second = client.post("/planner/plan", json={
+        "message": "We want to travel from 10 August to 17 August 2026 and there will be 2 adults.",
+        "conversation_id": first_body["conversation_id"],
+    })
+    assert second.status_code == 200
+    second_body = second.json()
+    assert second_body["conversation_id"] == first_body["conversation_id"]
+    assert second_body["intent"] == "PLAN_TRIP"
+    assert second_body["itinerary"] is not None
+    assert "When are you planning to travel?" not in second_body["missing_information"]
+    assert "Jamaica" in second_body["itinerary"]["executive_summary"]
+
+
 def test_daily_outline_length_matches_trip_duration(client):
     res = client.post("/planner/plan", json={
         "message": "Plan a 4 day trip to Tokyo in September for 2 adults, balanced budget, from Nigeria",
