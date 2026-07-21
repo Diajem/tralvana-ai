@@ -1,4 +1,6 @@
+import re
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 
 
@@ -156,6 +158,57 @@ class IntentClassifier:
     def _extract_entities(self, text: str) -> dict[str, str]:
         entities: dict[str, str] = {}
 
+        origin_match = re.search(
+            r"\b(?:travelling|traveling|flying|departing|leaving)\s+from\s+"
+            r"([a-z][a-z .'-]{1,40}?)(?=,|[.!?]|\s+(?:and|with|on|for|we|i)\b|$)",
+            text,
+        )
+        if origin_match:
+            entities["origin"] = origin_match.group(1).strip().title()
+
+        number_words = {
+            "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+            "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+        }
+        adults_match = re.search(
+            r"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+adults?\b",
+            text,
+        )
+        if adults_match:
+            raw_adults = adults_match.group(1)
+            entities["adults"] = str(
+                int(raw_adults) if raw_adults.isdigit() else number_words[raw_adults]
+            )
+        elif "with my partner" in text:
+            entities["adults"] = "2"
+
+        interests_match = re.search(
+            r"\b(?:we|i)\s+(?:like|love|enjoy|are interested in|am interested in)\s+"
+            r"(.+?)(?:[.!?]|$)",
+            text,
+        )
+        if interests_match:
+            interests = [
+                value.strip(" ,")
+                for value in re.split(r",|\s+and\s+", interests_match.group(1))
+                if value.strip(" ,")
+            ]
+            if interests:
+                entities["interests"] = ",".join(interests)
+
+        group_nationality_match = re.search(
+            r"\bwe are\s+([a-z]+)(?:\s+and\s+([a-z]+))?(?=,|[.!?]|\s+citizens?\b)",
+            text,
+        )
+        if group_nationality_match:
+            nationalities = [
+                value.title()
+                for value in group_nationality_match.groups()
+                if value
+            ]
+            entities["nationality"] = nationalities[0]
+            entities["nationalities"] = ",".join(nationalities)
+
         # Padded so every marker search requires a leading word boundary —
         # without this, "in " matches inside "rain " (rendering "Will it
         # rain in Jamaica" destination-less) and similar false positives.
@@ -211,7 +264,7 @@ class IntentClassifier:
                 if words:
                     candidate = words[0].strip(".,?!")
                     if candidate not in ("a", "an", "the", "going", "travelling", "planning", "not"):
-                        entities["nationality"] = candidate.title()
+                        entities.setdefault("nationality", candidate.title())
                         break
 
         if "nationality" not in entities:
@@ -222,6 +275,38 @@ class IntentClassifier:
                     candidate = before[-1].strip(".,?!")
                     if candidate not in ("my", "a", "the", "valid", "your", "our"):
                         entities["nationality"] = candidate.title()
+
+        months = (
+            "january", "february", "march", "april", "may", "june",
+            "july", "august", "september", "october", "november", "december",
+        )
+        month_pattern = "|".join(months)
+        range_match = re.search(
+            rf"\b(\d{{1,2}})(?:st|nd|rd|th)?\s+({month_pattern})(?:\s+(\d{{4}}))?"
+            rf"\s+(?:to|until|-)+\s+(\d{{1,2}})(?:st|nd|rd|th)?\s+"
+            rf"({month_pattern})(?:\s+(\d{{4}}))?\b",
+            text,
+        )
+        if range_match:
+            start_day, start_month, start_year, end_day, end_month, end_year = (
+                range_match.groups()
+            )
+            year = start_year or end_year
+            if year:
+                try:
+                    start = datetime.strptime(
+                        f"{start_day} {start_month} {year}", "%d %B %Y"
+                    ).date()
+                    end = datetime.strptime(
+                        f"{end_day} {end_month} {end_year or year}", "%d %B %Y"
+                    ).date()
+                    if end > start:
+                        entities["start_date"] = start.isoformat()
+                        entities["end_date"] = end.isoformat()
+                        entities["duration_days"] = str((end - start).days)
+                        entities["date_hint"] = range_match.group(0)
+                except ValueError:
+                    pass
 
         for token in (
             "next week", "next month", "tomorrow", "this weekend",
@@ -239,10 +324,7 @@ class IntentClassifier:
         # lets a month at the very start/end of the message still match as
         # a whole word.
         padded = f" {text} "
-        for i, name in enumerate((
-            "january", "february", "march", "april", "may", "june",
-            "july", "august", "september", "october", "november", "december",
-        ), start=1):
+        for i, name in enumerate(months, start=1):
             if f" {name} " in padded or f" {name}?" in padded or f" {name}." in padded:
                 entities["month"] = str(i)
                 # PLAN_TRIP completeness uses date_hint. A bare month also

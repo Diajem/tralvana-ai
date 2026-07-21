@@ -150,12 +150,18 @@ class AccommodationIntelligenceService:
                 pass
 
         prefs = (profile or {}).get("preferences", {})
+        travellers = (trip or {}).get("travellers", {})
+        adults = int(entities.get("adults") or travellers.get("adults") or 1)
         request = RecommendAccommodationRequest(
             traveller_id=traveller_id,
             trip_id=trip_id,
             destination=entities.get("destination", ""),
+            check_in_date=entities.get("start_date"),
             budget_style=prefs.get("budget_style", "balanced"),
             nights=(trip or {}).get("duration_days", 7),
+            adults=adults,
+            children=int(entities.get("children") or travellers.get("children") or 0),
+            rooms=max(1, (adults + 1) // 2),
         )
         return self.recommend(request, trip=trip, goal=goal, profile=profile)
 
