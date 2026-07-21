@@ -147,13 +147,17 @@ class FlightIntelligenceService:
                 pass
 
         prefs = (profile or {}).get("preferences", {})
+        travellers = (trip or {}).get("travellers", {})
         request = RecommendFlightsRequest(
             traveller_id=traveller_id,
             trip_id=trip_id,
-            origin=prefs.get("home_airport", "London"),
+            origin=entities.get("origin") or prefs.get("home_airport", "London"),
             destination=entities.get("destination", ""),
+            departure_date=entities.get("start_date"),
+            return_date=entities.get("end_date"),
             cabin_class=prefs.get("cabin_class", "economy"),
             budget_style=prefs.get("budget_style", "balanced"),
+            adults=int(entities.get("adults") or travellers.get("adults") or 1),
             trip_duration_days=(trip or {}).get("duration_days", 7),
         )
         return self.recommend(request, trip=trip, goal=goal, profile=profile)

@@ -211,7 +211,26 @@ class TestEntityExtraction:
         result = classifier.classify(
             "We want to travel from 10 August to 17 August 2026"
         )
-        assert result.entities.get("date_hint") == "august"
+        assert result.entities.get("date_hint") == "10 august to 17 august 2026"
+
+    def test_extracts_detailed_group_trip_facts(self, classifier):
+        result = classifier.classify(
+            "We are travelling from Leeds, we are British and Nigerian, and we like "
+            "beaches, culture, food and music."
+        )
+        assert result.entities["origin"] == "Leeds"
+        assert result.entities["nationality"] == "British"
+        assert result.entities["nationalities"] == "British,Nigerian"
+        assert result.entities["interests"] == "beaches,culture,food,music"
+
+    def test_extracts_exact_dates_duration_and_adult_count(self, classifier):
+        result = classifier.classify(
+            "We want to travel from 10 August to 17 August 2026 with 2 adults"
+        )
+        assert result.entities["start_date"] == "2026-08-10"
+        assert result.entities["end_date"] == "2026-08-17"
+        assert result.entities["duration_days"] == "7"
+        assert result.entities["adults"] == "2"
 
     def test_no_destination_when_not_present(self, classifier):
         # "Hello there" has no location markers

@@ -98,6 +98,13 @@ def test_plan_trip_accumulates_details_and_completes_across_turns(client):
     assert second_body["itinerary"] is not None
     assert "When are you planning to travel?" not in second_body["missing_information"]
     assert "Jamaica" in second_body["itinerary"]["executive_summary"]
+    itinerary = second_body["itinerary"]
+    assert itinerary["flight_recommendation"]["origin"] == "Leeds"
+    assert itinerary["flight_recommendation"]["departure_date"] == "2026-08-10"
+    assert itinerary["flight_recommendation"]["return_date"] == "2026-08-17"
+    assert itinerary["budget_summary"]["adults"] == 2
+    assert itinerary["budget_summary"]["duration_days"] == 7
+    assert itinerary["visa_summary"]["nationality"] == "British"
 
 
 def test_daily_outline_length_matches_trip_duration(client):

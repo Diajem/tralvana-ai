@@ -124,12 +124,22 @@ class TripPlanningService:
                 pass
 
         prefs = (profile or {}).get("preferences", {})
-        origin = prefs.get("home_airport", "London")
+        origin = entities.get("origin") or prefs.get("home_airport", "London")
         destination = entities.get("destination", "")
         budget_style = prefs.get("budget_style", "balanced")
         cabin_class = prefs.get("cabin_class", "economy")
-        interests = goal.get("interests", []) if goal else []
-        duration = goal.get("timeframe", {}).get("duration_days") if goal else 7
+        interests = (
+            [value for value in entities.get("interests", "").split(",") if value]
+            or (goal.get("interests", []) if goal else [])
+        )
+        duration = int(entities.get("duration_days", "0")) or (
+            goal.get("timeframe", {}).get("duration_days") if goal else 7
+        )
+        travellers = {
+            "adults": int(entities.get("adults", "1")),
+            "children": int(entities.get("children", "0")),
+            "infants": int(entities.get("infants", "0")),
+        }
 
         request = CreateTripPlanRequest(
             traveller_id=traveller_id,
@@ -140,6 +150,7 @@ class TripPlanningService:
             budget_style=budget_style,
             cabin_class=cabin_class,
             interests=interests,
+            travellers=travellers,
         )
         return self.plan(request, goal=goal, profile=profile)
 

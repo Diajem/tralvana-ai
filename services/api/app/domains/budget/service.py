@@ -126,12 +126,15 @@ class BudgetIntelligenceService:
                 pass
 
         prefs = (profile or {}).get("preferences", {})
+        travellers = (trip or {}).get("travellers", {})
         request = RecommendBudgetRequest(
             traveller_id=traveller_id,
             trip_id=trip_id,
             destination=entities.get("destination") or None,
             budget_style=prefs.get("budget_style", "balanced"),
             duration_days=(trip or {}).get("duration_days", 7),
+            adults=int(entities.get("adults") or travellers.get("adults") or 1),
+            children=int(entities.get("children") or travellers.get("children") or 0),
         )
         return self.recommend(request, trip=trip, goal=goal, profile=profile)
 
