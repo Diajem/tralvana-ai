@@ -20,6 +20,16 @@ def _cors_from_env(default: list[str]) -> list[str]:
     return [o.strip() for o in raw.split(",") if o.strip()] if raw else default
 
 
+_LOCAL_DEV_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+    "http://localhost:3015",
+    "http://127.0.0.1:3015",
+]
+
+
 _DEFAULTS: dict[str, EnvironmentConfig] = {
     "development": EnvironmentConfig(
         name="development",
@@ -27,7 +37,7 @@ _DEFAULTS: dict[str, EnvironmentConfig] = {
         api_port=8000,
         log_level="DEBUG",
         debug=True,
-        cors_origins=["http://localhost:3001"],
+        cors_origins=_LOCAL_DEV_ORIGINS.copy(),
     ),
     "test": EnvironmentConfig(
         name="test",
@@ -35,7 +45,7 @@ _DEFAULTS: dict[str, EnvironmentConfig] = {
         api_port=8001,
         log_level="WARNING",
         debug=False,
-        cors_origins=["http://localhost:3001"],
+        cors_origins=_LOCAL_DEV_ORIGINS.copy(),
     ),
     "production": EnvironmentConfig(
         name="production",
