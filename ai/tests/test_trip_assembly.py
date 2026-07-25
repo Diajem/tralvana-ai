@@ -18,14 +18,14 @@ engine = TripAssemblyEngine()
 def _flight_result(top=None, status=AgentStatus.SUCCESS) -> AgentResult:
     return AgentResult(
         agent_name="flight_intelligence", status=status, confidence=0.82,
-        data={"top_option": top or {"airline": "AeroLondon", "estimated_price": 825, "currency": "USD", "match_score": 0.82}},
+        data={"top_option": top or {"airline": "AeroLondon", "estimated_price": 825, "currency": "USD", "match_score": 0.82, "data_source": "MOCK"}},
     )
 
 
 def _accommodation_result(top=None, status=AgentStatus.SUCCESS) -> AgentResult:
     return AgentResult(
         agent_name="accommodation_intelligence", status=status, confidence=0.75,
-        data={"top_option": top or {"property_name": "Tokyo Guesthouse", "accommodation_type": "GUESTHOUSE", "match_score": 0.75}},
+        data={"top_option": top or {"property_name": "Tokyo Guesthouse", "accommodation_type": "GUESTHOUSE", "match_score": 0.75, "data_source": "MOCK"}},
     )
 
 
@@ -75,7 +75,7 @@ class TestTopOptionExtraction:
     def test_flight_recommendation_is_the_modules_own_top_option(self):
         unified = _unified([_flight_result()])
         itinerary = engine.assemble(unified, destination="Tokyo", duration_days=5)
-        assert itinerary.flight_recommendation == {"airline": "AeroLondon", "estimated_price": 825, "currency": "USD", "match_score": 0.82}
+        assert itinerary.flight_recommendation == {"airline": "AeroLondon", "estimated_price": 825, "currency": "USD", "match_score": 0.82, "data_source": "MOCK"}
 
     def test_accommodation_recommendation_is_the_modules_own_top_option(self):
         unified = _unified([_accommodation_result()])
@@ -187,6 +187,30 @@ class TestExecutiveSummary:
         assert "Tokyo Guesthouse" in itinerary.executive_summary
         assert "Tokyo" in itinerary.executive_summary
 
+    def test_mock_price_is_described_as_an_estimate_not_a_confirmed_fare(self):
+        itinerary = engine.assemble(
+            _unified([_flight_result()]), destination="Tokyo", duration_days=5
+        )
+        assert "planning estimate" in itinerary.executive_summary
+        assert "check a live provider" in itinerary.executive_summary
+        assert "You'll fly" not in itinerary.executive_summary
+
+    def test_sandbox_price_is_described_as_test_data(self):
+        sandbox = {
+            "airline": "Duffel Test Air",
+            "estimated_price": 500,
+            "currency": "USD",
+            "match_score": 0.8,
+            "data_source": "DUFFEL_SANDBOX",
+        }
+        itinerary = engine.assemble(
+            _unified([_flight_result(top=sandbox)]),
+            destination="Tokyo",
+            duration_days=5,
+        )
+        assert "sandbox test data" in itinerary.executive_summary
+        assert "not a purchasable fare" in itinerary.executive_summary
+
     def test_summary_never_fabricates_a_module_that_did_not_run(self):
         unified = _unified([_flight_result()])
         itinerary = engine.assemble(unified, destination="Tokyo", duration_days=5)
@@ -216,6 +240,87 @@ class TestModulesUsedAndUnavailable:
         assert "accommodation" in itinerary.modules_unavailable
 
 
+class TestGroundingNotices:
+    def test_mock_flight_and_accommodation_fail_closed_to_estimate(self):
+        itinerary = engine.assemble(
+            _unified([_flight_result(), _accommodation_result()]),
+            destination="Tokyo",
+            duration_days=5,
+        )
+        by_domain = {n.domain: n for n in itinerary.grounding_notices}
+        assert by_domain["flight"].level == "ESTIMATE"
+        assert by_domain["flight"].is_current is False
+        assert by_domain["accommodation"].level == "ESTIMATE"
+        assert all(n.requires_confirmation for n in itinerary.grounding_notices)
+
+    def test_duffel_sandbox_is_never_labelled_live(self):
+        sandbox = {
+            "airline": "Duffel Test Air",
+            "estimated_price": 500,
+            "currency": "USD",
+            "match_score": 0.8,
+            "data_source": "DUFFEL_SANDBOX",
+        }
+        itinerary = engine.assemble(
+            _unified([_flight_result(top=sandbox)]),
+            destination="Tokyo",
+            duration_days=5,
+        )
+        notice = itinerary.grounding_notices[0]
+        assert notice.level == "SANDBOX"
+        assert notice.is_current is False
+
+    def test_unknown_provider_label_is_not_promoted_to_live(self):
+        unknown = {
+            "airline": "Future Air",
+            "estimated_price": 500,
+            "currency": "USD",
+            "match_score": 0.8,
+            "data_source": "FUTURE_VENDOR",
+        }
+        itinerary = engine.assemble(
+            _unified([_flight_result(top=unknown)]),
+            destination="Tokyo",
+            duration_days=5,
+        )
+        notice = itinerary.grounding_notices[0]
+        assert notice.level == "ESTIMATE"
+        assert notice.is_current is False
+
+    def test_static_domains_are_labelled_by_their_real_grounding(self):
+        itinerary = engine.assemble(
+            _unified(
+                [
+                    _destination_result(),
+                    _budget_result(),
+                    _visa_result(),
+                    _weather_result(),
+                ]
+            ),
+            destination="Tokyo",
+            duration_days=5,
+        )
+        levels = {n.domain: n.level for n in itinerary.grounding_notices}
+        assert levels == {
+            "destination": "CURATED",
+            "budget": "ESTIMATE",
+            "visa": "GUIDANCE",
+            "weather": "CLIMATE_PROFILE",
+        }
+
+    def test_event_interests_add_no_live_event_provider_notice(self):
+        itinerary = engine.assemble(
+            _unified([_destination_result()]),
+            destination="New York",
+            duration_days=5,
+            interests=["fashion", "soccer"],
+        )
+        event_notice = next(n for n in itinerary.grounding_notices if n.domain == "events")
+        assert event_notice.level == "IDEA"
+        assert event_notice.data_source == "NO_LIVE_EVENT_PROVIDER"
+        assert "No live event calendar" in event_notice.message
+
+
 class TestToDict:
     def test_to_dict_contains_every_required_section(self):
         unified = _unified([_flight_result(), _accommodation_result(), _destination_result(), _budget_result(), _visa_result(), _weather_result()])
@@ -226,6 +331,6 @@ class TestToDict:
             "accommodation_recommendation", "budget_summary", "visa_summary",
             "weather_expectations", "risks", "assumptions", "daily_outline",
             "why_this_itinerary", "confidence", "confidence_explanation",
-            "alternative_options",
+            "alternative_options", "grounding_notices",
         }
         assert required_keys.issubset(d.keys())

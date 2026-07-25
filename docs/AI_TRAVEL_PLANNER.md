@@ -51,7 +51,7 @@ seventh Discovery module, not a change to Trip Brain itself.
 | `TripItinerary` assembly (`ai/trip_brain/trip_assembly.py`) | **New** — pure composition/formatting, zero scoring |
 | `POST /planner/plan` (`services/api/app/routers/planner.py`) | **New** — a thin wrapper around `travel_concierge.handle()`, adding only the assembly step |
 
-## The Itinerary's 13 Sections
+## The Itinerary's Sections
 
 Every section maps to a field a Discovery module or the Explainability
 Engine already produced — see the table in
@@ -68,6 +68,7 @@ one. Summary:
 | Why this itinerary was selected | `explanation["recommendation_drivers"]` |
 | Confidence | `UnifiedRecommendation.overall_confidence` + `explanation["confidence_explanation"]` |
 | Alternative options | `explanation["alternatives_considered"]` |
+| What has been checked | T-052 grounding notices: live vs. sandbox vs. estimate/guidance/profile/idea |
 
 ## API
 
@@ -103,6 +104,16 @@ full recommendation yet — e.g. the message was too vague; `response`/
     "confidence": 0.62,
     "confidence_explanation": "Moderate confidence (0.62) — missing traveller information; mock or incomplete provider data.",
     "alternative_options": [...],
+    "grounding_notices": [
+      {
+        "domain": "flight",
+        "level": "ESTIMATE",
+        "title": "Estimated flight result",
+        "data_source": "MOCK",
+        "is_current": false,
+        "requires_confirmation": true
+      }
+    ],
     "modules_used": ["destination", "flight", "accommodation", "budget", "visa", "weather"],
     "modules_unavailable": []
   }

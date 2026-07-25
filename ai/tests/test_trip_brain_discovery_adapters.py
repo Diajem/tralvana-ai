@@ -52,6 +52,9 @@ class TestFlightAdapter:
                 "flight_options": options,
                 "assumptions": ["a1"],
                 "next_actions": ["n1"],
+                "data_source": "DUFFEL_SANDBOX",
+                "provider_status": "AVAILABLE",
+                "retrieved_at": "2026-07-25T12:00:00+00:00",
             },
         )
 
@@ -60,6 +63,11 @@ class TestFlightAdapter:
         assert result.status == AgentStatus.SUCCESS
         assert result.confidence == 0.75
         assert result.data["top_option"]["flight_option_id"] == "f2"
+        assert result.data["top_option"]["data_source"] == "DUFFEL_SANDBOX"
+        assert (
+            result.data["top_option"]["retrieved_at"]
+            == "2026-07-25T12:00:00+00:00"
+        )
         assert result.assumptions == ["a1"]
         assert result.next_actions == ["n1"]
 
@@ -92,6 +100,38 @@ class TestFlightAdapter:
 
 
 class TestAccommodationAdapter:
+    def test_success_preserves_safe_source_metadata_on_top_option(self, monkeypatch):
+        from app.domains.accommodation.service import accommodation_intelligence_service
+
+        options = [
+            _option(
+                accommodation_option_id="a1",
+                recommendation_type="BEST_OVERALL",
+                data_source="DUFFEL_STAYS_SANDBOX",
+            )
+        ]
+        monkeypatch.setattr(
+            accommodation_intelligence_service,
+            "recommend_from_conversation",
+            lambda **kwargs: {
+                "destination": "Tokyo",
+                "accommodation_options": options,
+                "assumptions": [],
+                "next_actions": [],
+                "data_source": "DUFFEL_STAYS_SANDBOX",
+                "provider_status": "AVAILABLE",
+                "retrieved_at": "2026-07-25T12:00:00+00:00",
+            },
+        )
+
+        result = run_accommodation_intelligence(_context())
+
+        assert result.data["top_option"]["data_source"] == "DUFFEL_STAYS_SANDBOX"
+        assert (
+            result.data["top_option"]["retrieved_at"]
+            == "2026-07-25T12:00:00+00:00"
+        )
+
     def test_exception_is_isolated_as_failed(self, monkeypatch):
         from app.domains.accommodation.service import accommodation_intelligence_service
 

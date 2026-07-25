@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { planTrip } from "@/lib/api";
-import type { DailyOutlineEntry, PlanTripResponse, TripItinerary } from "@/types/planner";
+import type { DailyOutlineEntry, GroundingNotice, PlanTripResponse, TripItinerary } from "@/types/planner";
 
 function ConfidenceBadge({ confidence }: { confidence: number }) {
   const pct = Math.round(confidence * 100);
@@ -74,6 +74,30 @@ function DailyOutlineCard({ entry }: { entry: DailyOutlineEntry }) {
   );
 }
 
+function GroundingCard({ notice }: { notice: GroundingNotice }) {
+  const colour =
+    notice.level === "LIVE"
+      ? "border-green-200 bg-green-50 text-green-800"
+      : notice.level === "SANDBOX"
+        ? "border-blue-200 bg-blue-50 text-blue-800"
+        : "border-amber-200 bg-amber-50 text-amber-800";
+
+  return (
+    <div className={`rounded-lg border p-4 ${colour}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold">{notice.title}</p>
+          <p className="mt-1 text-xs leading-relaxed opacity-90">{notice.message}</p>
+        </div>
+        <span className="shrink-0 rounded-full bg-white/70 px-2 py-1 text-[10px] font-bold">
+          {fmtKey(notice.level)}
+        </span>
+      </div>
+      <p className="mt-2 text-[10px] opacity-70">Source: {fmtKey(notice.data_source)}</p>
+    </div>
+  );
+}
+
 function ItineraryView({ itinerary }: { itinerary: TripItinerary }) {
   return (
     <div className="space-y-6">
@@ -84,6 +108,20 @@ function ItineraryView({ itinerary }: { itinerary: TripItinerary }) {
         </div>
         <p className="text-indigo-50 leading-relaxed">{itinerary.executive_summary}</p>
       </div>
+
+      {itinerary.grounding_notices.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">What Has Been Checked</h2>
+          <p className="mb-3 text-sm text-gray-500">
+            Live results, planning estimates, general guidance, and activity ideas are labelled separately.
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {itinerary.grounding_notices.map((notice) => (
+              <GroundingCard key={`${notice.domain}-${notice.data_source}`} notice={notice} />
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
         {itinerary.destination_recommendation && (
@@ -228,7 +266,8 @@ export default function PlannerPage() {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">AI Travel Planner</h1>
           <p className="text-gray-500">
             Describe your trip in your own words — Tralvana will pull together destinations,
-            flights, accommodation, budget, visa requirements, and weather into one plan.
+            flights, accommodation, budget, visa guidance, and weather into one plan, with
+            live results and planning estimates clearly labelled.
           </p>
         </div>
 
