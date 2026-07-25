@@ -1,6 +1,6 @@
 """
 Context Builder — assembles Traveller + Goal + Trip Context once per Trip
-Brain pass, so the (up to six) Discovery modules it calls don't each
+Brain pass, so the selected Discovery modules it calls don't each
 independently re-fetch the same data.
 
 Request-scoped only: built at the start of one TripBrain.plan() call and
@@ -72,6 +72,28 @@ class TripBrainContext:
         if not travellers:
             return False
         return bool(travellers.get("adults"))
+
+    @property
+    def interests(self) -> list[str]:
+        entity_interests = [
+            value for value in self.entities.get("interests", "").split(",")
+            if value
+        ]
+        if entity_interests:
+            return entity_interests
+        return list((self.goal or {}).get("interests", []))
+
+    @property
+    def has_event_interest(self) -> bool:
+        event_terms = {
+            "event", "events", "fashion", "style", "design", "soccer",
+            "football", "sport", "match", "music", "concert", "festival",
+            "theatre", "theater",
+        }
+        return any(
+            any(term in interest.lower() for term in event_terms)
+            for interest in self.interests
+        )
 
 
 class ContextBuilder:

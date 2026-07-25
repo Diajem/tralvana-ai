@@ -10,10 +10,25 @@ class TestDiagnosticsOutput:
         res = client.get("/internal/providers/status")
         assert res.status_code == 200
 
-    def test_lists_the_three_integrated_providers(self, client):
+    def test_lists_the_integrated_providers(self, client):
         body = client.get("/internal/providers/status").json()
         names = {p["provider_name"] for p in body["providers"]}
-        assert {"mock_flight_provider", "mock_accommodation_provider", "mock_weather_provider"} <= names
+        assert {
+            "mock_flight_provider",
+            "mock_accommodation_provider",
+            "mock_weather_provider",
+            "mock_event_provider",
+        } <= names
+
+    def test_event_provider_is_explicitly_mock(self, client):
+        body = client.get("/internal/providers/status").json()
+        event = next(
+            provider for provider in body["providers"]
+            if provider["provider_name"] == "mock_event_provider"
+        )
+        assert event["capability"] == "EVENTS"
+        assert event["provider_type"] == "MOCK"
+        assert event["environment"] == "MOCK"
 
     def test_every_provider_entry_has_safe_fields_only(self, client):
         # Extended in T-026 (Live Provider Framework) to add provider_type,

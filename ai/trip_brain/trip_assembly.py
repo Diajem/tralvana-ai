@@ -3,7 +3,7 @@ Trip Assembly Engine (T-040) — synthesizes Trip Brain's already-computed
 UnifiedRecommendation into one coherent, consultant-style TripItinerary.
 
 Trip Brain (ai/trip_brain/coordinator.py) remains the sole orchestrator
-of the six Discovery modules — unchanged, its own tests untouched. This
+of the selected Discovery modules. This
 module never re-scores, re-ranks, or recalculates anything a Discovery
 module, Trip Brain, or the Explainability Engine already produced; it
 only reads fields already computed (AgentResult.data's `top_option`,
@@ -83,6 +83,7 @@ class TripItinerary:
     budget_summary: dict[str, Any] | None
     visa_summary: dict[str, Any] | None
     weather_expectations: dict[str, Any] | None
+    event_recommendations: list[dict[str, Any]]
     risks: list[str]
     assumptions: list[str]
     daily_outline: list[dict[str, Any]]
@@ -103,6 +104,7 @@ class TripItinerary:
             "budget_summary": self.budget_summary,
             "visa_summary": self.visa_summary,
             "weather_expectations": self.weather_expectations,
+            "event_recommendations": self.event_recommendations,
             "risks": self.risks,
             "assumptions": self.assumptions,
             "daily_outline": self.daily_outline,
@@ -118,10 +120,6 @@ class TripItinerary:
 
 # AgentResult.agent_name -> the itinerary section it feeds, matching
 # ai/trip_brain/discovery_adapters.py's MODULE_RUNNERS naming exactly.
-_RANKED_MODULES = ("destination_intelligence", "flight_intelligence", "accommodation_intelligence", "budget_intelligence")
-_ASSESSMENT_MODULES = ("visa_intelligence", "weather_intelligence")
-
-
 class TripAssemblyEngine:
     def assemble(
         self,
@@ -140,6 +138,7 @@ class TripAssemblyEngine:
         budget_rec = self._top_option(by_module.get("budget_intelligence"))
         visa_rec = self._assessment(by_module.get("visa_intelligence"))
         weather_rec = self._assessment(by_module.get("weather_intelligence"))
+        event_recs = self._options(by_module.get("event_intelligence"))
 
         daily_outline = itinerary_builder.build(
             destination=destination or "your destination",
@@ -158,6 +157,7 @@ class TripAssemblyEngine:
             budget=budget_rec,
             visa=visa_rec,
             weather=weather_rec,
+            events=event_recs,
             confidence=unified.overall_confidence,
             modules_succeeded=unified.modules_succeeded,
         )
@@ -168,6 +168,7 @@ class TripAssemblyEngine:
             budget=budget_rec,
             visa=visa_rec,
             weather=weather_rec,
+            events=event_recs,
             interests=interests or [],
         )
 
@@ -179,6 +180,7 @@ class TripAssemblyEngine:
             budget_summary=budget_rec,
             visa_summary=visa_rec,
             weather_expectations=weather_rec,
+            event_recommendations=event_recs,
             risks=list(explanation.get("risks", [])),
             assumptions=list(explanation.get("assumptions", [])),
             daily_outline=daily_outline,
@@ -209,6 +211,12 @@ class TripAssemblyEngine:
             return None
         return result.data or None
 
+    def _options(self, result: AgentResult | None) -> list[dict[str, Any]]:
+        """A ranked module's already-computed public options, unchanged."""
+        if result is None or result.status == AgentStatus.FAILED:
+            return []
+        return list(result.data.get("options", []))
+
     def _executive_summary(
         self,
         destination: str,
@@ -217,6 +225,7 @@ class TripAssemblyEngine:
         budget: dict[str, Any] | None,
         visa: dict[str, Any] | None,
         weather: dict[str, Any] | None,
+        events: list[dict[str, Any]],
         confidence: float,
         modules_succeeded: list[str],
     ) -> str:
@@ -300,6 +309,19 @@ class TripAssemblyEngine:
         if weather and weather.get("recommendation"):
             parts.append(f"Seasonal weather profile: {weather['recommendation']}")
 
+        if events:
+            matched = [
+                option["name"]
+                for option in events
+                if option.get("interests_matched")
+            ]
+            if matched:
+                parts.append(
+                    "Curated event ideas include "
+                    + ", ".join(matched[:2])
+                    + "; confirm exact dates and availability with official live sources."
+                )
+
         parts.append(f"Overall confidence in this plan is {confidence:.0%}.")
         return " ".join(parts)
 
@@ -313,6 +335,7 @@ class TripAssemblyEngine:
         budget: dict[str, Any] | None,
         visa: dict[str, Any] | None,
         weather: dict[str, Any] | None,
+        events: list[dict[str, Any]],
         interests: list[str],
     ) -> list[GroundingNotice]:
         notices: list[GroundingNotice] = []
@@ -387,7 +410,28 @@ class TripAssemblyEngine:
                 )
             )
 
-        if self._has_event_interest(interests):
+        if events:
+            source = str(
+                events[0].get("data_source", "TRALVANA_CURATED_EVENT_IDEAS")
+            )
+            retrieved_at = events[0].get("retrieved_at")
+            notices.append(
+                GroundingNotice(
+                    domain="events",
+                    level="CURATED",
+                    title="Curated event search ideas",
+                    message=(
+                        "Event Intelligence matched the traveller's interests to "
+                        "curated search ideas. It did not confirm a live calendar, "
+                        "fixture, ticket, price, or availability."
+                    ),
+                    data_source=source,
+                    is_current=False,
+                    requires_confirmation=True,
+                    retrieved_at=str(retrieved_at) if retrieved_at else None,
+                )
+            )
+        elif self._has_event_interest(interests):
             notices.append(
                 GroundingNotice(
                     domain="events",
@@ -478,7 +522,10 @@ class TripAssemblyEngine:
         return any(
             term in str(interest).lower()
             for interest in interests
-            for term in ("fashion", "style", "football", "soccer", "match", "event")
+            for term in (
+                "fashion", "style", "football", "soccer", "match", "event",
+                "concert", "festival", "music", "theatre", "theater",
+            )
         )
 
 

@@ -1,7 +1,12 @@
 import pytest
 
 from ai.trip_brain.context import TripBrainContext
-from ai.trip_brain.module_selection import ALL_MODULES, CORE_WEIGHT, SUPPORTING_WEIGHT, ModuleSelector
+from ai.trip_brain.module_selection import (
+    BASE_MODULES,
+    CORE_WEIGHT,
+    SUPPORTING_WEIGHT,
+    ModuleSelector,
+)
 
 
 @pytest.fixture
@@ -94,7 +99,7 @@ class TestModuleSelector:
             profile={"identity": {"nationality": "GB"}},
         )
         weights = selector.select(context)
-        assert set(weights.keys()) == set(ALL_MODULES)
+        assert set(weights.keys()) == set(BASE_MODULES)
         assert all(w == CORE_WEIGHT for w in weights.values())
 
     def test_full_trip_shape_forces_all_six_even_without_budget_cap_or_visa_need(self, selector):
@@ -106,7 +111,7 @@ class TestModuleSelector:
             goal={"budget": {"max_usd": None}, "travellers": {"adults": 1}},
         )
         weights = selector.select(context)
-        assert set(weights.keys()) == set(ALL_MODULES)
+        assert set(weights.keys()) == set(BASE_MODULES)
 
     def test_party_size_unknown_does_not_force_full_shape(self, selector):
         context = _context(
@@ -116,3 +121,32 @@ class TestModuleSelector:
         weights = selector.select(context)
         assert set(weights.keys()) == {"destination", "weather", "flight", "accommodation", "budget"}
         assert "visa" not in weights
+
+    def test_event_interest_adds_events_as_core(self, selector):
+        context = _context(
+            entities={
+                "destination": "New York",
+                "date_hint": "in august",
+                "interests": "fashion,soccer",
+                "nationality": "New York",
+            }
+        )
+        weights = selector.select(context)
+        assert weights["events"] == CORE_WEIGHT
+
+    def test_non_event_interests_do_not_add_events(self, selector):
+        context = _context(
+            entities={
+                "destination": "New York",
+                "interests": "dining,major attractions",
+                "nationality": "New York",
+            }
+        )
+        assert "events" not in selector.select(context)
+
+    def test_goal_interests_can_trigger_events(self, selector):
+        context = _context(
+            entities={"destination": "New York", "nationality": "New York"},
+            goal={"interests": ["football"], "travellers": {"adults": 1}},
+        )
+        assert selector.select(context)["events"] == CORE_WEIGHT

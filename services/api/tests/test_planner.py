@@ -20,7 +20,7 @@ def test_full_plan_trip_message_returns_an_assembled_itinerary(client):
     for key in (
         "executive_summary", "destination_recommendation", "flight_recommendation",
         "accommodation_recommendation", "budget_summary", "visa_summary",
-        "weather_expectations", "risks", "assumptions", "daily_outline",
+        "weather_expectations", "event_recommendations", "risks", "assumptions", "daily_outline",
         "why_this_itinerary", "confidence", "confidence_explanation",
         "alternative_options", "grounding_notices",
     ):
@@ -167,7 +167,19 @@ def test_complete_new_york_holiday_honours_every_supplied_detail(client):
     assert notices["budget"]["level"] == "ESTIMATE"
     assert notices["visa"]["level"] == "GUIDANCE"
     assert notices["weather"]["level"] == "CLIMATE_PROFILE"
-    assert notices["events"]["level"] == "IDEA"
+    assert notices["events"]["level"] == "CURATED"
+    assert notices["events"]["is_current"] is False
+    assert len(itinerary["event_recommendations"]) >= 2
+    categories = {
+        option["category"] for option in itinerary["event_recommendations"]
+    }
+    assert {"FASHION", "SPORT"}.issubset(categories)
+    assert all(
+        option["starts_at"] is None
+        and option["availability_status"] == "UNKNOWN"
+        and option["ticket_url"] is None
+        for option in itinerary["event_recommendations"]
+    )
     assert all(notice["requires_confirmation"] for notice in notices.values())
     assert "planning estimate" in itinerary["executive_summary"]
     assert "check a live provider" in itinerary["executive_summary"]
