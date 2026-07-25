@@ -42,6 +42,26 @@ def _top_option(options: list[dict[str, Any]]) -> dict[str, Any]:
     )
 
 
+def _with_source_metadata(
+    option: dict[str, Any], output: dict[str, Any]
+) -> dict[str, Any]:
+    """Copy safe module-level provenance onto the assembled top option.
+
+    Flight and Accommodation keep retrieval metadata at their response
+    envelope while Trip Assembly receives the selected option.  Preserve the
+    module's chosen option exactly and add only the already-public source
+    fields needed by T-052's grounding notice.
+    """
+    if not option:
+        return option
+    enriched = dict(option)
+    for key in ("data_source", "provider_status", "retrieved_at"):
+        value = output.get(key)
+        if value not in (None, ""):
+            enriched[key] = value
+    return enriched
+
+
 def _cheaper_alternative(
     options: list[dict[str, Any]], top: dict[str, Any], cheap_label: str, id_field: str
 ) -> dict[str, Any] | None:
@@ -80,7 +100,8 @@ def run_flight_intelligence(context: TripBrainContext) -> AgentResult:
         return _failed("flight_intelligence", exc)
 
     options = output["flight_options"]
-    top = _top_option(options)
+    raw_top = _top_option(options)
+    top = _with_source_metadata(raw_top, output)
     return AgentResult(
         agent_name="flight_intelligence",
         status=AgentStatus.SUCCESS if options else AgentStatus.NEEDS_INFORMATION,
@@ -90,7 +111,9 @@ def run_flight_intelligence(context: TripBrainContext) -> AgentResult:
             "origin": output["origin"],
             "destination": output["destination"],
             "top_option": top,
-            "alternative_option": _cheaper_alternative(options, top, "LOWEST_PRICE", "flight_option_id"),
+            "alternative_option": _cheaper_alternative(
+                options, raw_top, "LOWEST_PRICE", "flight_option_id"
+            ),
             "flight_option_ids": [f["flight_option_id"] for f in options],
         },
         assumptions=output["assumptions"],
@@ -112,7 +135,8 @@ def run_accommodation_intelligence(context: TripBrainContext) -> AgentResult:
         return _failed("accommodation_intelligence", exc)
 
     options = output["accommodation_options"]
-    top = _top_option(options)
+    raw_top = _top_option(options)
+    top = _with_source_metadata(raw_top, output)
     return AgentResult(
         agent_name="accommodation_intelligence",
         status=AgentStatus.SUCCESS if options else AgentStatus.NEEDS_INFORMATION,
@@ -121,7 +145,9 @@ def run_accommodation_intelligence(context: TripBrainContext) -> AgentResult:
             "count": len(options),
             "destination": output["destination"],
             "top_option": top,
-            "alternative_option": _cheaper_alternative(options, top, "BEST_BUDGET", "accommodation_option_id"),
+            "alternative_option": _cheaper_alternative(
+                options, raw_top, "BEST_BUDGET", "accommodation_option_id"
+            ),
             "accommodation_option_ids": [a["accommodation_option_id"] for a in options],
         },
         assumptions=output["assumptions"],

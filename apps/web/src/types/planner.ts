@@ -18,8 +18,20 @@ export interface TripItinerary {
   confidence: number;
   confidence_explanation: string;
   alternative_options: { module: string; alternative: string; why_not_chosen: string }[];
+  grounding_notices: GroundingNotice[];
   modules_used: string[];
   modules_unavailable: string[];
+}
+
+export interface GroundingNotice {
+  domain: string;
+  level: "LIVE" | "SANDBOX" | "ESTIMATE" | "CURATED" | "GUIDANCE" | "CLIMATE_PROFILE" | "IDEA";
+  title: string;
+  message: string;
+  data_source: string;
+  is_current: boolean;
+  requires_confirmation: boolean;
+  retrieved_at: string | null;
 }
 
 export interface DailyOutlineEntry {

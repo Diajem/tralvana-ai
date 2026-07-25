@@ -22,7 +22,7 @@ def test_full_plan_trip_message_returns_an_assembled_itinerary(client):
         "accommodation_recommendation", "budget_summary", "visa_summary",
         "weather_expectations", "risks", "assumptions", "daily_outline",
         "why_this_itinerary", "confidence", "confidence_explanation",
-        "alternative_options",
+        "alternative_options", "grounding_notices",
     ):
         assert key in itinerary
 
@@ -159,6 +159,19 @@ def test_complete_new_york_holiday_honours_every_supplied_detail(client):
     outline_text = str(itinerary["daily_outline"]).lower()
     for interest in ("dine out", "fashion", "soccer", "significance"):
         assert interest in outline_text
+
+    notices = {notice["domain"]: notice for notice in itinerary["grounding_notices"]}
+    assert notices["flight"]["level"] == "ESTIMATE"
+    assert notices["flight"]["is_current"] is False
+    assert notices["accommodation"]["level"] == "ESTIMATE"
+    assert notices["budget"]["level"] == "ESTIMATE"
+    assert notices["visa"]["level"] == "GUIDANCE"
+    assert notices["weather"]["level"] == "CLIMATE_PROFILE"
+    assert notices["events"]["level"] == "IDEA"
+    assert all(notice["requires_confirmation"] for notice in notices.values())
+    assert "planning estimate" in itinerary["executive_summary"]
+    assert "check a live provider" in itinerary["executive_summary"]
+    assert "You'll fly" not in itinerary["executive_summary"]
 
 
 def test_holiday_goal_persists_dates_party_and_interests(client):
