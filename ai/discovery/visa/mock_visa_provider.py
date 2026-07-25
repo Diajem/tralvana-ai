@@ -25,6 +25,7 @@ _ALIASES: dict[str, str] = {
     "GB": "UK", "UNITED KINGDOM": "UK", "GREAT BRITAIN": "UK", "BRITISH": "UK",
     "IE": "IRELAND", "IRISH": "IRELAND",
     "US": "USA", "UNITED STATES": "USA", "UNITED STATES OF AMERICA": "USA", "AMERICAN": "USA",
+    "NEW YORK": "USA", "NEW YORK CITY": "USA", "NYC": "USA",
     "CA": "CANADA", "CANADIAN": "CANADA",
     "NG": "NIGERIA", "NIGERIAN": "NIGERIA",
     "GH": "GHANA", "GHANAIAN": "GHANA",

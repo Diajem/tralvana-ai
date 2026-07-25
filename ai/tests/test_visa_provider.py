@@ -14,6 +14,13 @@ class TestMockVisaProvider:
         assert result["matched_type"] == "unknown"
         assert result["status"] == "CHECK_MANUALLY"
 
+    def test_new_york_resolves_to_united_states_esta_policy(self):
+        provider = MockVisaProvider()
+        result = provider.lookup("British", "New York")
+        assert result["destination_country"] == "United States"
+        assert result["status"] == "ETA_REQUIRED"
+        assert result["visa_type"] == "ESTA"
+
     def test_unknown_destination_returns_check_manually(self):
         provider = MockVisaProvider()
         result = provider.lookup("UK", "Atlantis")

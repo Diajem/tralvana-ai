@@ -126,7 +126,7 @@ class TripPlanningService:
         prefs = (profile or {}).get("preferences", {})
         origin = entities.get("origin") or prefs.get("home_airport", "London")
         destination = entities.get("destination", "")
-        budget_style = prefs.get("budget_style", "balanced")
+        budget_style = entities.get("budget_style") or prefs.get("budget_style", "balanced")
         cabin_class = prefs.get("cabin_class", "economy")
         interests = (
             [value for value in entities.get("interests", "").split(",") if value]
