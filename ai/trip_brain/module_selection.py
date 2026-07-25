@@ -16,8 +16,9 @@ Propagation section): a module central to the request's core trip shape
 weighs more than one pulled in as supporting context because a Goal
 happens to carry a budget cap or the traveller's nationality needs
 checking. When the request carries a full PLAN_TRIP shape (destination +
-dates + party size), the architecture doc's table calls for all six
-modules — every module is then treated as core.
+dates + party size), the architecture doc's table calls for all six core
+modules. Event Intelligence is added only for an explicit event-shaped
+interest.
 """
 
 from __future__ import annotations
@@ -27,7 +28,8 @@ from ai.trip_brain.context import TripBrainContext
 CORE_WEIGHT = 1.0
 SUPPORTING_WEIGHT = 0.7
 
-ALL_MODULES = ("destination", "flight", "accommodation", "budget", "visa", "weather")
+BASE_MODULES = ("destination", "flight", "accommodation", "budget", "visa", "weather")
+ALL_MODULES = (*BASE_MODULES, "events")
 
 
 class ModuleSelector:
@@ -50,7 +52,12 @@ class ModuleSelector:
 
         if destination and context.has_dates and context.party_size_known:
             # Full PLAN_TRIP shape — orchestrate all six as core signals.
-            for name in ALL_MODULES:
+            for name in BASE_MODULES:
                 weights[name] = CORE_WEIGHT
+
+        if destination and context.has_event_interest:
+            # Events are selected only for an explicit event-shaped interest.
+            # A full trip does not silently add event searches for everyone.
+            weights["events"] = CORE_WEIGHT
 
         return weights

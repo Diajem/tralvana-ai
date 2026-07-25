@@ -93,7 +93,8 @@ The system is built for orchestration, not integration. Every capability is expr
 │               CONCIERGE / MANAGER LAYER                  │
 │   ai/concierge/  intent, decision, conversation engine    │
 │   ai/trip_brain/ Trip Brain — PLAN_TRIP orchestration,    │
-│                   calls the six Discovery modules;        │
+│                   calls six core Discovery modules and    │
+│                   optional Event Intelligence;            │
 │                   trip_assembly.py (T-040) is a second,   │
 │                   separate caller of Trip Brain's own     │
 │                   output — never a change to Trip Brain   │
@@ -112,7 +113,7 @@ The system is built for orchestration, not integration. Every capability is expr
 │   AGENTS    │ │ DISCOVERY  │ │  MEMORY   │
 │  ai/agents/ │ │ai/discovery/│ │ ai/memory/│
 └─────────────┘ └─────┬──────┘ └───────────┘
-                       │ provider access (Flight/Accommodation/Weather)
+                       │ provider access (Flight/Accommodation/Weather/Events)
                 ┌──────▼───────────────────┐
                 │   INTELLIGENCE GATEWAY   │
                 │ travelos/intelligence_gateway/ │
@@ -139,7 +140,7 @@ The system is built for orchestration, not integration. Every capability is expr
 
 Trip Brain's `plan()` also calls the Explainability Engine once per request, right after merging module results — see `docs/EXPLAINABILITY_ENGINE.md` and `docs/ADR/ADR-019-explainability-engine.md`. It is presentation-only: it explains `ai/discovery/` and Trip Brain's existing output, never scores or recommends anything itself.
 
-Three of the six Discovery modules (Flight, Accommodation, Weather) obtain their provider through the Intelligence Gateway (`travelos/intelligence_gateway/`) rather than constructing a mock provider directly — see `docs/INTELLIGENCE_GATEWAY.md` and `docs/ADR/ADR-020-intelligence-gateway.md`. Only Discovery modules call the gateway; the Trip Brain is never wired to a provider directly, preserving the same layering ADR-017 established.
+Flight, Accommodation, Weather, and Event Intelligence obtain their provider through the Intelligence Gateway (`travelos/intelligence_gateway/`) rather than constructing a provider directly — see `docs/INTELLIGENCE_GATEWAY.md`, `docs/EVENT_INTELLIGENCE.md`, ADR-020, and ADR-033. Only Discovery modules call the gateway; the Trip Brain is never wired to a provider directly, preserving the same layering ADR-017 established.
 
 `travelos/live_providers/` (T-026) is the reusable base a real vendor integration would extend — `BaseLiveProvider` implements the same `Provider` contract a mock provider does, so the gateway above needed zero changes to support it. See `docs/LIVE_PROVIDER_FRAMEWORK.md` and `docs/ADR/ADR-021-live-provider-framework.md`.
 
@@ -170,9 +171,10 @@ tralvana-ai/
 │   │                     experience/visa — still live, dispatched by TravelManager
 │   │                     for MODIFY_TRIP/DESTINATION_QUESTION/TRAVEL_ADVICE/BUDGET_ADVICE)
 │   ├── concierge/        Intent classification, decision engine, conversation engine
-│   ├── discovery/        Six Discovery Layer modules (flights, accommodation,
-│   │                     destinations, budget, visa, weather) — real, explainable
-│   ├── trip_brain/       Trip Brain — orchestrates the six Discovery modules for PLAN_TRIP
+│   ├── discovery/        Six core modules plus optional events (flights,
+│   │                     accommodation, destinations, budget, visa, weather,
+│   │                     events) — provider-neutral and explainable
+│   ├── trip_brain/       Trip Brain — orchestrates core modules plus relevant events
 │   ├── explainability/   Explainability Engine — turns Trip Brain/Discovery reasoning
 │   │                     into traveller-facing drivers, trade-offs, and confidence
 │   ├── manager/          TravelManager — dispatches to agents via the registry;

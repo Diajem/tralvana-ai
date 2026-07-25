@@ -11,6 +11,7 @@ export interface TripItinerary {
   budget_summary: Record<string, unknown> | null;
   visa_summary: Record<string, unknown> | null;
   weather_expectations: Record<string, unknown> | null;
+  event_recommendations: EventRecommendation[];
   risks: string[];
   assumptions: string[];
   daily_outline: DailyOutlineEntry[];
@@ -21,6 +22,19 @@ export interface TripItinerary {
   grounding_notices: GroundingNotice[];
   modules_used: string[];
   modules_unavailable: string[];
+}
+
+export interface EventRecommendation extends Record<string, unknown> {
+  event_option_id: string;
+  name: string;
+  category: string;
+  venue_area: string;
+  description: string;
+  starts_at: string | null;
+  date_status: string;
+  availability_status: string;
+  interests_matched: string[];
+  data_source: string;
 }
 
 export interface GroundingNotice {

@@ -31,8 +31,10 @@ production-shaped source label can do so.
 - Destination catalogue results are labelled `CURATED`.
 - Visa results are labelled `GUIDANCE` and require an official check.
 - Weather results are labelled `CLIMATE_PROFILE`, not forecasts.
-- Fashion, football, soccer, match, and event interests add an `IDEA` notice:
-  no live calendar, fixture, ticket, or availability provider was queried.
+- Fashion, football, soccer, match, and event interests add an `IDEA` notice
+  when Event Intelligence is unavailable. T-053's curated event results use
+  `CURATED` instead: they are structured interest matches, but still confirm
+  no live calendar, fixture, ticket, price, or availability was queried.
 - Executive-summary wording follows the same source distinction.
 
 This task does not add or activate a provider, alter scoring, change a selected

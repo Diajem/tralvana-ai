@@ -19,11 +19,9 @@ Two layers, kept deliberately separate:
    (`FlightIntelligence`, `AccommodationIntelligence`,
    `WeatherIntelligence`) is completely unaware anything changed.
 
-Only these three capabilities are wired here — see
-docs/INTELLIGENCE_GATEWAY.md's "Deferred Integrations" section for why
-Destinations/Budget/Visa/Maps/Currency/Events are not (this task is
-infrastructure-only; T-025's own instructions ask for the smallest safe
-integration that proves the pattern, not a rewrite of every module).
+T-025 initially wired Flight, Accommodation, and Weather only. T-053 adds
+Events through the same two-layer pattern. Destinations/Budget/Visa/Maps/
+Currency remain deferred.
 """
 
 from __future__ import annotations
@@ -141,6 +139,44 @@ class _MockWeatherGatewayProvider(Provider):
         )
 
 
+class _MockEventGatewayProvider(Provider):
+    def __init__(self) -> None:
+        from ai.discovery.events.mock_event_provider import MockEventProvider
+        self._provider = MockEventProvider()
+
+    @property
+    def provider_name(self) -> str:
+        return "mock_event_provider"
+
+    @property
+    def capability(self) -> Capability:
+        return Capability.EVENTS
+
+    @property
+    def priority(self) -> int:
+        return 10
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        return {
+            "description": (
+                "Deterministic curated event ideas — no live calendar, "
+                "fixture, ticket, price, or availability data."
+            )
+        }
+
+    def execute(self, request: ProviderRequest) -> ProviderResult:
+        options = self._provider.search(**request.params)
+        return ProviderResult(
+            provider_name=self.provider_name,
+            capability=self.capability,
+            status=ProviderStatus.AVAILABLE,
+            data=options,
+            confidence=0.35,
+            source_metadata={"mock": True, "date_specific": False},
+        )
+
+
 def register_default_providers(registry: ProviderRegistry | None = None) -> None:
     """Idempotent-in-intent — call once at import time (bottom of this
     module) to make the three mock providers accessible through the
@@ -150,6 +186,7 @@ def register_default_providers(registry: ProviderRegistry | None = None) -> None
     target.register(_MockFlightGatewayProvider())
     target.register(_MockAccommodationGatewayProvider())
     target.register(_MockWeatherGatewayProvider())
+    target.register(_MockEventGatewayProvider())
 
 
 # ---------------------------------------------------------------------------
@@ -329,6 +366,40 @@ class GatewayWeatherProvider:
     def known_destinations(self) -> list[str]:
         request = ProviderRequest(capability=Capability.WEATHER, operation="known_destinations", params={})
         result = self._gateway.execute(Capability.WEATHER, request)
+        return result.data if result.ok and result.data is not None else []
+
+
+class GatewayEventProvider:
+    """Provider-neutral event search interface.
+
+    T-053 registers only a MOCK provider. A future live adapter can register
+    for ``Capability.EVENTS`` without changing Event Intelligence, Trip Brain,
+    the API, or the planner response contract.
+    """
+
+    def __init__(self, gateway: IntelligenceGateway | None = None) -> None:
+        self._gateway = gateway or intelligence_gateway
+        self.last_result: ProviderResult | None = None
+
+    def search(
+        self,
+        destination: str,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        interests: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        request = ProviderRequest(
+            capability=Capability.EVENTS,
+            operation="search",
+            params={
+                "destination": destination,
+                "start_date": start_date,
+                "end_date": end_date,
+                "interests": list(interests or []),
+            },
+        )
+        result = self._gateway.execute(Capability.EVENTS, request)
+        self.last_result = result
         return result.data if result.ok and result.data is not None else []
 
 

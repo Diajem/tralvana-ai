@@ -75,3 +75,25 @@ class TestTotalFailureFloor:
     def test_empty_results_still_triggers_fallback(self, composer, ready_decision):
         text = composer.compose(Intent.PLAN_TRIP, ready_decision, [])
         assert "I'll bring in live data for flights, hotels, and pricing" in text
+
+
+class TestEventSection:
+    def test_event_section_never_claims_live_confirmation(
+        self, composer, ready_decision
+    ):
+        result = AgentResult(
+            agent_name="event_intelligence",
+            status=AgentStatus.SUCCESS,
+            confidence=0.6,
+            data={
+                "count": 2,
+                "destination": "New York",
+                "top_option": {
+                    "name": "Professional soccer or football match"
+                },
+            },
+        )
+        text = composer.compose(Intent.PLAN_TRIP, ready_decision, [result])
+        assert "**Events:**" in text
+        assert "No live calendar" in text
+        assert "availability was confirmed" in text

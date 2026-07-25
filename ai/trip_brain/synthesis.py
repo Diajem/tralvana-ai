@@ -18,6 +18,7 @@ _MODULE_LABELS: dict[str, str] = {
     "budget": "a budget breakdown",
     "visa": "an entry-requirements check",
     "weather": "a weather and safety assessment",
+    "events": "curated event ideas",
 }
 
 

@@ -2,7 +2,7 @@
 
 The primary user experience of Tralvana: a traveller describes a trip
 in natural language and receives one coherent, consultant-style
-itinerary — not six independent module responses stitched together
+itinerary — not independent module responses stitched together
 visibly. See `docs/ADR/ADR-026-trip-assembly-engine.md` for the design
 decisions behind it.
 
@@ -18,7 +18,8 @@ Traveller (natural language)
       -> ConversationEngine.process() (UNCHANGED — intent classification,
          goal/trip creation, session management)
         -> Intent.PLAN_TRIP -> TripBrain.plan() (ai/trip_brain/coordinator.py, UNCHANGED)
-          -> six Discovery modules, run in parallel, each scoring/ranking
+          -> six core Discovery modules plus optional Event Intelligence,
+             run in parallel, each scoring/ranking
              its own domain (UNCHANGED — zero new scoring anywhere)
           -> Explainability Engine (ai/explainability/, UNCHANGED)
     -> session.last_recommendation (the UnifiedRecommendation Trip Brain produced)
@@ -31,13 +32,12 @@ Traveller (natural language)
   -> PlanTripResponse (conversational reply + the assembled itinerary)
 ```
 
-**Trip Brain remains the sole orchestrator of the six Discovery
-modules** — `ai/trip_brain/coordinator.py` is byte-for-byte unchanged,
-its own 75+ existing tests untouched. The Trip Assembly Engine is a
+**Trip Brain remains the sole orchestrator of Discovery modules.**
+T-053 adds optional Event Intelligence when a traveller explicitly asks
+for event-shaped interests. The Trip Assembly Engine remains a
 second, separate *caller* of Trip Brain's output, the same relationship
 `ai/concierge/conversation_engine.py` and `POST /explain`
-(`services/api/app/routers/explain.py`) already have with it — not a
-seventh Discovery module, not a change to Trip Brain itself.
+(`services/api/app/routers/explain.py`) already have with it.
 
 ## What's Genuinely New vs. What's Reused
 
@@ -63,6 +63,7 @@ one. Summary:
 | Executive summary | New template over already-decided facts |
 | Destination / Flight / Accommodation / Budget recommendation | Each module's own `top_option` (already labelled `BEST_OVERALL`) |
 | Visa summary / Weather expectations | Visa/Weather Intelligence's own single-assessment output, unchanged |
+| Event recommendations | Event Intelligence's already-ranked curated/live-safe options |
 | Risks / Assumptions | `UnifiedRecommendation.explanation["risks"/"assumptions"]` |
 | Daily outline | `ai/planning/itinerary_builder.py`, called with the trip's own `goal_type`/`budget_style`/`duration_days` |
 | Why this itinerary was selected | `explanation["recommendation_drivers"]` |
@@ -97,6 +98,7 @@ full recommendation yet — e.g. the message was too vague; `response`/
     "budget_summary": {...},
     "visa_summary": {...},
     "weather_expectations": {...},
+    "event_recommendations": [...],
     "risks": [...],
     "assumptions": [...],
     "daily_outline": [{"day": 1, "title": "Day 1: Arrival & Orientation", ...}, ...],
@@ -114,7 +116,7 @@ full recommendation yet — e.g. the message was too vague; `response`/
         "requires_confirmation": true
       }
     ],
-    "modules_used": ["destination", "flight", "accommodation", "budget", "visa", "weather"],
+    "modules_used": ["destination", "flight", "accommodation", "budget", "visa", "weather", "events"],
     "modules_unavailable": []
   }
 }
@@ -131,6 +133,10 @@ question) — reuses `ConversationSession` exactly as
 box, no forms-within-forms. Renders every section above, including a
 day-by-day outline grid. The homepage (`apps/web/src/app/page.tsx`)
 now leads with "Plan My Trip" as the primary call to action.
+
+T-053 adds a dedicated event-ideas section. Current mock event results are
+clearly described as curated searches, with no confirmed date, ticket, price,
+or availability. See `docs/EVENT_INTELLIGENCE.md` and ADR-033.
 
 **Verified live in a real browser during this task**: a natural
 message ("I want to plan a football trip to London in September for 2

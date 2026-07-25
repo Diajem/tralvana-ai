@@ -12,6 +12,7 @@ from ai.trip_brain.discovery_adapters import (
     run_accommodation_intelligence,
     run_budget_intelligence,
     run_destination_intelligence,
+    run_event_intelligence,
     run_flight_intelligence,
     run_visa_intelligence,
     run_weather_intelligence,
@@ -230,3 +231,49 @@ class TestWeatherAdapter:
         result = run_weather_intelligence(_context())
         assert result.status == AgentStatus.FAILED
         assert result.agent_name == "weather_intelligence"
+
+
+class TestEventAdapter:
+    def test_success_preserves_curated_options_and_source(self, monkeypatch):
+        from app.domains.events.service import event_intelligence_service
+
+        option = _option(
+            event_option_id="e1",
+            recommendation_type="BEST_OVERALL",
+            data_source="TRALVANA_CURATED_EVENT_IDEAS",
+        )
+        monkeypatch.setattr(
+            event_intelligence_service,
+            "recommend_from_conversation",
+            lambda **kwargs: {
+                "destination": "New York",
+                "start_date": "2026-08-07",
+                "end_date": "2026-08-22",
+                "event_options": [option],
+                "data_source": "TRALVANA_CURATED_EVENT_IDEAS",
+                "provider_status": "AVAILABLE",
+                "retrieved_at": "2026-07-25T20:00:00+00:00",
+                "assumptions": ["curated"],
+                "next_actions": ["confirm"],
+            },
+        )
+
+        result = run_event_intelligence(_context())
+
+        assert result.status == AgentStatus.SUCCESS
+        assert result.data["top_option"]["event_option_id"] == "e1"
+        assert result.data["options"] == [option]
+        assert result.data["data_source"] == "TRALVANA_CURATED_EVENT_IDEAS"
+
+    def test_exception_is_isolated_as_failed(self, monkeypatch):
+        from app.domains.events.service import event_intelligence_service
+
+        def _raise(**kwargs):
+            raise RuntimeError("events down")
+
+        monkeypatch.setattr(
+            event_intelligence_service, "recommend_from_conversation", _raise
+        )
+        result = run_event_intelligence(_context())
+        assert result.status == AgentStatus.FAILED
+        assert result.agent_name == "event_intelligence"

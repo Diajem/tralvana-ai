@@ -32,6 +32,7 @@ function RecommendationFacts({ data }: { data: Record<string, unknown> }) {
   // field — but never invent a value that isn't already in `data`.
   const preferredOrder = [
     "airline", "flight_number", "property_name", "name", "city", "budget_style",
+    "category", "venue_area", "date_status", "availability_status",
     "estimated_price", "nightly_price", "total_price", "currency",
     "star_rating", "review_score", "match_score", "recommendation_type",
     "cabin_class", "accommodation_type", "stops", "total_duration",
@@ -156,6 +157,26 @@ function ItineraryView({ itinerary }: { itinerary: TripItinerary }) {
         )}
       </div>
 
+      {itinerary.event_recommendations.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">
+            Event Ideas Matching Your Interests
+          </h2>
+          <p className="mb-3 text-sm text-gray-500">
+            These are curated searches to make with official organisers and venues,
+            not confirmed date-specific listings.
+          </p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {itinerary.event_recommendations.map((event) => (
+              <SectionCard key={event.event_option_id} title={event.name}>
+                <RecommendationFacts data={event} />
+                <p className="mt-3 text-sm text-gray-600">{event.description}</p>
+              </SectionCard>
+            ))}
+          </div>
+        </div>
+      )}
+
       {itinerary.daily_outline.length > 0 && (
         <div>
           <h2 className="text-lg font-semibold text-gray-900 mb-3">Daily Outline</h2>
@@ -266,8 +287,8 @@ export default function PlannerPage() {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">AI Travel Planner</h1>
           <p className="text-gray-500">
             Describe your trip in your own words — Tralvana will pull together destinations,
-            flights, accommodation, budget, visa guidance, and weather into one plan, with
-            live results and planning estimates clearly labelled.
+            flights, accommodation, budget, visa guidance, weather, and relevant event ideas
+            into one plan, with live results and planning estimates clearly labelled.
           </p>
         </div>
 

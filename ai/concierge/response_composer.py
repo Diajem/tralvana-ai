@@ -188,6 +188,17 @@ class ResponseComposer:
                 f"{d.get('recommendation', '')}"
             )
 
+        if result.agent_name == "event_intelligence":
+            top = d.get("top_option", {})
+            if not top:
+                return "**Events:** No event ideas could be generated for this trip."
+            return (
+                f"**Events:** {d.get('count', 0)} curated idea(s) matched for "
+                f"{d.get('destination', 'the destination')}. "
+                f"Best interest match: {top.get('name')}. "
+                "No live calendar, fixture, ticket, price, or availability was confirmed."
+            )
+
         if result.agent_name == "flight_agent":
             dest = d.get("destination", "your destination")
             origin = d.get("origin", "your home airport")

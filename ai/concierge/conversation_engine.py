@@ -46,7 +46,7 @@ class ConversationSession:
     context_summary: str = ""
     # The most recent Trip Brain result for this conversation, cached so
     # EXPLAIN_RECOMMENDATION follow-ups (and POST /explain) can reuse it
-    # without re-running the six Discovery modules
+    # without re-running the selected Discovery modules
     # (docs/EXPLAINABILITY_ENGINE.md's Conversation Integration section).
     # Narrow, single-module intents don't populate this — only PLAN_TRIP.
     last_recommendation: UnifiedRecommendation | None = None
@@ -214,7 +214,7 @@ class ConversationEngine:
         confidence_override: float | None = None
 
         # PLAN_TRIP — the broad-planning intent — routes through Trip Brain
-        # (ai/trip_brain/), which calls the six real Discovery modules
+        # (ai/trip_brain/), which calls the real Discovery modules
         # directly, instead of TravelManager's placeholder specialist
         # agents. See docs/ADR/ADR-017-trip-brain.md and ADR-018. Below,
         # TravelManager / AgentRegistry remain the live dispatcher for

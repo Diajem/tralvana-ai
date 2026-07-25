@@ -58,7 +58,7 @@ path — see "Architecture Deviations" below and ADR-020.**
 | `secret_reference.py` | `SecretReference` — `docs/SECRET_MANAGEMENT.md` |
 | `exceptions.py` | Provider error hierarchy (retryable vs. never-retryable) |
 | `gateway.py` | `IntelligenceGateway` — ties everything above together |
-| `discovery_adapters.py` | The three real mock providers wrapped and wired in — see below |
+| `discovery_adapters.py` | Flight, Accommodation, Weather, and Event providers wrapped and wired in — see below |
 
 ## Execution Flow
 
@@ -146,11 +146,9 @@ one dict entry and one config property, not a second gateway instance.
 
 ### Deferred Integrations
 
-Only Flights, Accommodation, and Weather are wired to the gateway in this
-task — the minimum this task's own instructions ask for ("at minimum,
-integrate... start with the smallest safe integration that proves the
-pattern"). Destinations, Budget, Visa, Maps, Currency, and Events are
-**not** integrated:
+T-025 initially wired Flights, Accommodation, and Weather. T-053 adds
+Events through the same two-layer pattern. Destinations, Budget, Visa,
+Maps, and Currency remain deferred:
 
 - **Destinations, Budget, Visa** each have their own `Mock*Provider`
   (`ai/discovery/{destinations,budget,visa}/mock_*_provider.py`) with a
@@ -159,11 +157,10 @@ pattern"). Destinations, Budget, Visa, Maps, Currency, and Events are
   needed, only three more `Gateway*Provider` adapter classes. Deferred
   to keep this task's diff reviewable, not because of a technical
   blocker.
-- **Maps, Currency, Events** have no Discovery module or mock provider
-  at all yet in this codebase — there is nothing to wrap. The `Capability`
-  enum includes them (per this task's explicit requirement) so the
-  registry and selector are ready the moment a real module exists, but no
-  provider is registered for them.
+- **Maps and Currency** have no Discovery module or mock provider yet.
+- **Events** now has `EventIntelligence`, `GatewayEventProvider`, and
+  `mock_event_provider`. It returns curated search ideas only; no live event
+  vendor or credential is enabled. See `docs/EVENT_INTELLIGENCE.md`.
 
 ## Configuration
 

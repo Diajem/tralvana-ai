@@ -1,7 +1,7 @@
 """
 Coordinator tests — module selection, parallel execution, partial/total
 failure isolation, and confidence aggregation, exercised end-to-end
-through TripBrain.plan() with the six module runners monkeypatched so
+through TripBrain.plan() with the six core module runners monkeypatched so
 these tests are independent of the real mock Discovery providers. A stub
 ContextBuilder supplies a pre-built TripBrainContext for the "full trip
 shape" scenarios, so these tests don't depend on real Goal/Trip

@@ -57,6 +57,28 @@ def _weather_result(status=AgentStatus.SUCCESS) -> AgentResult:
     )
 
 
+def _event_result(status=AgentStatus.SUCCESS) -> AgentResult:
+    option = {
+        "event_option_id": "event-1",
+        "name": "Professional soccer or football match",
+        "category": "SPORT",
+        "venue_area": "Local stadium district",
+        "description": "Check the official fixture calendar.",
+        "starts_at": None,
+        "date_status": "UNVERIFIED",
+        "availability_status": "UNKNOWN",
+        "interests_matched": ["soccer"],
+        "data_source": "TRALVANA_CURATED_EVENT_IDEAS",
+        "retrieved_at": "2026-07-25T20:00:00+00:00",
+    }
+    return AgentResult(
+        agent_name="event_intelligence",
+        status=status,
+        confidence=0.6,
+        data={"top_option": option, "options": [option]},
+    )
+
+
 def _unified(results, explanation=None, confidence=0.7) -> UnifiedRecommendation:
     succeeded = [r.agent_name.replace("_intelligence", "") for r in results if r.status != AgentStatus.FAILED]
     failed = [r.agent_name.replace("_intelligence", "") for r in results if r.status == AgentStatus.FAILED]
@@ -112,6 +134,15 @@ class TestSingleAssessmentExtraction:
         unified = _unified([_visa_result(status=AgentStatus.FAILED)])
         itinerary = engine.assemble(unified, destination="Tokyo", duration_days=5)
         assert itinerary.visa_summary is None
+
+    def test_event_recommendations_are_the_modules_existing_options(self):
+        itinerary = engine.assemble(
+            _unified([_event_result()]),
+            destination="New York",
+            duration_days=5,
+            interests=["soccer"],
+        )
+        assert itinerary.event_recommendations[0]["event_option_id"] == "event-1"
 
 
 class TestExplainabilityPassthrough:
@@ -320,6 +351,21 @@ class TestGroundingNotices:
         assert event_notice.data_source == "NO_LIVE_EVENT_PROVIDER"
         assert "No live event calendar" in event_notice.message
 
+    def test_structured_event_results_are_curated_not_live(self):
+        itinerary = engine.assemble(
+            _unified([_event_result()]),
+            destination="New York",
+            duration_days=5,
+            interests=["soccer"],
+        )
+        event_notice = next(
+            notice for notice in itinerary.grounding_notices
+            if notice.domain == "events"
+        )
+        assert event_notice.level == "CURATED"
+        assert event_notice.is_current is False
+        assert event_notice.data_source == "TRALVANA_CURATED_EVENT_IDEAS"
+
 
 class TestToDict:
     def test_to_dict_contains_every_required_section(self):
@@ -329,7 +375,7 @@ class TestToDict:
         required_keys = {
             "executive_summary", "destination_recommendation", "flight_recommendation",
             "accommodation_recommendation", "budget_summary", "visa_summary",
-            "weather_expectations", "risks", "assumptions", "daily_outline",
+            "weather_expectations", "event_recommendations", "risks", "assumptions", "daily_outline",
             "why_this_itinerary", "confidence", "confidence_explanation",
             "alternative_options", "grounding_notices",
         }

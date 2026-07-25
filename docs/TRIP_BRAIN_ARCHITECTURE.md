@@ -2,6 +2,12 @@
 
 T-021 — architecture only, no implementation. Defines how the Trip Brain orchestrates the six Discovery Layer modules (Flight, Accommodation, Destination, Budget, Visa, Weather & Safety Intelligence) so the traveller only ever talks to one AI: **Tralvana Travel**.
 
+**T-053 amendment:** the original six remain the core complete-trip set.
+Event Intelligence is an optional seventh module, selected only when the trip
+has a destination and an explicit event-shaped interest. It uses the same
+module-selection, parallel execution, failure isolation, confidence, and
+explainability path. See `docs/EVENT_INTELLIGENCE.md` and ADR-033.
+
 ## Why This Document Exists
 
 Every Discovery module built so far (T-015–T-020) is invoked one at a time: a traveller message classifies to exactly one `Intent`, and `ConversationEngine` routes it to exactly one Discovery module's service (`_get_flight_recommendations`, `_get_weather_assessment`, etc.). This works for a single, narrow question ("recommend flights to Tokyo") but not for what a travel concierge actually needs to do: answer "help me plan a football trip to Tokyo in April" by drawing on *all six* modules at once, reconciling their outputs, and replying with one coherent recommendation — not six separate answers stitched together by the traveller themselves.
@@ -20,7 +26,7 @@ Trip Brain is responsible for:
 6. **Preserving explainability** — every module's own `explanation`/`reasoning` text survives into the final response, attributable to its source, never paraphrased away.
 7. **Composing one conversational response** via the existing `ResponseComposer`, extended (not replaced) to handle multiple simultaneous module results.
 
-Trip Brain is **not** responsible for: scoring, ranking, or reasoning about any individual domain (destinations, flights, budget, ...) — that stays entirely inside the Discovery Layer, unchanged. Trip Brain is an orchestration layer, not a seventh intelligence engine.
+Trip Brain is **not** responsible for scoring, ranking, or reasoning about any individual domain (destinations, flights, budget, events, ...) — that stays entirely inside the Discovery Layer. Trip Brain remains an orchestration layer, not a domain intelligence engine.
 
 ## Relationship to Existing Orchestration
 

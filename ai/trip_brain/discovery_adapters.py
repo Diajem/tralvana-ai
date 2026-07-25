@@ -263,6 +263,44 @@ def run_weather_intelligence(context: TripBrainContext) -> AgentResult:
     )
 
 
+def run_event_intelligence(context: TripBrainContext) -> AgentResult:
+    try:
+        from app.domains.events.service import event_intelligence_service
+        output = event_intelligence_service.recommend_from_conversation(
+            traveller_id=context.traveller_id,
+            trip_id=context.trip_id,
+            entities=context.entities,
+            profile=context.profile,
+        )
+    except Exception as exc:
+        return _failed("event_intelligence", exc)
+
+    options = output["event_options"]
+    top = _top_option(options)
+    return AgentResult(
+        agent_name="event_intelligence",
+        status=AgentStatus.SUCCESS if options else AgentStatus.NEEDS_INFORMATION,
+        confidence=round(_avg_match_score(options), 2),
+        data={
+            "count": len(options),
+            "destination": output["destination"],
+            "start_date": output["start_date"],
+            "end_date": output["end_date"],
+            "top_option": top,
+            "options": options[:4],
+            "data_source": output["data_source"],
+            "provider_status": output["provider_status"],
+            "retrieved_at": output["retrieved_at"],
+            "event_option_ids": [
+                option["event_option_id"] for option in options
+            ],
+        },
+        assumptions=output["assumptions"],
+        risks=[risk for option in options for risk in option["risks"]][:5],
+        next_actions=output["next_actions"],
+    )
+
+
 MODULE_RUNNERS = {
     "flight": run_flight_intelligence,
     "accommodation": run_accommodation_intelligence,
@@ -270,4 +308,5 @@ MODULE_RUNNERS = {
     "budget": run_budget_intelligence,
     "visa": run_visa_intelligence,
     "weather": run_weather_intelligence,
+    "events": run_event_intelligence,
 }
