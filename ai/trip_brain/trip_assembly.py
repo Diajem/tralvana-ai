@@ -204,7 +204,10 @@ class TripAssemblyEngine:
                 parts.append(f"Overall spending sits at a {style} level.")
 
         if visa and visa.get("visa_status"):
-            if visa.get("visa_required"):
+            if visa.get("travel_authorisation_required"):
+                authorisation = visa.get("visa_type", "travel authorisation")
+                parts.append(f"{authorisation} travel authorisation is required before departure.")
+            elif visa.get("visa_required"):
                 parts.append(f"A visa is required for this trip ({visa.get('visa_type', 'see visa summary')}).")
             else:
                 parts.append("No visa is required for this trip.")

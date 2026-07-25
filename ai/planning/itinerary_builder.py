@@ -179,6 +179,11 @@ class ItineraryBuilder:
                     morning, afternoon, evening, day_num, enrich, goal_type
                 )
 
+            if interests and day_num not in (1, duration_days):
+                morning, afternoon, evening = self._apply_interest(
+                    morning, afternoon, evening, day_num, destination, interests
+                )
+
             notes = ""
             if day_num == 1:
                 notes = "Allow extra time for immigration and transfer — aim to arrive before evening."
@@ -200,6 +205,42 @@ class ItineraryBuilder:
         return itinerary
 
     # ------------------------------------------------------------------
+
+    def _apply_interest(
+        self,
+        morning: str,
+        afternoon: str,
+        evening: str,
+        day: int,
+        destination: str,
+        interests: list[str],
+    ) -> tuple[str, str, str]:
+        """Carry explicitly requested interests into the daily plan.
+
+        This is deliberately lightweight until a live events provider is
+        connected: it schedules a relevant activity and tells the traveller
+        to confirm date-specific fixtures/events rather than inventing one.
+        """
+        interest = interests[(day - 2) % len(interests)].lower()
+        if any(term in interest for term in ("fashion", "style")):
+            afternoon = (
+                "Explore the fashion district or a fashion exhibition; "
+                "check current event listings for the travel date"
+            )
+        elif any(term in interest for term in ("soccer", "football")):
+            afternoon = (
+                f"Stadium visit or local soccer experience; confirm the {destination} "
+                "fixture calendar before booking"
+            )
+        elif any(term in interest for term in ("dining", "dine", "food", "restaurant")):
+            evening = "Dine out at a well-reviewed local restaurant"
+        elif any(
+            term in interest
+            for term in ("attraction", "landmark", "significant interest", "sightseeing")
+        ):
+            morning = "Visit a major place of historical or cultural significance"
+
+        return morning, afternoon, evening
 
     def _enrich(
         self,

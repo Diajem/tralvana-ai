@@ -114,3 +114,67 @@ def test_daily_outline_length_matches_trip_duration(client):
     body = res.json()
     if body["itinerary"] is not None:
         assert len(body["itinerary"]["daily_outline"]) >= 1
+
+
+def test_complete_new_york_holiday_honours_every_supplied_detail(client):
+    res = client.post("/planner/plan", json={
+        "message": (
+            "Plan a 15-day holiday to New York with my partner from 7 August "
+            "to 22 August 2026. We are travelling from Leeds but do not mind "
+            "flying from Manchester or London. We are both British nationals. "
+            "We love to dine out and stay in an average hotel. She loves fashion "
+            "and I like soccer and places of significant interest."
+        ),
+    })
+    assert res.status_code == 200
+    body = res.json()
+    assert body["intent"] == "PLAN_TRIP"
+    itinerary = body["itinerary"]
+    assert itinerary is not None
+    assert len(itinerary["daily_outline"]) == 15
+
+    assert itinerary["flight_recommendation"]["origin"] == "Manchester"
+    assert itinerary["flight_recommendation"]["departure_date"] == "2026-08-07"
+    assert itinerary["flight_recommendation"]["return_date"] == "2026-08-22"
+    assert itinerary["budget_summary"]["adults"] == 2
+    assert itinerary["budget_summary"]["duration_days"] == 15
+
+    accommodation = itinerary["accommodation_recommendation"]
+    assert accommodation["accommodation_type"] == "HOTEL"
+    assert "hotel" in accommodation["property_name"].lower()
+
+    visa = itinerary["visa_summary"]
+    assert visa["destination_country"] == "United States"
+    assert visa["intended_length_of_stay"] == 15
+    assert visa["visa_type"] == "ESTA"
+    assert visa["travel_authorisation_required"] is True
+    assert "ESTA travel authorisation is required" in itinerary["executive_summary"]
+    assert "No visa is required" not in itinerary["executive_summary"]
+    assert any("two years" in item for item in visa["entry_requirements"])
+
+    weather = itinerary["weather_expectations"]
+    assert weather["destination"] == "United States"
+    assert weather["month_of_travel"] == 8
+
+    outline_text = str(itinerary["daily_outline"]).lower()
+    for interest in ("dine out", "fashion", "soccer", "significance"):
+        assert interest in outline_text
+
+
+def test_holiday_goal_persists_dates_party_and_interests(client):
+    res = client.post("/planner/plan", json={
+        "message": (
+            "Plan a 15-day holiday to New York with my partner from 7 August "
+            "to 22 August 2026. We are both British nationals and enjoy fashion "
+            "and soccer."
+        ),
+    })
+    assert res.status_code == 200
+    goal = client.get(f"/goals/{res.json()['goal_id']}").json()
+
+    assert goal["title"] == "Trip to New York"
+    assert goal["timeframe"]["earliest"] == "2026-08-07"
+    assert goal["timeframe"]["latest"] == "2026-08-22"
+    assert goal["timeframe"]["duration_days"] == 15
+    assert goal["travellers"]["adults"] == 2
+    assert {"fashion", "soccer"}.issubset(set(goal["interests"]))

@@ -111,6 +111,7 @@ _DISPLAY_NAME: dict[str, str] = {
 _ALIASES: dict[str, str] = {
     "UNITED KINGDOM": "UK", "GREAT BRITAIN": "UK",
     "UNITED STATES": "USA", "UNITED STATES OF AMERICA": "USA",
+    "NEW YORK": "USA", "NEW YORK CITY": "USA", "NYC": "USA",
     "UNITED ARAB EMIRATES": "UAE",
 }
 
