@@ -44,6 +44,20 @@ class TestVisaNormalizer:
         assert result["visa_required"] is False
         assert result["travel_authorisation_required"] is True
 
+    def test_esta_requirement_states_typical_authorisation_validity(self):
+        normalizer = VisaNormalizer()
+        result = normalizer.normalize(
+            _raw(status="ETA_REQUIRED", visa_type="ESTA"),
+            nationality="British",
+            transit_countries=[],
+            transit_status=[],
+            travel_purpose="TOURISM",
+            intended_length_of_stay=15,
+            passport_expiry_date=None,
+        )
+        assert any("two years" in item for item in result["entry_requirements"])
+        assert "ESTA confirmation" in result["supporting_documents"]
+
     def test_no_passport_expiry_date_gives_none_validity_months(self):
         normalizer = VisaNormalizer()
         result = normalizer.normalize(

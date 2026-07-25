@@ -56,8 +56,8 @@ class VisaNormalizer:
             "visa_type": raw["visa_type"],
             "max_stay_days": raw["max_stay_days"],
             "processing_time": raw["processing_time"],
-            "entry_requirements": self._entry_requirements(status),
-            "supporting_documents": self._supporting_documents(status),
+            "entry_requirements": self._entry_requirements(status, raw["visa_type"]),
+            "supporting_documents": self._supporting_documents(status, raw["visa_type"]),
             "vaccination_requirements": raw["vaccination_requirements"],
             "matched_type": raw["matched_type"],
         }
@@ -75,22 +75,30 @@ class VisaNormalizer:
         days_remaining = (expiry - today).days
         return round(max(days_remaining, 0) / 30.44, 1)
 
-    def _entry_requirements(self, status: str) -> list[str]:
+    def _entry_requirements(self, status: str, visa_type: str) -> list[str]:
         requirements = list(_BASE_ENTRY_REQUIREMENTS)
         if status in _VISA_REQUIRED_STATUSES:
             requirements.append("A valid visa issued before travel")
         elif status in _TRAVEL_AUTH_STATUSES:
-            requirements.append("An approved travel authorisation (ETA/e-Visa) before travel")
+            if visa_type == "ESTA":
+                requirements.append(
+                    "An approved ESTA before travel (generally valid for two years "
+                    "or until passport expiry, whichever comes first)"
+                )
+            else:
+                requirements.append("An approved travel authorisation (ETA/e-Visa) before travel")
         elif status == "CHECK_MANUALLY":
             requirements.append("Requirements not determined — contact the destination's embassy or consulate")
         return requirements
 
-    def _supporting_documents(self, status: str) -> list[str]:
+    def _supporting_documents(self, status: str, visa_type: str) -> list[str]:
         documents = list(_BASE_SUPPORTING_DOCUMENTS)
         if status in _VISA_REQUIRED_STATUSES:
             documents.append("Visa approval / visa sticker")
         elif status in _TRAVEL_AUTH_STATUSES:
-            documents.append("ETA / e-Visa confirmation")
+            documents.append(
+                "ESTA confirmation" if visa_type == "ESTA" else "ETA / e-Visa confirmation"
+            )
         return documents
 
 

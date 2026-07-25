@@ -81,7 +81,7 @@ _PATTERNS: list[tuple[Intent, list[str]]] = [
         "why did you pick", "why did you choose",
     ]),
     (Intent.PLAN_TRIP, [
-        "plan a trip", "book a flight", "book flights", "fly to",
+        "plan a trip", "plan a holiday", "holiday to", "book a flight", "book flights", "fly to",
         "travel to", "trip to", "visit", "going to",
         "i want to go", "i need to travel", "arrange a trip", "journey to",
     ]),
@@ -160,11 +160,31 @@ class IntentClassifier:
 
         origin_match = re.search(
             r"\b(?:travelling|traveling|flying|departing|leaving)\s+from\s+"
-            r"([a-z][a-z .'-]{1,40}?)(?=,|[.!?]|\s+(?:and|with|on|for|we|i)\b|$)",
+            r"([a-z][a-z .'-]{1,40}?)(?=,|[.!?]|\s+(?:and|but|with|on|for|we|i)\b|$)",
             text,
         )
         if origin_match:
             entities["origin"] = origin_match.group(1).strip().title()
+
+        flexible_origin_match = re.search(
+            r"\b(?:do not mind|don't mind|can|could|happy to|willing to|flexible about)\s+"
+            r"(?:fly(?:ing)?|depart(?:ing)?|leave|leaving)\s+from\s+"
+            r"(.+?)(?=[.!?]|$)",
+            text,
+        )
+        if flexible_origin_match:
+            options = [
+                value.strip(" ,").title()
+                for value in re.split(r",|\s+or\s+|\s+and\s+", flexible_origin_match.group(1))
+                if value.strip(" ,")
+            ]
+            if options:
+                if entities.get("origin") and entities["origin"] not in options:
+                    entities["home_origin"] = entities["origin"]
+                entities["departure_options"] = ",".join(options)
+                # A named airport/city option is actionable for flight search;
+                # the traveller's home city is retained separately above.
+                entities["origin"] = options[0]
 
         number_words = {
             "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
@@ -179,7 +199,11 @@ class IntentClassifier:
             entities["adults"] = str(
                 int(raw_adults) if raw_adults.isdigit() else number_words[raw_adults]
             )
-        elif "with my partner" in text:
+        elif (
+            "with my partner" in text
+            or "with my partners" in text
+            or re.search(r"\bwe (?:are|'re) both\b", text)
+        ):
             entities["adults"] = "2"
 
         interests_match = re.search(
@@ -188,26 +212,78 @@ class IntentClassifier:
             text,
         )
         if interests_match:
-            interests = [
+            raw_interests = [
                 value.strip(" ,")
                 for value in re.split(r",|\s+and\s+", interests_match.group(1))
                 if value.strip(" ,")
             ]
+            interests: list[str] = []
+            for value in raw_interests:
+                normalized = value.removeprefix("to ").strip()
+                if "hotel" in normalized or "accommodation" in normalized:
+                    continue
+                if "dine out" in normalized:
+                    normalized = "dining"
+                elif "places of significant interest" in normalized:
+                    normalized = "major attractions"
+                interests.append(normalized)
             if interests:
                 entities["interests"] = ",".join(interests)
 
-        group_nationality_match = re.search(
-            r"\bwe are\s+([a-z]+)(?:\s+and\s+([a-z]+))?(?=,|[.!?]|\s+citizens?\b)",
+        canonical_interests = (
+            ("dining", ("dine out", "dining", "restaurants", "food")),
+            ("fashion", ("fashion",)),
+            ("soccer", ("soccer", "football match", "football game")),
+            (
+                "major attractions",
+                ("places of significant interest", "sightseeing", "landmarks", "major attractions"),
+            ),
+        )
+        interests = [
+            value for value in entities.get("interests", "").split(",") if value
+        ]
+        for canonical, keywords in canonical_interests:
+            already_represented = any(
+                keyword in existing
+                for existing in interests
+                for keyword in keywords
+            )
+            if (
+                any(keyword in text for keyword in keywords)
+                and canonical not in interests
+                and not already_represented
+            ):
+                interests.append(canonical)
+        if interests:
+            entities["interests"] = ",".join(interests)
+
+        nationality_with_label = re.search(
+            r"\b(?:we (?:are|'re)\s+)?(?:both\s+)?([a-z]+)\s+"
+            r"(?:citizens?|nationals?|passport holders?)\b",
             text,
         )
-        if group_nationality_match:
-            nationalities = [
-                value.title()
-                for value in group_nationality_match.groups()
-                if value
-            ]
-            entities["nationality"] = nationalities[0]
-            entities["nationalities"] = ",".join(nationalities)
+        if nationality_with_label:
+            nationality = nationality_with_label.group(1).title()
+            entities["nationality"] = nationality
+            entities["nationalities"] = nationality
+        else:
+            group_nationality_match = re.search(
+                r"\bwe are\s+([a-z]+)(?:\s+and\s+([a-z]+))?"
+                r"(?=,|[.!?]|\s+citizens?\b)",
+                text,
+            )
+            if group_nationality_match:
+                nationalities = [
+                    value.title()
+                    for value in group_nationality_match.groups()
+                    if value
+                ]
+                entities["nationality"] = nationalities[0]
+                entities["nationalities"] = ",".join(nationalities)
+
+        if re.search(r"\b(?:average|mid[- ]range|moderate)\s+hotel\b", text):
+            entities["accommodation_type"] = "HOTEL"
+            entities["budget_style"] = "balanced"
 
         # Padded so every marker search requires a leading word boundary —
         # without this, "in " matches inside "rain " (rendering "Will it
@@ -229,13 +305,34 @@ class IntentClassifier:
                     idx = padded.find(" to ", search_from)
                     if idx == -1:
                         break
-                    words = padded[idx + 4:].split()
+                    match = re.match(
+                        r"([a-z][a-z.'-]*(?:\s+[a-z][a-z.'-]*){0,3})",
+                        padded[idx + 4:],
+                    )
+                    if not match:
+                        search_from = idx + 4
+                        continue
+                    words = match.group(1).split()
                     if not words:
                         break
-                    candidate = words[0].strip(".,?!")
-                    if len(candidate) > 2 and candidate not in (
+                    stop_words = {
+                        "and", "at", "for", "from", "in", "next", "on", "or",
+                        "this", "until", "where", "with",
+                    }
+                    candidate_words = []
+                    for word in words:
+                        if word in stop_words:
+                            break
+                        candidate_words.append(word)
+                    candidate = " ".join(candidate_words).strip(".,?!")
+                    invalid_candidates = (
                         "the", "my", "a", "an", "be", "me", "do", "go", "is", "stay",
                         "visit", "travel", "plan", "fly", "book", "see", "explore",
+                    )
+                    if (
+                        len(candidate) > 2
+                        and candidate not in invalid_candidates
+                        and candidate_words[0] not in invalid_candidates
                     ):
                         entities["destination"] = candidate.title()
                         destination_found = True
@@ -247,9 +344,22 @@ class IntentClassifier:
 
             idx = padded.find(f" {marker}")
             if idx != -1:
-                words = padded[idx + len(marker) + 1:].split()
-                if words:
-                    candidate = words[0].strip(".,?!")
+                match = re.match(
+                    r"([a-z][a-z.'-]*(?:\s+[a-z][a-z.'-]*){0,3})",
+                    padded[idx + len(marker) + 1:],
+                )
+                if match:
+                    words = match.group(1).split()
+                    stop_words = {
+                        "and", "at", "for", "from", "in", "next", "on", "or",
+                        "this", "until", "where", "with",
+                    }
+                    candidate_words = []
+                    for word in words:
+                        if word in stop_words:
+                            break
+                        candidate_words.append(word)
+                    candidate = " ".join(candidate_words).strip(".,?!")
                     if len(candidate) > 2 and candidate not in (
                         "the", "my", "a", "an", "be", "me", "do", "go", "is", "stay", "visit"
                     ):
@@ -281,6 +391,10 @@ class IntentClassifier:
             "july", "august", "september", "october", "november", "december",
         )
         month_pattern = "|".join(months)
+        duration_match = re.search(r"\b(\d{1,2})\s*(?:-\s*)?days?\b", text)
+        if duration_match:
+            entities["duration_days"] = duration_match.group(1)
+
         range_match = re.search(
             rf"\b(\d{{1,2}})(?:st|nd|rd|th)?\s+({month_pattern})(?:\s+(\d{{4}}))?"
             rf"\s+(?:to|until|-)+\s+(\d{{1,2}})(?:st|nd|rd|th)?\s+"

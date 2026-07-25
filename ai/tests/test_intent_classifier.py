@@ -18,6 +18,12 @@ class TestIntentClassification:
         result = classifier.classify("I need to fly to Barcelona next month")
         assert result.intent == Intent.PLAN_TRIP
 
+    def test_natural_holiday_phrase_is_a_plan_trip(self, classifier):
+        result = classifier.classify("Please plan a 15-day holiday to New York")
+        assert result.intent == Intent.PLAN_TRIP
+        assert result.entities["destination"] == "New York"
+        assert result.entities["duration_days"] == "15"
+
     def test_modify_trip_intent(self, classifier):
         result = classifier.classify("I need to change my trip")
         assert result.intent == Intent.MODIFY_TRIP
@@ -231,6 +237,28 @@ class TestEntityExtraction:
         assert result.entities["end_date"] == "2026-08-17"
         assert result.entities["duration_days"] == "7"
         assert result.entities["adults"] == "2"
+
+    def test_extracts_full_new_york_holiday_details(self, classifier):
+        result = classifier.classify(
+            "Plan a 15-day holiday to New York with my partner from 7 August "
+            "to 22 August 2026. We are travelling from Leeds but do not mind "
+            "flying from Manchester or London. We are both British nationals. "
+            "We love to dine out and stay in an average hotel. She loves fashion "
+            "and I like soccer and places of significant interest."
+        )
+        assert result.entities["destination"] == "New York"
+        assert result.entities["origin"] == "Manchester"
+        assert result.entities["home_origin"] == "Leeds"
+        assert result.entities["departure_options"] == "Manchester,London"
+        assert result.entities["nationality"] == "British"
+        assert result.entities["adults"] == "2"
+        assert result.entities["start_date"] == "2026-08-07"
+        assert result.entities["end_date"] == "2026-08-22"
+        assert result.entities["duration_days"] == "15"
+        assert result.entities["accommodation_type"] == "HOTEL"
+        assert {"dining", "fashion", "soccer", "major attractions"}.issubset(
+            set(result.entities["interests"].split(","))
+        )
 
     def test_no_destination_when_not_present(self, classifier):
         # "Hello there" has no location markers

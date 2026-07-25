@@ -105,6 +105,13 @@ class GoalService:
 
         destination = entities.get("destination", "")
         date_hint = entities.get("date_hint", "")
+        interests = [
+            value for value in entities.get("interests", "").split(",") if value
+        ]
+        duration_days = (
+            int(entities["duration_days"]) if entities.get("duration_days") else None
+        )
+        adults = int(entities.get("adults", "1"))
         title = f"Trip to {destination}" if destination else "New Travel Goal"
 
         now = datetime.now(timezone.utc).isoformat()
@@ -116,14 +123,18 @@ class GoalService:
             priority=3,
             budget={"min_usd": None, "max_usd": None, "currency": "USD"},
             timeframe={
-                "earliest": None,
-                "latest": None,
-                "duration_days": None,
-                "flexible": True,
+                "earliest": entities.get("start_date"),
+                "latest": entities.get("end_date"),
+                "duration_days": duration_days,
+                "flexible": not bool(entities.get("start_date")),
                 "hint": date_hint or None,
             },
-            travellers={"adults": 1, "children": 0, "infants": 0},
-            interests=[],
+            travellers={
+                "adults": adults,
+                "children": int(entities.get("children", "0")),
+                "infants": int(entities.get("infants", "0")),
+            },
+            interests=interests,
             constraints=[],
             success_criteria=[],
             flexibility={"dates": True, "duration": True, "budget": False},

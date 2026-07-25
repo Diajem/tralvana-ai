@@ -103,6 +103,11 @@ class VisaIntelligenceService:
             nationality=entities.get("nationality"),
             passport_country=passport_country or "",
             destination_country=entities.get("destination") or (trip or {}).get("destination") or "",
+            intended_length_of_stay=int(
+                entities.get("duration_days")
+                or (trip or {}).get("duration_days")
+                or 14
+            ),
         )
         return self.check(request, trip=trip)
 
