@@ -2,33 +2,17 @@ from __future__ import annotations
 
 from typing import Any
 
-# Fallback tables when destination is not in the knowledge graph
-_DAILY_USD: dict[str, int] = {
-    "backpacker": 40,
-    "budget": 65,
-    "balanced": 150,
-    "comfort": 300,
-    "luxury": 650,
-}
-
-_FLIGHT_USD: dict[str, int] = {
-    "economy": 650,
-    "business": 2200,
-    "first": 5000,
-}
-
-_ACCOMMODATION_SHARE = 0.45
-_FOOD_SHARE = 0.25
-_ACTIVITIES_SHARE = 0.20
-_MISC_SHARE = 0.10
+from ai.discovery.budget.budget_cost_model import raw_budget_candidate
+from ai.discovery.budget.budget_normalizer import budget_normalizer
 
 
 class BudgetEstimator:
     """
     Estimates trip cost using BudgetReasoner when the destination is in the
-    knowledge graph, or falls back to static global averages.
+    knowledge graph, or the canonical Budget Intelligence cost model.
 
-    Sprint 3+: integrate live flight/hotel pricing APIs.
+    No live price is claimed. T-033 removes the separate fallback tables that
+    previously drifted from Budget Intelligence.
     """
 
     def estimate(
@@ -56,8 +40,7 @@ class BudgetEstimator:
         except Exception:
             pass
 
-        # Fallback
-        return self._from_static(
+        return self._from_cost_model(
             destination, duration_days, budget_style, cabin_class, adults
         )
 
@@ -102,7 +85,7 @@ class BudgetEstimator:
             ],
         }
 
-    def _from_static(
+    def _from_cost_model(
         self,
         destination: str,
         duration_days: int,
@@ -110,33 +93,39 @@ class BudgetEstimator:
         cabin_class: str,
         adults: int,
     ) -> dict[str, Any]:
-        daily_pp = _DAILY_USD.get(budget_style, _DAILY_USD["balanced"])
-        flight_pp = _FLIGHT_USD.get(cabin_class, _FLIGHT_USD["economy"])
-
-        accommodation = round(daily_pp * _ACCOMMODATION_SHARE * duration_days * adults)
-        food = round(daily_pp * _FOOD_SHARE * duration_days * adults)
-        activities = round(daily_pp * _ACTIVITIES_SHARE * duration_days * adults)
-        misc = round(daily_pp * _MISC_SHARE * duration_days * adults)
-        flights = flight_pp * adults
-        total = flights + (daily_pp * duration_days * adults)
+        option = budget_normalizer.normalize(
+            raw_budget_candidate(
+                destination=destination,
+                budget_style=budget_style,
+                cabin_class=cabin_class,
+                duration_days=duration_days,
+                adults=adults,
+                children=0,
+            )
+        )
+        total = option["total_cost_usd"]
 
         return {
-            "flights_usd": flights,
-            "accommodation_usd": accommodation,
-            "food_usd": food,
-            "activities_usd": activities,
-            "miscellaneous_usd": misc,
-            "total_estimate_usd": round(total),
+            "flights_usd": option["flight_cost_usd"],
+            "accommodation_usd": option["accommodation_usd"],
+            "food_usd": option["food_usd"],
+            "activities_usd": option["activities_usd"],
+            "miscellaneous_usd": option["misc_usd"],
+            "total_estimate_usd": total,
             "per_person_usd": round(total / max(adults, 1)),
             "total_range_usd": {
                 "low": round(total * 0.85),
                 "high": round(total * 1.20),
             },
             "basis": f"{budget_style} style, {duration_days} days, {cabin_class} class, {adults} adult(s)",
-            "source": "static_fallback",
+            "source": "budget_intelligence_cost_model",
             "notes": [
-                "Destination not found in knowledge graph — global average rates used",
+                (
+                    "Estimated regional rates from Budget Intelligence used; "
+                    "unknown destinations use its global-average band"
+                ),
                 "Estimates in USD — convert before booking",
+                "No live flight or accommodation pricing used",
                 "Does not include travel insurance",
             ],
         }

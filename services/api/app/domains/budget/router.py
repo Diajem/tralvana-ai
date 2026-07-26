@@ -2,12 +2,22 @@ from fastapi import APIRouter, HTTPException
 
 from app.domains.budget.schemas import (
     BudgetOptionResponse,
+    BudgetOptimisationResponse,
     BudgetRecommendationResponse,
+    OptimiseBudgetRequest,
     RecommendBudgetRequest,
 )
 from app.domains.budget.service import budget_intelligence_service
 
 router = APIRouter(tags=["budget"])
+
+
+@router.post(
+    "/budget/optimise",
+    response_model=BudgetOptimisationResponse,
+)
+async def optimise_budget(request: OptimiseBudgetRequest) -> dict:
+    return budget_intelligence_service.optimise(request)
 
 
 @router.post("/budget/recommend", response_model=BudgetRecommendationResponse, status_code=201)
