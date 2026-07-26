@@ -1,4 +1,4 @@
-# Event Intelligence — T-053/T-054
+# Event Intelligence — T-053–T-055
 
 Event Intelligence adds a provider-neutral `EVENTS` discovery path for
 event-shaped trip interests such as fashion, football, soccer, matches,
@@ -24,6 +24,17 @@ T-054 adds `ticketmaster_event_provider` as the first opt-in live source.
 It returns current public listings, exact dates, and event links only when
 present in Ticketmaster's response. It does not guarantee ticket inventory or
 price and does not implement booking.
+
+T-055 treats provider date and category filters as hints rather than proof.
+Tralvana independently:
+
+- fans out a multi-interest request into at most four interest-specific live
+  searches and deduplicates provider event IDs;
+- enforces the inclusive destination-local travel-date window after retrieval;
+- excludes past or undated live listings when their timing cannot be proven;
+- rejects live listings that do not match any stated interest; and
+- prevents a generic Sports classification from being treated as evidence of
+  a soccer/football match.
 
 ## Architecture
 
@@ -53,7 +64,9 @@ trip without such an interest still runs the original six core modules only.
 }
 ```
 
-The response contains ranked `event_options` plus provider-neutral provenance.
+The response contains ranked `event_options`, provider-neutral provenance, and
+a `filter_summary` stating how many provider results were excluded by travel
+dates or relevance.
 `GET /events/{event_option_id}` and `GET /trips/{trip_id}/events` expose the
 same safe option contract.
 
@@ -73,4 +86,6 @@ renders them in a dedicated section. Grounding remains fail-closed:
 The Ticketmaster adapter registers for `Capability.EVENTS` and implements the
 same search parameters: destination, start date, end date, and interests.
 It populates exact dates, source identity, event status, venue, and public URL
-only from the provider response. See `docs/LIVE_EVENT_SEARCH.md`.
+only from the provider response. Multiple distinct interests are searched
+separately (maximum four vendor calls), then deduplicated before provider-neutral
+date and relevance filtering. See `docs/LIVE_EVENT_SEARCH.md`.

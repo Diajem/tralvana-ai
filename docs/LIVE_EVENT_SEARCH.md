@@ -1,4 +1,4 @@
-# Live Event Search — Ticketmaster Discovery (T-054)
+# Live Event Search — Ticketmaster Discovery (T-054/T-055)
 
 Tralvana can retrieve current public event listings for a destination and
 travel-date window through Ticketmaster Discovery API v2.
@@ -40,8 +40,10 @@ From PowerShell in `C:\Users\Peter\tralvana-ai`:
 ```
 
 The script makes one New York event search for 7–22 August 2026 and prints
-only safe diagnostics and up to three public event names. It never prints the
-key, request query string, headers, or raw response.
+only safe diagnostics and up to three public event names. Because it requests
+fashion and soccer, the provider-neutral event adapter makes two
+interest-specific Ticketmaster calls and deduplicates their results. It never
+prints the key, request query string, headers, or raw response.
 
 Expected evidence:
 
@@ -49,8 +51,26 @@ Expected evidence:
 - `provider_status: AVAILABLE`
 - `data_source: TICKETMASTER_DISCOVERY_API`
 - zero or more current listings, depending on provider coverage
+- counts of listings excluded for being outside the trip dates or unrelated
 
 Zero listings is a valid live response, not permission failure.
+
+## Date and relevance safeguards
+
+Ticketmaster query parameters narrow the upstream search, but the external
+provider remains untrusted input. T-055 therefore verifies every mapped live
+listing again before it reaches the API or planner:
+
+- destination-local `localDate` is preferred to UTC `dateTime` at date
+  boundaries;
+- the requested start and end dates are inclusive;
+- a listing before today is excluded even when no trip start date exists;
+- an undated live result is excluded because it cannot prove trip-window fit;
+- unrelated results are excluded when interests were supplied;
+- separate interest queries are capped at four and deduplicated by provider
+  event ID (or canonical name/date/venue fallback).
+
+Curated mock ideas stay undated and are not falsely promoted by this filter.
 
 ## Public grounding
 
@@ -64,5 +84,5 @@ and still tells the traveller to confirm:
 - schedule changes before buying non-refundable travel.
 
 Ticketmaster's default developer quota is 5,000 calls per day and five
-requests per second. Tralvana's existing gateway cache, retry, rate-limit, and
-diagnostic layers remain in the path.
+requests per second. Each interest-specific search passes through Tralvana's
+existing gateway cache, retry, rate-limit, and diagnostic layers.

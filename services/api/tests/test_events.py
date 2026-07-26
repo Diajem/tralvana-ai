@@ -28,6 +28,12 @@ def test_recommend_events_returns_provider_neutral_curated_results(client):
         and option["ticket_url"] is None
         for option in body["event_options"]
     )
+    assert body["filter_summary"] == {
+        "provider_result_count": 4,
+        "excluded_outside_travel_dates": 0,
+        "excluded_as_irrelevant": 0,
+        "returned_event_count": 4,
+    }
 
 
 def test_event_option_can_be_fetched_and_listed_by_trip(client):
