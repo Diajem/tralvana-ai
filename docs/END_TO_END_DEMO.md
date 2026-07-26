@@ -55,6 +55,10 @@ POST /demo/japan-football-food
                     → status: READY
 ```
 
+Each request runs against fresh in-memory Goal, Trip, and conversation-session
+stores. The demo exercises the production planning services without writing
+synthetic data to shared application storage; see ADR-045.
+
 ## Demo Endpoint
 
 ```

@@ -1,7 +1,7 @@
 # ADR-005: End-to-End Demo Layer
 
 **Date**: 2026-07-08
-**Status**: Accepted
+**Status**: Superseded in part by ADR-045
 **Sprint**: 1
 
 ## Context
@@ -39,3 +39,11 @@ When the Knowledge Graph and Goals/Trips use persistent storage (implemented
 with PostgreSQL in T-029/T-034):
 - `DemoService` requires no changes — it calls service facades, not infrastructure
 - Only the underlying singleton implementations change
+
+## T-057 Amendment
+
+The original singleton-sharing decision became unsafe after Goal/Trip
+PostgreSQL persistence and Redis conversation sessions were added. T-057 keeps
+the same service facades and seven-stage response, but builds them over fresh
+per-request in-memory Goal, Trip, and session stores. ADR-045 is authoritative
+for demo runtime ownership.

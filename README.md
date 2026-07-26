@@ -109,7 +109,7 @@ Run all tests from the project root:
 
 ```bash
 pytest
-# 1,425 tests across API, AI, and TravelOS platform layers
+# 1,426 tests across API, AI, and TravelOS platform layers
 ```
 
 Run by suite:

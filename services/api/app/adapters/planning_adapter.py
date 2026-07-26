@@ -6,15 +6,23 @@ from typing import Any
 
 
 class PlanningAdapter:
+    def __init__(
+        self,
+        goal_service: Any | None = None,
+        trip_planning_service: Any | None = None,
+    ) -> None:
+        self._goal_service_override = goal_service
+        self._trip_service_override = trip_planning_service
+
     def create_goal(
         self,
         traveller_id: str | None,
         message: str,
         entities: dict[str, str],
     ) -> dict[str, Any]:
-        from app.domains.goals.service import goal_service
-
-        return goal_service.create_from_conversation(traveller_id, message, entities)
+        return self._goal_service.create_from_conversation(
+            traveller_id, message, entities
+        )
 
     def create_trip(
         self,
@@ -23,9 +31,7 @@ class PlanningAdapter:
         entities: dict[str, str],
         profile: dict[str, Any] | None,
     ) -> dict[str, Any]:
-        from app.domains.trips.service import trip_planning_service
-
-        return trip_planning_service.plan_from_conversation(
+        return self._trip_service.plan_from_conversation(
             traveller_id=traveller_id,
             goal_id=goal_id,
             entities=entities,
@@ -33,14 +39,10 @@ class PlanningAdapter:
         )
 
     def get_goal(self, goal_id: str) -> dict[str, Any] | None:
-        from app.domains.goals.service import goal_service
-
-        return goal_service.get(goal_id)
+        return self._goal_service.get(goal_id)
 
     def get_trip(self, trip_id: str) -> dict[str, Any] | None:
-        from app.domains.trips.service import trip_planning_service
-
-        return trip_planning_service.get(trip_id)
+        return self._trip_service.get(trip_id)
 
     def recommend_flights(self, **kwargs: Any) -> dict[str, Any]:
         from app.domains.flights.service import flight_intelligence_service
@@ -76,3 +78,19 @@ class PlanningAdapter:
         from app.domains.events.service import event_intelligence_service
 
         return event_intelligence_service.recommend_from_conversation(**kwargs)
+
+    @property
+    def _goal_service(self) -> Any:
+        if self._goal_service_override is not None:
+            return self._goal_service_override
+        from app.domains.goals.service import goal_service
+
+        return goal_service
+
+    @property
+    def _trip_service(self) -> Any:
+        if self._trip_service_override is not None:
+            return self._trip_service_override
+        from app.domains.trips.service import trip_planning_service
+
+        return trip_planning_service

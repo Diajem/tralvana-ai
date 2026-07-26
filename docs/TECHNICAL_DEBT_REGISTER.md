@@ -191,12 +191,18 @@ Running `ruff check .` against the current backend/AI codebase surfaces 72 viola
 
 ### TD-009 — DemoService writes to shared data stores
 **Severity**: Low
-**Status**: Open
+**Status**: Resolved (T-057)
 **Introduced**: T-009
 
 `DemoService.run()` calls `goal_service.create()` and `trip_planning_service.plan()`, writing real objects to the shared in-memory stores. Each demo button click adds a Goal + Trip Plan to the live application state.
 
 **Resolution**: Add a `demo=True` flag to Goal/Trip creation to mark demo objects, or use isolated in-memory stores for the demo pipeline. Alternatively, clear demo objects at the end of each run.
+
+**Resolution (T-057, 2026-07-26)**: Every demo request now constructs fresh
+in-memory Goal, Trip, and conversation-session stores and injects them through
+the existing services and `PlanningPort`. The seven-stage response is
+unchanged, the isolated state is discarded after assembly, and a regression
+test proves the shared application stores remain unchanged. See ADR-045.
 
 ---
 
@@ -433,4 +439,4 @@ otherwise need to import from `travelos/live_providers/`; see ADR-021).
 |--------|---------------|
 | Sprint 2 | ~~TD-001, TD-002, TD-003, TD-004, TD-005, TD-015, TD-016, TD-017, TD-018~~ resolved; TD-019/TD-020 (deferred Intelligence Gateway integrations) opened in T-025; TD-021/TD-022/TD-023 (deferred Live Provider Framework items) opened in T-026 |
 | Sprint 3 | TD-010 (static KG enrichment), TD-011 (traveller domain), TD-013 (pagination), TD-019 (wire remaining Discovery providers to the gateway) |
-| Sprint 4+ | TD-009 (demo isolation), TD-012 (ontology split), TD-014 (infra), TD-020 (Maps/Currency providers, pending new Discovery modules), TD-022 (OAuth2 exchange, pending a vendor that requires it), TD-023 (mock provider metrics) |
+| Sprint 4+ | TD-012 (ontology split), TD-014 (infra), TD-020 (Maps/Currency providers, pending new Discovery modules), TD-022 (OAuth2 exchange, pending a vendor that requires it), TD-023 (mock provider metrics) |
