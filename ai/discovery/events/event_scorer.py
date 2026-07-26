@@ -94,11 +94,21 @@ class EventScorer:
             (interest_fit * 0.65) + (category_fit * 0.15) + (evidence_fit * 0.20),
             2,
         )
+        team_level = str(event.get("team_level", "UNSPECIFIED")).upper()
+        matched_keys = {_interest_key(value) for value in matched}
+        reserve_or_youth_penalty = (
+            0.15
+            if team_level == "RESERVE_OR_YOUTH"
+            and matched_keys & {"soccer", "football", "match"}
+            else 0.0
+        )
+        match_score = round(match_score - reserve_or_youth_penalty, 2)
         return {
             "match_score": min(max(match_score, 0.0), 1.0),
             "interest_fit": round(interest_fit, 2),
             "category_fit": round(category_fit, 2),
             "evidence_fit": evidence_fit,
+            "team_level_fit": round(1.0 - reserve_or_youth_penalty, 2),
             "interests_matched": matched,
             "is_relevant": not interests or bool(matched) or category_fit == 1.0,
         }

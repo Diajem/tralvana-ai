@@ -1,4 +1,4 @@
-# Live Event Search — Ticketmaster Discovery (T-054/T-055)
+# Live Event Search — Ticketmaster Discovery (T-054–T-056)
 
 Tralvana can retrieve current public event listings for a destination and
 travel-date window through Ticketmaster Discovery API v2.
@@ -52,6 +52,7 @@ Expected evidence:
 - `data_source: TICKETMASTER_DISCOVERY_API`
 - zero or more current listings, depending on provider coverage
 - counts of listings excluded for being outside the trip dates or unrelated
+- a safe `team_level` label for each printed soccer result
 
 Zero listings is a valid live response, not permission failure.
 
@@ -71,6 +72,26 @@ listing again before it reaches the API or planner:
   event ID (or canonical name/date/venue fallback).
 
 Curated mock ideas stay undated and are not falsely promoted by this filter.
+
+## Senior-team preference
+
+Ticketmaster does not provide one universal senior-first-team flag. T-056
+therefore uses only explicit provider text from the event and attraction
+names:
+
+- reserve, youth, academy, age-group, B-team, development-squad, and `II`
+  markers become `RESERVE_OR_YOUTH`;
+- other soccer listings become `SENIOR_OR_OPEN`, meaning that available
+  provider text did not mark them as reserve/youth—not that Tralvana has
+  independently verified their competition tier;
+- reserve/youth listings receive a bounded ranking penalty but are not
+  discarded, so a traveller can still see the only relevant match in their
+  date window.
+
+This preference is applied inside provider-neutral Event Intelligence. The
+complete New York planner acceptance test proves that a comparable
+senior/open listing becomes `BEST_OVERALL` while live provenance, travel
+dates, and official links remain intact.
 
 ## Public grounding
 

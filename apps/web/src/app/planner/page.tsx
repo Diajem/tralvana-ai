@@ -32,7 +32,7 @@ function RecommendationFacts({ data }: { data: Record<string, unknown> }) {
   // field — but never invent a value that isn't already in `data`.
   const preferredOrder = [
     "airline", "flight_number", "property_name", "name", "city", "budget_style",
-    "category", "venue_area", "date_status", "availability_status",
+    "category", "venue_area", "date_status", "availability_status", "team_level",
     "estimated_price", "nightly_price", "total_price", "currency",
     "star_rating", "review_score", "match_score", "recommendation_type",
     "cabin_class", "accommodation_type", "stops", "total_duration",

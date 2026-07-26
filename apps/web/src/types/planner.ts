@@ -35,6 +35,7 @@ export interface EventRecommendation extends Record<string, unknown> {
   date_status: string;
   availability_status: string;
   ticket_url: string | null;
+  team_level: string;
   interests_matched: string[];
   data_source: string;
 }

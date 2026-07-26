@@ -114,6 +114,8 @@ def main() -> int:
             option["starts_at"],
             "| status:",
             option["availability_status"],
+            "| team_level:",
+            option["team_level"],
         )
     return 0
 

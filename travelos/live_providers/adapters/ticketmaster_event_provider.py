@@ -53,6 +53,12 @@ _CATEGORY_MAP = {
     "film": "FILM",
     "family": "FAMILY",
 }
+_RESERVE_OR_YOUTH_PATTERNS = (
+    re.compile(r"\b(?:reserves?|reserve team|academy|development squad|youth)\b"),
+    re.compile(r"\b(?:u|under)[ -]?(?:1[5-9]|2[0-3])\b"),
+    re.compile(r"\b(?:b team|team b)\b"),
+    re.compile(r"\bii\b"),
+)
 
 
 class TicketmasterEventProvider(BaseLiveProvider):
@@ -274,6 +280,7 @@ def _map_event(event: Any) -> dict[str, Any]:
         if isinstance(value, dict)
     ]
     category, tags = _classification_data(classifications, name)
+    team_level = _team_level(event, tags)
     status = dates.get("status") if isinstance(dates.get("status"), dict) else {}
     availability = _STATUS_MAP.get(
         str(status.get("code", "")).lower(),
@@ -303,6 +310,7 @@ def _map_event(event: Any) -> dict[str, Any]:
         "requires_ticket": ticket_url is not None,
         "source_name": "Ticketmaster Discovery API",
         "evidence_level": "LIVE",
+        "team_level": team_level,
         "_provider_event_id": str(event.get("id", "")),
     }
 
@@ -341,6 +349,35 @@ def _classification_data(
     if "football" in tags:
         tags.update({"soccer", "sport", "match"})
     return category, sorted(tags)
+
+
+def _team_level(event: dict[str, Any], tags: list[str]) -> str:
+    """Classify only what provider text can safely establish.
+
+    Ticketmaster does not expose a universal first-team flag. A soccer
+    listing with an explicit reserve/youth marker can be classified as such;
+    otherwise it remains ``SENIOR_OR_OPEN`` rather than claiming a guaranteed
+    senior fixture.
+    """
+    if not {"soccer", "football"} & set(tags):
+        return "NOT_APPLICABLE"
+
+    labels = [str(event.get("name", ""))]
+    embedded = event.get("_embedded")
+    attractions = (
+        embedded.get("attractions", [])
+        if isinstance(embedded, dict)
+        else []
+    )
+    labels.extend(
+        str(attraction.get("name", ""))
+        for attraction in attractions
+        if isinstance(attraction, dict)
+    )
+    searchable = " ".join(labels).casefold()
+    if any(pattern.search(searchable) for pattern in _RESERVE_OR_YOUTH_PATTERNS):
+        return "RESERVE_OR_YOUTH"
+    return "SENIOR_OR_OPEN"
 
 
 def _nested_name(value: dict[str, Any], key: str) -> str:

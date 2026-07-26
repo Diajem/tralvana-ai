@@ -21,6 +21,7 @@ class EventNormalizer:
             "ticket_url": raw.get("ticket_url"),
             "requires_ticket": bool(raw.get("requires_ticket", False)),
             "source_name": raw.get("source_name", "Unknown event source"),
+            "team_level": str(raw.get("team_level", "UNSPECIFIED")).upper(),
             "_evidence_level": str(
                 raw.get("evidence_level", "CURATED")
             ).upper(),
