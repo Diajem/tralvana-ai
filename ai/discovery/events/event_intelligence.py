@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any
+from datetime import date, datetime
+from typing import Any, Callable
 
 from ai.discovery.events.event_normalizer import event_normalizer
 from ai.discovery.events.event_reasoner import event_reasoner
@@ -12,8 +13,13 @@ from travelos.intelligence_gateway.discovery_adapters import GatewayEventProvide
 class EventIntelligence:
     """Provider-neutral event discovery with fail-closed provenance."""
 
-    def __init__(self, provider: GatewayEventProvider | None = None) -> None:
+    def __init__(
+        self,
+        provider: GatewayEventProvider | None = None,
+        today_provider: Callable[[], date] = date.today,
+    ) -> None:
         self._provider = provider or GatewayEventProvider()
+        self._today_provider = today_provider
 
     def recommend(
         self,
@@ -31,10 +37,23 @@ class EventIntelligence:
         )
 
         options: list[dict[str, Any]] = []
+        excluded_outside_dates = 0
+        excluded_irrelevant = 0
         for record in raw:
             event = event_normalizer.normalize(record)
-            score = event_scorer.score(event, interests)
             is_live = event.get("_evidence_level") == "LIVE"
+            if is_live and not _inside_requested_dates(
+                event,
+                start_date=start_date,
+                end_date=end_date,
+                today=self._today_provider(),
+            ):
+                excluded_outside_dates += 1
+                continue
+            score = event_scorer.score(event, interests)
+            if is_live and interests and not score["is_relevant"]:
+                excluded_irrelevant += 1
+                continue
             options.append(
                 {
                     **event,
@@ -63,6 +82,7 @@ class EventIntelligence:
             option.pop("_tags", None)
             option.pop("_requested_interests", None)
             option.pop("_evidence_level", None)
+            option.pop("_local_date", None)
 
         result = self._provider.last_result
         used_fallback = getattr(self._provider, "used_mock_fallback", False)
@@ -94,6 +114,11 @@ class EventIntelligence:
                 f"{len(ranked)} live event listing(s) matched for {destination}. "
                 "Availability and pricing still require confirmation."
             )
+            if excluded_outside_dates or excluded_irrelevant:
+                summary += (
+                    f" Excluded {excluded_outside_dates} listing(s) outside the "
+                    f"travel dates and {excluded_irrelevant} unrelated listing(s)."
+                )
         elif used_fallback:
             assumptions = [
                 "Ticketmaster live search was unavailable; results are curated "
@@ -133,7 +158,60 @@ class EventIntelligence:
             "next_actions": next_actions,
             "recommended_agents": ["experience_agent"],
             "summary": summary,
+            "filter_summary": {
+                "provider_result_count": len(raw),
+                "excluded_outside_travel_dates": excluded_outside_dates,
+                "excluded_as_irrelevant": excluded_irrelevant,
+                "returned_event_count": len(ranked),
+            },
         }
 
 
 event_intelligence = EventIntelligence()
+
+
+def _inside_requested_dates(
+    event: dict[str, Any],
+    *,
+    start_date: str | None,
+    end_date: str | None,
+    today: date,
+) -> bool:
+    """Fail closed when a live listing cannot prove it fits the trip window."""
+    event_date = _event_local_date(event)
+    if event_date is None:
+        return False
+
+    requested_start = _iso_date(start_date)
+    start = max(requested_start, today) if requested_start else today
+    end = _iso_date(end_date)
+    if start and event_date < start:
+        return False
+    if end and event_date > end:
+        return False
+    return True
+
+
+def _event_local_date(event: dict[str, Any]) -> date | None:
+    local_date = event.get("_local_date")
+    parsed_local = _iso_date(str(local_date)) if local_date else None
+    if parsed_local:
+        return parsed_local
+
+    starts_at = event.get("starts_at")
+    if not starts_at:
+        return None
+    value = str(starts_at).strip()
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).date()
+    except ValueError:
+        return _iso_date(value)
+
+
+def _iso_date(value: str | None) -> date | None:
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None

@@ -86,6 +86,7 @@ class EventIntelligenceService:
             "next_actions": output["next_actions"],
             "recommended_agents": output["recommended_agents"],
             "summary": output["summary"],
+            "filter_summary": output["filter_summary"],
         }
 
     def get(self, event_option_id: str) -> dict[str, Any] | None:

@@ -24,6 +24,7 @@ class EventNormalizer:
             "_evidence_level": str(
                 raw.get("evidence_level", "CURATED")
             ).upper(),
+            "_local_date": raw.get("_local_date"),
             "_tags": [str(tag).lower() for tag in raw.get("tags", [])],
             "_requested_interests": [
                 str(interest).lower()

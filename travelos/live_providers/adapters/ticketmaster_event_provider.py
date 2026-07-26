@@ -291,6 +291,13 @@ def _map_event(event: Any) -> dict[str, Any]:
         "tags": tags,
         "starts_at": starts_at,
         "ends_at": ends_at,
+        # Ticketmaster's UTC ``dateTime`` can fall on the following day for
+        # an evening event. Preserve the provider's destination-local date so
+        # Event Intelligence can enforce the traveller's inclusive date
+        # window without a timezone-boundary false rejection.
+        "_local_date": (
+            str(start["localDate"]).strip() if start.get("localDate") else None
+        ),
         "availability_status": availability,
         "ticket_url": ticket_url,
         "requires_ticket": ticket_url is not None,

@@ -61,3 +61,4 @@ class EventRecommendationResponse(BaseModel):
     next_actions: list[str]
     recommended_agents: list[str]
     summary: str
+    filter_summary: dict[str, int]

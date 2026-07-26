@@ -390,20 +390,48 @@ class GatewayEventProvider:
         interests: list[str] | None = None,
     ) -> list[dict[str, Any]]:
         self.used_mock_fallback = False
-        request = ProviderRequest(
-            capability=Capability.EVENTS,
-            operation="search",
-            params={
-                "destination": destination,
-                "start_date": start_date,
-                "end_date": end_date,
-                "interests": list(interests or []),
-            },
+        search_interests = _distinct_event_search_interests(interests or [])
+        query_groups = (
+            [[interest] for interest in search_interests]
+            if len(search_interests) > 1
+            else [list(search_interests)]
         )
-        result = self._gateway.execute(Capability.EVENTS, request)
+        results = [
+            self._gateway.execute(
+                Capability.EVENTS,
+                ProviderRequest(
+                    capability=Capability.EVENTS,
+                    operation="search",
+                    params={
+                        "destination": destination,
+                        "start_date": start_date,
+                        "end_date": end_date,
+                        "interests": query_interests,
+                    },
+                ),
+            )
+            for query_interests in query_groups
+        ]
+        successful = [
+            result
+            for result in results
+            if result.ok and result.data is not None
+        ]
+        if successful:
+            records = _deduplicate_event_records(
+                record
+                for result in successful
+                for record in result.data
+            )
+            self.last_result = _aggregate_event_results(
+                results=results,
+                successful=successful,
+                data=records,
+            )
+            return records
+
+        result = results[-1]
         self.last_result = result
-        if result.ok and result.data is not None:
-            return result.data
 
         from travelos.config.configuration_manager import config
 
@@ -431,6 +459,91 @@ class GatewayEventProvider:
 
 class LiveEventSearchUnavailableError(Exception):
     """A live event search failed and curated fallback is disabled."""
+
+
+def _distinct_event_search_interests(interests: list[str]) -> list[str]:
+    """Keep live fan-out bounded while preserving the traveller's ordering."""
+    return list(
+        dict.fromkeys(
+            cleaned
+            for value in interests
+            if (cleaned := str(value).strip())
+        )
+    )[:4]
+
+
+def _deduplicate_event_records(
+    records,
+) -> list[dict[str, Any]]:
+    unique: list[dict[str, Any]] = []
+    seen: set[tuple[str, ...]] = set()
+    for record in records:
+        provider_id = str(record.get("_provider_event_id", "")).strip()
+        key = (
+            ("provider", provider_id)
+            if provider_id
+            else (
+                "canonical",
+                str(record.get("name", "")).casefold(),
+                str(record.get("starts_at", "")),
+                str(record.get("venue_area", "")).casefold(),
+            )
+        )
+        if key not in seen:
+            seen.add(key)
+            unique.append(record)
+    return unique
+
+
+def _aggregate_event_results(
+    *,
+    results: list[ProviderResult],
+    successful: list[ProviderResult],
+    data: list[dict[str, Any]],
+) -> ProviderResult:
+    primary = successful[0]
+    all_succeeded = len(successful) == len(results)
+    raw_count = sum(
+        int(result.source_metadata.get("raw_event_count", 0) or 0)
+        for result in successful
+    )
+    mapped_count = sum(
+        int(result.source_metadata.get("mapped_event_count", 0) or 0)
+        for result in successful
+    )
+    warnings = [
+        warning
+        for result in results
+        for warning in result.warnings
+    ]
+    if not all_succeeded:
+        warnings.append(
+            f"{len(successful)} of {len(results)} interest-specific event "
+            "searches succeeded"
+        )
+    return ProviderResult(
+        provider_name=primary.provider_name,
+        capability=Capability.EVENTS,
+        status=(
+            ProviderStatus.AVAILABLE if all_succeeded else ProviderStatus.DEGRADED
+        ),
+        data=data,
+        confidence=min(result.confidence for result in successful),
+        warnings=warnings,
+        cached=all(result.cached for result in successful),
+        stale=any(result.stale for result in successful),
+        latency_ms=sum(result.latency_ms for result in results),
+        request_id=primary.request_id,
+        retrieved_at=max(result.retrieved_at for result in successful),
+        source_metadata={
+            **primary.source_metadata,
+            "raw_event_count": raw_count,
+            "mapped_event_count": mapped_count,
+            "unique_event_count": len(data),
+            "query_count": len(results),
+            "successful_query_count": len(successful),
+        },
+    )
 
 
 register_default_providers()

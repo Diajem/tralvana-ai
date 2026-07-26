@@ -97,6 +97,14 @@ def main() -> int:
     print("data_source:", result["data_source"])
     print("raw_event_count:", raw_count)
     print("ranked_event_count:", len(result["event_options"]))
+    print(
+        "excluded_outside_travel_dates:",
+        result["filter_summary"]["excluded_outside_travel_dates"],
+    )
+    print(
+        "excluded_as_irrelevant:",
+        result["filter_summary"]["excluded_as_irrelevant"],
+    )
     print("request_id:", provider_result.request_id if provider_result else "")
     for option in result["event_options"][:3]:
         print(
