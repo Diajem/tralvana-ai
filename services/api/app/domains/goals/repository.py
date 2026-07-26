@@ -27,8 +27,17 @@ class GoalRepository:
     def get(self, goal_id: str) -> Goal | None:
         return self._store.get(goal_id)
 
-    def list_by_traveller(self, traveller_id: str) -> list[Goal]:
-        return [g for g in self._store.values() if g.traveller_id == traveller_id]
+    def list_by_traveller(
+        self,
+        traveller_id: str,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[Goal]:
+        goals = [
+            goal for goal in self._store.values()
+            if goal.traveller_id == traveller_id
+        ]
+        return goals[offset:] if limit is None else goals[offset:offset + limit]
 
     def update(self, goal_id: str, updates: dict[str, Any]) -> Goal | None:
         goal = self._store.get(goal_id)
@@ -62,13 +71,22 @@ class SqlAlchemyGoalRepository:
             row = session.get(GoalRow, goal_id)
             return _entity(row) if row else None
 
-    def list_by_traveller(self, traveller_id: str) -> list[Goal]:
+    def list_by_traveller(
+        self,
+        traveller_id: str,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[Goal]:
         with self._factory() as session:
-            rows = session.scalars(
+            statement = (
                 select(GoalRow)
                 .where(GoalRow.traveller_id == traveller_id)
                 .order_by(GoalRow.created_at, GoalRow.goal_id)
-            ).all()
+                .offset(offset)
+            )
+            if limit is not None:
+                statement = statement.limit(limit)
+            rows = session.scalars(statement).all()
             return [_entity(row) for row in rows]
 
     def update(self, goal_id: str, updates: dict[str, Any]) -> Goal | None:

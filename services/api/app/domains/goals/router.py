@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from app.domains.goals.schemas import CreateGoalRequest, GoalResponse, UpdateGoalRequest
 from app.domains.goals.service import goal_service
@@ -20,8 +20,16 @@ async def get_goal(goal_id: str) -> dict:
 
 
 @router.get("/traveller/{traveller_id}/goals", response_model=list[GoalResponse])
-async def list_traveller_goals(traveller_id: str) -> list[dict]:
-    return goal_service.list_by_traveller(traveller_id)
+async def list_traveller_goals(
+    traveller_id: str,
+    limit: int = Query(default=100, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+) -> list[dict]:
+    return goal_service.list_by_traveller(
+        traveller_id,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.patch("/goals/{goal_id}", response_model=GoalResponse)

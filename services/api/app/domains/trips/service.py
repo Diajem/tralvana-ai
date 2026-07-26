@@ -104,8 +104,20 @@ class TripPlanningService:
         trip = self._repo.get(trip_id)
         return trip.to_dict() if trip else None
 
-    def list_by_traveller(self, traveller_id: str) -> list[dict[str, Any]]:
-        return [t.to_dict() for t in self._repo.list_by_traveller(traveller_id)]
+    def list_by_traveller(
+        self,
+        traveller_id: str,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        return [
+            trip.to_dict()
+            for trip in self._repo.list_by_traveller(
+                traveller_id,
+                limit=limit,
+                offset=offset,
+            )
+        ]
 
     def update(self, trip_id: str, request: UpdateTripPlanRequest) -> dict[str, Any] | None:
         updates = {k: v for k, v in request.model_dump(exclude_none=True).items()}

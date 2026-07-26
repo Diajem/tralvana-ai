@@ -27,8 +27,17 @@ class TripRepository:
     def get(self, trip_id: str) -> TripPlan | None:
         return self._store.get(trip_id)
 
-    def list_by_traveller(self, traveller_id: str) -> list[TripPlan]:
-        return [t for t in self._store.values() if t.traveller_id == traveller_id]
+    def list_by_traveller(
+        self,
+        traveller_id: str,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[TripPlan]:
+        trips = [
+            trip for trip in self._store.values()
+            if trip.traveller_id == traveller_id
+        ]
+        return trips[offset:] if limit is None else trips[offset:offset + limit]
 
     def update(self, trip_id: str, updates: dict[str, Any]) -> TripPlan | None:
         trip = self._store.get(trip_id)
@@ -56,13 +65,22 @@ class SqlAlchemyTripRepository:
             row = session.get(TripPlanRow, trip_id)
             return _entity(row) if row else None
 
-    def list_by_traveller(self, traveller_id: str) -> list[TripPlan]:
+    def list_by_traveller(
+        self,
+        traveller_id: str,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[TripPlan]:
         with self._factory() as session:
-            rows = session.scalars(
+            statement = (
                 select(TripPlanRow)
                 .where(TripPlanRow.traveller_id == traveller_id)
                 .order_by(TripPlanRow.created_at, TripPlanRow.trip_id)
-            ).all()
+                .offset(offset)
+            )
+            if limit is not None:
+                statement = statement.limit(limit)
+            rows = session.scalars(statement).all()
             return [_entity(row) for row in rows]
 
     def update(
