@@ -39,7 +39,7 @@ class TravelOS:
         `data` must match CreateProfileRequest (identity, preferences, loyalty).
         Returns the created profile dict.
         """
-        from app.models.traveller import CreateProfileRequest
+        from app.domains.traveller.schemas import CreateProfileRequest
         svc = self._registry.get("traveller_service")
         request = CreateProfileRequest(**data)
         return svc.create_profile(request)

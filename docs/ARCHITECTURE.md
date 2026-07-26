@@ -188,8 +188,10 @@ tralvana-ai/
 ├── services/
 │   └── api/              API layer — FastAPI app
 │       └── app/
-│           ├── routers/  One file per resource group
-│           └── models/   Pydantic request/response schemas
+│           ├── domains/  Cohesive Traveller, Goal, Trip, Discovery,
+│           │             Event, and Commercial domain packages
+│           ├── routers/  Cross-domain/composition endpoints
+│           └── adapters/ API implementations of AI-owned ports
 │
 ├── ai/
 │   ├── agents/           One file per specialist agent class (flight/hotel/budget/

@@ -10,7 +10,7 @@ _logger = TravelLogger.for_service("ServiceRegistry")
 # Canonical names and their module + attribute paths.
 # Paths use `app.*` because services run with services/api/ in sys.path.
 _SERVICE_MAP: dict[str, tuple[str, str]] = {
-    "traveller_service": ("app.services.traveller_service", "traveller_service"),
+    "traveller_service": ("app.domains.traveller.service", "traveller_service"),
     "goal_service": ("app.domains.goals.service", "goal_service"),
     "conversation_engine": ("ai.concierge.conversation_engine", "conversation_engine"),
     "knowledge_service": ("ai.intelligence.knowledge.knowledge_service", "knowledge_service"),
