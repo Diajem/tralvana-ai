@@ -6,9 +6,7 @@ from ai.concierge.intent_classifier import ClassifiedIntent, Intent, IntentClass
 from ai.concierge.response_composer import ResponseComposer
 from ai.concierge.session_store import SessionStore, build_session_store
 from ai.explainability.explainability_engine import explainability_engine
-from ai.manager.travel_manager import travel_manager
 from ai.ports import PlanningPort, get_planning_port
-from ai.shared.agent_context import AgentContext
 from ai.shared.agent_result import AgentResult
 from ai.shared.agent_status import AgentStatus
 from ai.trip_brain.coordinator import trip_brain
@@ -27,7 +25,7 @@ class ConversationEngine:
     2. Classify intent.
     3. Fetch traveller profile.
     4. Run DecisionEngine.
-    5. Dispatch to TravelManager (if ready).
+    5. Dispatch to Trip Brain or a focused Discovery service.
     6. Compose response via ResponseComposer.
     7. Persist session.
     """
@@ -55,6 +53,7 @@ class ConversationEngine:
         classified = self._continue_plan_if_needed(
             session, self._classifier.classify(message)
         )
+        classified = self._add_active_trip_context(session, classified, message)
         profile = self._fetch_profile(session.traveller_id)
         traveller_name = profile.get("identity", {}).get("name") if profile else None
 
@@ -112,6 +111,23 @@ class ConversationEngine:
             if budget_result:
                 results = [budget_result]
 
+        if classified.intent in {
+            Intent.DESTINATION_QUESTION,
+            Intent.TRAVEL_ADVICE,
+        }:
+            destination_result = self._get_destination_recommendations(
+                session, classified.entities, profile
+            )
+            if destination_result:
+                results = [destination_result]
+
+        if classified.intent == Intent.BUDGET_ADVICE:
+            budget_result = self._get_budget_recommendations(
+                session, classified.entities, profile
+            )
+            if budget_result:
+                results = [budget_result]
+
         # Visa-check requests route directly to Visa Intelligence
         # (ai/discovery/visa/), same pattern as flights and accommodation.
         # Unlike Budget/Destination, both nationality and destination are
@@ -138,16 +154,10 @@ class ConversationEngine:
         synthesis_note: str | None = None
         confidence_override: float | None = None
 
-        # PLAN_TRIP — the broad-planning intent — routes through Trip Brain
-        # (ai/trip_brain/), which calls the real Discovery modules
-        # directly, instead of TravelManager's placeholder specialist
-        # agents. See docs/ADR/ADR-017-trip-brain.md and ADR-018. Below,
-        # TravelManager / AgentRegistry remain the live dispatcher for
-        # MODIFY_TRIP, DESTINATION_QUESTION, TRAVEL_ADVICE, and
-        # BUDGET_ADVICE — they were never made unused, only bypassed for
-        # PLAN_TRIP specifically (T-023 investigated full retirement and
-        # found this branch still load-bearing; see ADR-018).
-        if classified.intent == Intent.PLAN_TRIP and decision.has_enough_information:
+        if (
+            classified.intent in {Intent.PLAN_TRIP, Intent.MODIFY_TRIP}
+            and decision.has_enough_information
+        ):
             unified = await trip_brain.plan(
                 traveller_id=session.traveller_id,
                 trip_id=session.trip_id,
@@ -159,23 +169,6 @@ class ConversationEngine:
             synthesis_note = unified.synthesis_note
             confidence_override = unified.overall_confidence
             session.last_recommendation = unified
-        elif decision.has_enough_information and decision.requires_agents:
-            ctx = AgentContext(
-                session_id=session.conversation_id,
-                traveller_id=session.traveller_id,
-                traveller_profile=profile,
-                intent=classified.intent.value,
-                entities=classified.entities,
-            )
-            results = await travel_manager.execute(
-                classified.intent,
-                ctx,
-                decision,
-                {
-                    "destination": classified.entities.get("destination", ""),
-                    "dates": {"hint": classified.entities.get("date_hint")},
-                },
-            )
 
         # EXPLAIN_RECOMMENDATION — a follow-up about the most recent Trip
         # Brain result in this conversation (ai/explainability/). Never
@@ -310,6 +303,40 @@ class ConversationEngine:
                 if classified.intent == Intent.PLAN_TRIP
                 else max(0.8, classified.confidence)
             ),
+            entities=merged,
+        )
+
+    def _add_active_trip_context(
+        self,
+        session: ConversationSession,
+        classified: ClassifiedIntent,
+        message: str,
+    ) -> ClassifiedIntent:
+        """Ground follow-up advice and changes in the active planning session."""
+        contextual_intents = {
+            Intent.MODIFY_TRIP,
+            Intent.DESTINATION_QUESTION,
+            Intent.TRAVEL_ADVICE,
+            Intent.BUDGET_ADVICE,
+        }
+        if classified.intent not in contextual_intents:
+            return classified
+
+        new_entities = dict(classified.entities)
+        merged = {**session.planning_entities, **new_entities}
+        if session.trip_id:
+            merged["trip_id"] = session.trip_id
+        if (
+            not merged.get("destination")
+            and session.last_recommendation
+            and session.last_recommendation.destination
+        ):
+            merged["destination"] = session.last_recommendation.destination
+        if classified.intent == Intent.MODIFY_TRIP and new_entities:
+            merged["modification_detail"] = message
+        return ClassifiedIntent(
+            intent=classified.intent,
+            confidence=classified.confidence,
             entities=merged,
         )
 

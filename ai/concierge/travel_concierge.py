@@ -9,7 +9,7 @@ class TravelConcierge:
     Single AI entry point for all traveller interactions.
 
     Every conversation message flows through here — no code should call
-    the ConversationEngine, TravelManager, or specialist agents directly.
+    the ConversationEngine, Trip Brain, or Discovery services directly.
 
     This is the stable public interface that the API layer depends on.
     Internal implementation (engine, agents, registry) can change without

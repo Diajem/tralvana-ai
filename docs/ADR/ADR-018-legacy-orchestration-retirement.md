@@ -1,7 +1,7 @@
 # ADR-018: Legacy Orchestration Retirement — Investigation Outcome
 
 **Date**: 2026-07-11
-**Status**: Accepted
+**Status**: Superseded by ADR-044
 **Sprint**: 2 (T-023)
 
 ## Context
@@ -136,3 +136,10 @@ shape changes.
 - `docs/TECHNICAL_DEBT_REGISTER.md` gains TD-018, documenting that the
   legacy stack is live infrastructure with a known, scoped path to removal —
   not immediate debt.
+
+## T-032 Outcome
+
+T-032 completed the prerequisite identified here. The four remaining intents
+now use Trip Brain or a focused Discovery service, and the superseded manager,
+registry, and placeholder-agent packages have been deleted. ADR-044 records
+the replacement routes, session-grounding rules, and regression boundary.

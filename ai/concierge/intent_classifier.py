@@ -328,6 +328,7 @@ class IntentClassifier:
                     invalid_candidates = (
                         "the", "my", "a", "an", "be", "me", "do", "go", "is", "stay",
                         "visit", "travel", "plan", "fly", "book", "see", "explore",
+                        "change", "modify", "update", "reschedule", "cancel", "move",
                     )
                     if (
                         len(candidate) > 2

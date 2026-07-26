@@ -1,9 +1,8 @@
 """
 PLAN_TRIP routing through Trip Brain, and narrow-intent regression —
 docs/ADR/ADR-017-trip-brain.md's central guarantee: narrow, single-domain
-intents are untouched by construction (they never reach TripBrain or
-TravelManager), while PLAN_TRIP now reaches the six real Discovery
-modules instead of the Sprint-1 placeholder agents.
+intents are untouched by construction (they never reach Trip Brain), while
+PLAN_TRIP reaches the real Discovery modules.
 """
 
 
@@ -27,11 +26,8 @@ def test_plan_trip_no_longer_returns_placeholder_agent_sections(client):
         "message": "I want to plan a trip to Tokyo in October",
     })
     body = res.json()
-    # Sprint-1 placeholder phrasing ("Live pricing available in Sprint 4"
-    # per-section, from flight_agent/hotel_agent) must not appear — Trip
-    # Brain calls the real Discovery modules, not TravelManager, for
-    # PLAN_TRIP.
-    assert "Live pricing available in Sprint 4." not in body["response"]
+    # Retired Sprint-1 placeholder phrasing must not appear.
+    assert "Sprint 4" not in body["response"]
 
 
 def test_plan_trip_without_enough_information_still_asks_clarifying_questions(client):
@@ -43,16 +39,14 @@ def test_plan_trip_without_enough_information_still_asks_clarifying_questions(cl
     assert body["missing_information"] != []
 
 
-def test_plan_trip_response_includes_recommended_agents_field_for_rollback_visibility(client):
-    # requires_agents (TravelManager's dispatch list) is still computed by
-    # DecisionEngine unchanged and surfaced, even though PLAN_TRIP no
-    # longer dispatches through it — this is a read-only, informational
-    # field, not evidence TravelManager ran.
+def test_plan_trip_response_names_real_intelligence_paths(client):
+    # The public field is informational; it names the real Intelligence
+    # capabilities selected by the conversation layer.
     res = client.post("/conversation/message", json={
         "message": "I want to plan a trip to Tokyo in October",
     })
     body = res.json()
-    assert "flight_agent" in body["recommended_agents"]
+    assert "flight_intelligence" in body["recommended_agents"]
 
 
 class TestNarrowIntentRegression:
@@ -100,12 +94,11 @@ class TestNarrowIntentRegression:
         })
         assert res.json()["intent"] == "WEATHER_ANALYSIS"
 
-    def test_modify_trip_still_uses_legacy_travel_manager_path(self, client):
-        # MODIFY_TRIP is explicitly out of scope for T-022 — only PLAN_TRIP
-        # is repointed at Trip Brain (docs/ADR/ADR-017-trip-brain.md).
+    def test_modify_trip_without_context_asks_for_change_details(self, client):
         res = client.post("/conversation/message", json={
             "message": "I need to change my trip",
         })
         body = res.json()
         assert body["intent"] == "MODIFY_TRIP"
-        assert "Sprint 4" in body["response"]
+        assert "What would you like to change about the trip?" in body["response"]
+        assert body["recommended_agents"] == []

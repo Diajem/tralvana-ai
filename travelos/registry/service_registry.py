@@ -16,7 +16,6 @@ _SERVICE_MAP: dict[str, tuple[str, str]] = {
     "knowledge_service": ("ai.intelligence.knowledge.knowledge_service", "knowledge_service"),
     "trip_planning_service": ("app.domains.trips.service", "trip_planning_service"),
     "memory_service": ("ai.memory.traveller_intelligence_service", "traveller_intelligence_service"),
-    "travel_manager": ("ai.manager.travel_manager", "travel_manager"),
 }
 
 
@@ -34,7 +33,6 @@ class ServiceRegistry:
         knowledge_service      â€” KnowledgeService singleton
         trip_planning_service  â€” TripPlanningService singleton
         memory_service         â€” TravellerIntelligenceService singleton
-        travel_manager         â€” TravelManager singleton
     """
 
     def __init__(self) -> None:

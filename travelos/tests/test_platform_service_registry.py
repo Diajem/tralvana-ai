@@ -21,7 +21,6 @@ def test_registry_lists_known_services_in_stable_order():
         "knowledge_service",
         "trip_planning_service",
         "memory_service",
-        "travel_manager",
     } == set(registry.available())
 
 

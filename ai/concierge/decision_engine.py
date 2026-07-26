@@ -6,7 +6,14 @@ from ai.concierge.intent_classifier import Intent
 
 # Which specialist agents handle each intent.
 _AGENT_MAP: dict[Intent, list[str]] = {
-    Intent.PLAN_TRIP: ["flight_agent", "hotel_agent", "budget_agent", "experience_agent", "visa_agent"],
+    Intent.PLAN_TRIP: [
+        "flight_intelligence",
+        "accommodation_intelligence",
+        "destination_intelligence",
+        "budget_intelligence",
+        "visa_intelligence",
+        "weather_intelligence",
+    ],
     # FLIGHT_SEARCH and ACCOMMODATION_SEARCH are handled directly by their
     # Discovery Layer engines (ai/discovery/flights/, ai/discovery/accommodation/),
     # not dispatched through the specialist-agent registry — see ConversationEngine.
@@ -16,10 +23,10 @@ _AGENT_MAP: dict[Intent, list[str]] = {
     Intent.BUDGET_ANALYSIS: [],
     Intent.VISA_CHECK: [],
     Intent.WEATHER_ANALYSIS: [],
-    Intent.MODIFY_TRIP: ["flight_agent", "hotel_agent"],
-    Intent.DESTINATION_QUESTION: ["experience_agent"],
-    Intent.TRAVEL_ADVICE: ["experience_agent"],
-    Intent.BUDGET_ADVICE: ["budget_agent"],
+    Intent.MODIFY_TRIP: ["trip_brain"],
+    Intent.DESTINATION_QUESTION: ["destination_intelligence"],
+    Intent.TRAVEL_ADVICE: ["destination_intelligence"],
+    Intent.BUDGET_ADVICE: ["budget_intelligence"],
     # Never needs agents — it explains a recommendation Trip Brain already
     # produced (ai/explainability/), reading session state instead of
     # dispatching anything new.
@@ -105,17 +112,25 @@ class DecisionEngine:
             # No month requirement — Weather Intelligence finds the best
             # month to visit when one isn't supplied.
 
+        if intent == Intent.MODIFY_TRIP:
+            if not destination and not entities.get("trip_id"):
+                questions.append(
+                    "Which existing trip or destination would you like to change?"
+                )
+            if not entities.get("modification_detail"):
+                questions.append("What would you like to change about the trip?")
+
         has_enough = len(questions) == 0
         agents = _AGENT_MAP.get(intent, []) if has_enough else []
 
         # --- assumptions ---
-        if "visa_agent" in agents:
+        if "visa_intelligence" in agents:
             if not profile or not profile.get("identity", {}).get("nationality"):
                 assumptions.append(
                     "Visa requirements will be checked — add your passport country to profile for accuracy."
                 )
 
-        if "budget_agent" in agents:
+        if "budget_intelligence" in agents:
             if not profile:
                 assumptions.append(
                     "Budget estimates use mid-range defaults — no traveller profile found."
@@ -136,7 +151,8 @@ class DecisionEngine:
         needs_live = intent in (
             Intent.PLAN_TRIP, Intent.MODIFY_TRIP, Intent.FLIGHT_SEARCH,
             Intent.ACCOMMODATION_SEARCH, Intent.DESTINATION_DISCOVERY, Intent.BUDGET_ANALYSIS,
-            Intent.VISA_CHECK, Intent.WEATHER_ANALYSIS,
+            Intent.VISA_CHECK, Intent.WEATHER_ANALYSIS, Intent.DESTINATION_QUESTION,
+            Intent.TRAVEL_ADVICE, Intent.BUDGET_ADVICE,
         )
 
         return Decision(

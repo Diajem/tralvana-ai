@@ -56,7 +56,8 @@ class TestTotalFailureFloor:
             AgentResult(agent_name="weather_intelligence", status=AgentStatus.FAILED, confidence=0.0),
         ]
         text = composer.compose(Intent.PLAN_TRIP, ready_decision, results)
-        assert "I'll bring in live data for flights, hotels, and pricing" in text
+        assert "I couldn't retrieve enough planning data for a complete answer" in text
+        assert "unless this response names a live source" in text
 
     def test_partial_failure_does_not_trigger_no_results_fallback(self, composer, ready_decision):
         results = [
@@ -74,7 +75,8 @@ class TestTotalFailureFloor:
 
     def test_empty_results_still_triggers_fallback(self, composer, ready_decision):
         text = composer.compose(Intent.PLAN_TRIP, ready_decision, [])
-        assert "I'll bring in live data for flights, hotels, and pricing" in text
+        assert "I couldn't retrieve enough planning data for a complete answer" in text
+        assert "unless this response names a live source" in text
 
 
 class TestEventSection:

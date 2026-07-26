@@ -268,7 +268,7 @@ ADR-043.
 
 ### TD-018 — Legacy specialist-agent orchestration still live for four intents
 **Severity**: Medium
-**Status**: Open
+**Status**: Resolved (T-032)
 **Introduced**: T-001B (Sprint 0); misdiagnosed as retirable in ADR-017 (T-021)
 
 `ai/manager/TravelManager`, `ai/registry/AgentRegistry`, and the five
@@ -297,6 +297,15 @@ real Discovery-module or Trip Brain equivalent, `ai/manager/`,
 can be deleted — the deletion T-023 was originally asked to perform. See
 `docs/ADR/ADR-018-legacy-orchestration-retirement.md` for the full
 investigation.
+
+**Resolution (T-032, 2026-07-26)**: `DESTINATION_QUESTION` and
+`TRAVEL_ADVICE` now call Destination Intelligence; `BUDGET_ADVICE` calls
+Budget Intelligence; and `MODIFY_TRIP` merges the active session's trip and
+planning context before rerunning Trip Brain. Incomplete standalone change
+requests ask for the missing trip and modification details. The superseded
+`ai/manager/`, `ai/registry/`, and five placeholder-agent source packages are
+deleted, and an automated production-tree scan prevents those imports from
+returning. See ADR-044.
 
 ---
 
@@ -422,6 +431,6 @@ otherwise need to import from `travelos/live_providers/`; see ADR-021).
 
 | Sprint | Items to close |
 |--------|---------------|
-| Sprint 2 | ~~TD-001, TD-002, TD-003, TD-004, TD-005, TD-016, TD-017~~ — all closed in T-014; TD-015 (platform layer tests) partially addressed in T-025, remains open for SDK/EventBus/shared types, tracked as T-012A; TD-018 (legacy orchestration retirement blocked on T-032) opened in T-023; TD-019/TD-020 (deferred Intelligence Gateway integrations) opened in T-025; TD-021/TD-022/TD-023 (deferred Live Provider Framework items) opened in T-026 |
+| Sprint 2 | ~~TD-001, TD-002, TD-003, TD-004, TD-005, TD-015, TD-016, TD-017, TD-018~~ resolved; TD-019/TD-020 (deferred Intelligence Gateway integrations) opened in T-025; TD-021/TD-022/TD-023 (deferred Live Provider Framework items) opened in T-026 |
 | Sprint 3 | TD-010 (static KG enrichment), TD-011 (traveller domain), TD-013 (pagination), TD-019 (wire remaining Discovery providers to the gateway) |
-| Sprint 4+ | TD-009 (demo isolation), TD-012 (ontology split), TD-014 (infra), TD-018 (legacy orchestration, pending T-032), TD-020 (Maps/Currency/Events providers, pending new Discovery modules), TD-021/TD-022 (real transport + OAuth2 exchange, pending the first real vendor integration), TD-023 (mock provider metrics) |
+| Sprint 4+ | TD-009 (demo isolation), TD-012 (ontology split), TD-014 (infra), TD-020 (Maps/Currency providers, pending new Discovery modules), TD-022 (OAuth2 exchange, pending a vendor that requires it), TD-023 (mock provider metrics) |
