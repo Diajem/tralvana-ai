@@ -41,6 +41,7 @@ def _event(
     name: str = "New York City FC",
     status: str = "onsale",
     url: str = "https://www.ticketmaster.com/event/evt-1",
+    attraction_names: list[str] | None = None,
 ) -> dict:
     return {
         "id": event_id,
@@ -69,7 +70,11 @@ def _event(
                     "state": {"name": "New York"},
                     "country": {"name": "United States"},
                 }
-            ]
+            ],
+            "attractions": [
+                {"name": attraction_name}
+                for attraction_name in attraction_names or []
+            ],
         },
     }
 
@@ -142,7 +147,46 @@ def test_live_response_maps_to_canonical_event_shape(monkeypatch):
     assert option["ticket_url"].startswith("https://")
     assert option["source_name"] == "Ticketmaster Discovery API"
     assert option["evidence_level"] == "LIVE"
+    assert option["team_level"] == "SENIOR_OR_OPEN"
     assert {"soccer", "football", "sport", "match"} <= set(option["tags"])
+
+
+def test_reserve_or_youth_marker_is_preserved_for_ranking(monkeypatch):
+    monkeypatch.setenv(_KEY_ENV, "consumer-key-for-test")
+    provider = TicketmasterEventProvider(
+        transport=FakeTransport.always_returning(
+            200,
+            _body(
+                _event(
+                    name="NYCFC II vs Toronto FC II",
+                    attraction_names=["New York City FC II"],
+                )
+            ),
+        )
+    )
+
+    option = provider.execute(_request()).data[0]
+
+    assert option["team_level"] == "RESERVE_OR_YOUTH"
+
+
+def test_womens_senior_listing_is_not_misclassified_as_youth(monkeypatch):
+    monkeypatch.setenv(_KEY_ENV, "consumer-key-for-test")
+    provider = TicketmasterEventProvider(
+        transport=FakeTransport.always_returning(
+            200,
+            _body(
+                _event(
+                    name="Gotham FC Women vs Washington Spirit",
+                    attraction_names=["Gotham FC Women"],
+                )
+            ),
+        )
+    )
+
+    option = provider.execute(_request()).data[0]
+
+    assert option["team_level"] == "SENIOR_OR_OPEN"
 
 
 def test_missing_embedded_events_is_a_valid_empty_search(monkeypatch):

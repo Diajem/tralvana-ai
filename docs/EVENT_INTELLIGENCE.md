@@ -1,4 +1,4 @@
-# Event Intelligence — T-053–T-055
+# Event Intelligence — T-053–T-056
 
 Event Intelligence adds a provider-neutral `EVENTS` discovery path for
 event-shaped trip interests such as fashion, football, soccer, matches,
@@ -35,6 +35,18 @@ Tralvana independently:
 - rejects live listings that do not match any stated interest; and
 - prevents a generic Sports classification from being treated as evidence of
   a soccer/football match.
+
+T-056 adds a conservative team-level signal for soccer listings:
+
+- explicit reserve, academy, youth, age-group, B-team, or roman-numeral-II
+  labels map to `RESERVE_OR_YOUTH`;
+- a soccer listing without one of those provider-text markers maps to
+  `SENIOR_OR_OPEN`, which does not claim that Ticketmaster guaranteed a
+  senior first-team fixture;
+- comparable `SENIOR_OR_OPEN` listings rank above reserve/youth listings;
+  and
+- a reserve/youth match remains visible when it is the only relevant match in
+  the traveller's date window.
 
 ## Architecture
 

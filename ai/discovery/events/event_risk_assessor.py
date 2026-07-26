@@ -29,6 +29,11 @@ class EventRiskAssessor:
             risks.append(
                 "Use only the official organiser, venue, club, or authorised ticket seller."
             )
+        if event.get("team_level") == "RESERVE_OR_YOUTH":
+            risks.append(
+                "Provider text identifies a reserve or youth fixture rather than "
+                "a senior/open first-team listing."
+            )
         return risks
 
 

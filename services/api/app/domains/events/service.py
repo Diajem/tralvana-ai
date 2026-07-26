@@ -57,6 +57,7 @@ class EventIntelligenceService:
                 availability_status=option["availability_status"],
                 ticket_url=option["ticket_url"],
                 requires_ticket=option["requires_ticket"],
+                team_level=option["team_level"],
                 interests_matched=option["interests_matched"],
                 match_score=option["match_score"],
                 reasoning=option["reasoning"],

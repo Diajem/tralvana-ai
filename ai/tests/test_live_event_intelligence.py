@@ -316,6 +316,82 @@ def test_unrelated_live_sports_are_removed_from_soccer_results(monkeypatch):
     assert output["filter_summary"]["excluded_as_irrelevant"] == 1
 
 
+def test_senior_or_open_soccer_listing_ranks_above_reserve_team(monkeypatch):
+    events = [
+        _live_event(
+            event_id="reserve",
+            name="NYCFC II vs Toronto FC II",
+            local_date="2026-08-10",
+            date_time="2026-08-10T23:00:00Z",
+            segment="Sports",
+            genre="Soccer",
+        ),
+        _live_event(
+            event_id="senior",
+            name="New York City FC vs Inter Miami CF",
+            local_date="2026-08-12",
+            date_time="2026-08-12T23:00:00Z",
+            segment="Sports",
+            genre="Soccer",
+        ),
+    ]
+    engine, _, _ = _live_engine(
+        monkeypatch,
+        lambda request: TransportResponse(
+            status_code=200,
+            body=_event_body(*events),
+        ),
+    )
+
+    output = engine.recommend(
+        destination="New York",
+        start_date="2026-08-07",
+        end_date="2026-08-22",
+        interests=["soccer"],
+    )
+
+    assert [option["name"] for option in output["event_options"]] == [
+        "New York City FC vs Inter Miami CF",
+        "NYCFC II vs Toronto FC II",
+    ]
+    assert output["event_options"][0]["team_level"] == "SENIOR_OR_OPEN"
+    assert output["event_options"][1]["team_level"] == "RESERVE_OR_YOUTH"
+    assert output["event_options"][0]["match_score"] > (
+        output["event_options"][1]["match_score"]
+    )
+    assert "reserve or youth" in output["event_options"][1]["reasoning"].lower()
+
+
+def test_reserve_team_remains_useful_when_no_senior_listing_exists(monkeypatch):
+    reserve = _live_event(
+        event_id="reserve-only",
+        name="NYCFC II vs Columbus Crew 2",
+        local_date="2026-08-10",
+        date_time="2026-08-10T23:00:00Z",
+        segment="Sports",
+        genre="Soccer",
+    )
+    engine, _, _ = _live_engine(
+        monkeypatch,
+        lambda request: TransportResponse(
+            status_code=200,
+            body=_event_body(reserve),
+        ),
+    )
+
+    output = engine.recommend(
+        destination="New York",
+        start_date="2026-08-07",
+        end_date="2026-08-22",
+        interests=["soccer"],
+    )
+
+    assert [option["name"] for option in output["event_options"]] == [
+        "NYCFC II vs Columbus Crew 2"
+    ]
+    assert output["event_options"][0]["team_level"] == "RESERVE_OR_YOUTH"
+
+
 def test_live_search_without_trip_dates_excludes_events_before_today(monkeypatch):
     from datetime import date
 

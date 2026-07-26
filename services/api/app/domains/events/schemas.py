@@ -35,6 +35,7 @@ class EventOptionResponse(BaseModel):
     availability_status: str
     ticket_url: str | None
     requires_ticket: bool
+    team_level: str
     interests_matched: list[str]
     match_score: float
     reasoning: str

@@ -20,6 +20,7 @@ class EventOption:
     availability_status: str
     ticket_url: str | None
     requires_ticket: bool
+    team_level: str
     interests_matched: list[str]
     match_score: float
     reasoning: str
@@ -47,6 +48,7 @@ class EventOption:
             "availability_status": self.availability_status,
             "ticket_url": self.ticket_url,
             "requires_ticket": self.requires_ticket,
+            "team_level": self.team_level,
             "interests_matched": self.interests_matched,
             "match_score": self.match_score,
             "reasoning": self.reasoning,
