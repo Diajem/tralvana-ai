@@ -12,7 +12,7 @@ Traveller  →  Goal  →  Trip Brief  →  Trip Plan  →  Itinerary + Budget +
 |-------|--------|----------------|
 | Domain | `services/api/app/domains/trips/` | TripPlan model, REST API, in-memory repo |
 | AI Orchestrator | `ai/planning/trip_planner.py` | Coordinates all planners |
-| Itinerary | `ai/planning/itinerary_builder.py` | Day-by-day plan by goal_type |
+| Itinerary | `ai/planning/itinerary_builder.py` | Day-by-day plan by goal type, enriched from the current knowledge graph |
 | Budget | `ai/planning/budget_estimator.py` | Cost estimate using TIL or static tables |
 | Risk | `ai/planning/risk_assessor.py` | Safety, visa, and logistic risks |
 | Conversation | `ai/concierge/conversation_engine.py` | Auto-triggers on PLAN_TRIP intent |
@@ -74,7 +74,11 @@ Each day in `draft_itinerary`:
 - Day 1: always Arrival
 - Day N: always Departure
 - Middle days: cycled from goal_type templates (11 types × 4 themes each)
-- When destination is in the knowledge graph: enriches mornings/evenings/afternoons with real venues
+- Resolves the destination City at build time
+- Reads connected Attractions (`NEAR`), Museums (`LOCATED_IN`), and Restaurants (`BELONGS_TO`) through `KnowledgeService`
+- Deduplicates and deterministically orders current graph entities before rotating them across days
+- Preserves generic goal templates when the destination or an entity category is absent from the graph
+- Runtime graph additions are visible to both legacy Trip Plans and Trip Brain daily outlines on the next build
 
 ### BudgetEstimator
 1. Tries `BudgetReasoner` from Travel Intelligence Layer (uses KG city/country/continent data)
@@ -109,6 +113,6 @@ When a message triggers `PLAN_TRIP` with destination and date known:
 ## Constraints
 
 - No external APIs
-- No database (in-memory only)
+- Goal and Trip records use PostgreSQL when `DATABASE_URL` is configured; the current knowledge graph remains in memory
 - No bookings
 - Sprint 3+: swap `TripRepository` for PostgreSQL adapter

@@ -64,6 +64,7 @@ Live register of all engineering tasks. Update status in the same PR that comple
 | T-034 | PostgreSQL Persistence — Goals and Trips | `complete` | critical | This PR | Replaces process-local Goal and Trip storage with transactional SQLAlchemy adapters when `DATABASE_URL` is configured, reusing Tralvana's existing PostgreSQL/Alembic stack and preserving zero-setup in-memory adapters when it is absent. Alembic `0004` adds indexed Goal/Trip tables and advances readiness gating. Public APIs and planning behaviour are unchanged; no traveller or conversation persistence. Validation: migration upgrade/downgrade, persistent cross-instance CRUD, 1,392 tests, Ruff, frontend lint/build. ADR-038. |
 | T-035 | Redis Conversation Session Persistence | `complete` | high | This PR | Replaces `ConversationEngine`'s process-owned dictionary with an injected session-store contract: versioned-JSON Redis records and a transactionally maintained Trip-ID index when `REDIS_URL` is configured, configurable same-key TTL, credential-safe fail-fast connectivity, and a zero-setup in-memory adapter when it is absent. Preserves complete multi-turn planning and explainability state across worker instances. No hosted service, credential, auth, permanent chat archive, or provider cache is added. Validation: 1,409 tests, Ruff, frontend lint/build. ADR-039. |
 | T-036 | AI↔API PlanningPort Dependency Inversion | `complete` | medium | This PR | Adds an AI-owned `PlanningPort`, application-owned adapter, and composition-root binding for Goal/Trip and all seven Discovery operations. Removes every `app.*` import from production `ai/` code and enforces the boundary with an automated repository scan, while preserving domain services and public behaviour. Validation: 1,412 tests, Ruff, frontend lint/build. Resolves REC-008/TD-006. ADR-040. |
+| T-028 | Replace Static KG Itinerary Enrichments with Runtime Queries | `complete` | medium | This PR | Removes `_KG_ENRICHMENTS` and makes `ItineraryBuilder` query the shared `KnowledgeService` for the destination's current Attractions, Museums, and Restaurants on every build. Uses explicit typed relationships, deterministic deduplication/order, injectable graph services, and unchanged generic templates when a city or category is absent. Runtime graph changes now reach both legacy Trip Plans and Trip Brain daily outlines without restart or duplicated venue data. Validation: 1,417 tests, Ruff, frontend lint/build. Resolves REC-009/TD-010. ADR-041. |
 
 ---
 
@@ -77,7 +78,6 @@ No remaining tasks.
 
 | Task ID | Title | Status | Priority | Notes |
 |---------|-------|--------|----------|-------|
-| T-028 | Replace static KG enrichments with live queries | `planned` | medium | ItineraryBuilder reads from KnowledgeService at runtime; see REC-009, TD-010 |
 | T-029 | Kuzu graph database | `planned` | medium | Replace in-memory KG with persistent Kuzu DB |
 | T-030 | Promote Traveller to domain | `planned` | medium | Move to `services/api/app/domains/traveller/`; see REC-006, TD-011 |
 | T-031 | Auth layer | `planned` | high | Clerk or NextAuth.js — protect API routes |

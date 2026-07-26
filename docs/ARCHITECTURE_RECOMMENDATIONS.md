@@ -124,11 +124,17 @@ imports anywhere in production `ai/` code. See ADR-040.
 
 ### REC-009: Replace static `_KG_ENRICHMENTS` with live KG queries
 
+**Status**: Resolved (T-028)
+
 **What**: Refactor `ItineraryBuilder.build()` to call `KnowledgeService.get_connected_entities()` rather than reading from the hardcoded `_KG_ENRICHMENTS` dict.
 
 **Why**: The static dict is a frozen snapshot. When the KG grows (new venues, updated data), itineraries don't reflect the change. This is already how `BudgetEstimator` works — it queries the `BudgetReasoner` which queries the KG.
 
 **Risk**: Slight performance impact (in-memory graph traversal vs dict lookup) — acceptable given the KG is fully in-memory.
+
+T-028 applies typed one-hop queries for Attractions, Museums, and Restaurants
+at build time, with deterministic ordering and generic-template behaviour when
+the graph has no matching data. See ADR-041.
 
 ---
 

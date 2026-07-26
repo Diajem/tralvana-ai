@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+from ai.intelligence.knowledge.relationships import RelationshipType
+
+if TYPE_CHECKING:
+    from ai.intelligence.knowledge.knowledge_service import KnowledgeService
 
 # (theme_title, morning, afternoon, evening) per goal type
 _TEMPLATES: dict[str, list[tuple[str, str, str, str]]] = {
@@ -88,63 +93,24 @@ _DAILY_COSTS: dict[str, int] = {
     "comfort": 300, "luxury": 650,
 }
 
-# Destination-aware enrichment (knowledge graph cities → notable venues/activities)
-_KG_ENRICHMENTS: dict[str, dict[str, list[str]]] = {
-    "london": {
-        "landmarks": ["Tower of London", "Buckingham Palace", "Hyde Park", "Borough Market"],
-        "museums": ["British Museum", "National Gallery", "Tate Modern"],
-        "restaurants": ["local gastro pubs", "Borough Market stalls", "West End brasseries"],
-    },
-    "paris": {
-        "landmarks": ["Eiffel Tower", "Montmartre", "Champs-Elysees", "Sainte-Chapelle"],
-        "museums": ["Louvre", "Musée d'Orsay", "Centre Pompidou"],
-        "restaurants": ["Le Marais bistros", "Montmartre cafes", "Seine-side brasseries"],
-    },
-    "tokyo": {
-        "landmarks": ["Shibuya Crossing", "Senso-ji Temple", "Shinjuku", "Tsukiji Outer Market"],
-        "museums": ["Tokyo National Museum", "teamLab Borderless"],
-        "restaurants": ["ramen shops", "izakayas", "sushi counters"],
-    },
-    "barcelona": {
-        "landmarks": ["Sagrada Familia", "Park Guell", "Las Ramblas", "Gothic Quarter"],
-        "museums": ["Picasso Museum", "Miro Foundation"],
-        "restaurants": ["La Boqueria market", "tapas bars", "beachfront paella restaurants"],
-    },
-    "dubai": {
-        "landmarks": ["Burj Khalifa", "Dubai Mall", "Gold Souk", "Desert Safari"],
-        "museums": ["Dubai Museum", "Al Fahidi Fort"],
-        "restaurants": ["rooftop restaurants", "spice souk cafes", "international dining"],
-    },
-    "rome": {
-        "landmarks": ["Colosseum", "Vatican Museums", "Trevi Fountain", "Piazza Navona"],
-        "museums": ["Vatican Museums", "Borghese Gallery", "Capitoline Museums"],
-        "restaurants": ["Trastevere trattorias", "Campo de' Fiori markets", "gelato shops"],
-    },
-    "cape town": {
-        "landmarks": ["Table Mountain", "V&A Waterfront", "Robben Island", "Boulders Beach"],
-        "museums": ["District Six Museum", "Iziko South African Museum"],
-        "restaurants": ["waterfront seafood", "wine farm restaurants", "Bo-Kaap cafes"],
-    },
-    "lagos": {
-        "landmarks": ["Lekki Conservation Centre", "Nike Art Gallery", "Bar Beach", "National Museum"],
-        "museums": ["National Museum Lagos", "Nike Art Gallery"],
-        "restaurants": ["suya spots", "Ikoyi restaurants", "waterfront dining"],
-    },
-    "new york": {
-        "landmarks": ["Central Park", "Brooklyn Bridge", "Times Square", "High Line"],
-        "museums": ["Met Museum", "MoMA", "Natural History Museum"],
-        "restaurants": ["NYC delis", "rooftop bars", "ethnic cuisine in Queens"],
-    },
-}
-
-
 class ItineraryBuilder:
     """
     Builds a day-by-day itinerary using goal_type templates and optional
     knowledge graph destination data.
 
-    Sprint 3+: integrate live activity APIs (Viator, GetYourGuide).
+    Knowledge-graph enrichment is resolved at build time so runtime graph
+    changes are reflected immediately. Sprint 3+: integrate live activity
+    APIs (Viator, GetYourGuide).
     """
+
+    def __init__(self, knowledge_service: KnowledgeService | None = None) -> None:
+        if knowledge_service is not None:
+            self._knowledge_service = knowledge_service
+        else:
+            # Lazy import avoids coupling module import order to graph seeding.
+            from ai.intelligence import knowledge_service as default_knowledge_service
+
+            self._knowledge_service = default_knowledge_service
 
     def build(
         self,
@@ -155,7 +121,7 @@ class ItineraryBuilder:
         interests: list[str] | None = None,
     ) -> list[dict[str, Any]]:
         templates = _TEMPLATES.get(goal_type, _TEMPLATES["GENERAL_TRAVEL"])
-        enrich = _KG_ENRICHMENTS.get(destination.lower(), {})
+        enrich = self._destination_enrichment(destination)
         accommodation = _ACCOMMODATION_TIERS.get(budget_style, _ACCOMMODATION_TIERS["balanced"])
         daily_cost = _DAILY_COSTS.get(budget_style, _DAILY_COSTS["balanced"])
 
@@ -205,6 +171,34 @@ class ItineraryBuilder:
         return itinerary
 
     # ------------------------------------------------------------------
+
+    def _destination_enrichment(self, destination: str) -> dict[str, list[str]]:
+        """Load current destination venues from the shared knowledge graph."""
+        city = self._knowledge_service.find_entity("City", destination.strip())
+        if city is None:
+            return {}
+
+        queries = {
+            "landmarks": ("Attraction", RelationshipType.NEAR),
+            "museums": ("Museum", RelationshipType.LOCATED_IN),
+            "restaurants": ("Restaurant", RelationshipType.BELONGS_TO),
+        }
+        enrich: dict[str, list[str]] = {}
+        for key, (entity_type, relationship_type) in queries.items():
+            entities = self._knowledge_service.get_connected_entities(
+                city.id,
+                entity_type,
+                relationship_type,
+                "inbound",
+            )
+            names = {
+                str(entity.name).strip()
+                for entity in entities
+                if str(getattr(entity, "name", "")).strip()
+            }
+            if names:
+                enrich[key] = sorted(names, key=str.casefold)
+        return enrich
 
     def _apply_interest(
         self,

@@ -202,12 +202,19 @@ Running `ruff check .` against the current backend/AI codebase surfaces 72 viola
 
 ### TD-010 — Static `_KG_ENRICHMENTS` in ItineraryBuilder
 **Severity**: Medium
-**Status**: Open
+**Status**: Closed (T-028)
 **Introduced**: T-008
 
 `ai/planning/itinerary_builder.py` has a hardcoded `_KG_ENRICHMENTS` dict with static venue lists for 10 cities. This is a snapshot of the KG at build time. When the KG is updated (new restaurants, attractions) the itinerary builder won't reflect changes.
 
-**Resolution**: Sprint 3 — replace `_KG_ENRICHMENTS` with a live query to `KnowledgeService.get_connected_entities()` at itinerary build time.
+**Resolution**: T-028 removed `_KG_ENRICHMENTS`. `ItineraryBuilder` now resolves
+the destination City and queries current Attraction (`NEAR`), Museum
+(`LOCATED_IN`), and Restaurant (`BELONGS_TO`) entities through
+`KnowledgeService.get_connected_entities()` on every build. Results are
+deduplicated and deterministically ordered; unknown or sparsely represented
+cities retain the existing generic templates. Injected-service tests prove
+that graph mutations made after builder construction appear in the next
+itinerary.
 
 ---
 
