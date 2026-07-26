@@ -2,7 +2,7 @@
 
 T-012 — Deterministic test suite for TravelOS backend API and AI layer.
 
-## Overview
+## Original T-012 Baseline
 
 | Suite | Location | Tests | Runner |
 |-------|----------|------:|--------|
@@ -11,6 +11,26 @@ T-012 — Deterministic test suite for TravelOS backend API and AI layer.
 | **Total** | | **92** | |
 
 No mocks for external services — the in-memory singletons are fast and deterministic by design.
+
+## T-012A Platform Coverage
+
+T-012A closes the direct-coverage gap left when the `travelos/` platform layer
+shipped alongside the original two test roots. It adds 67 tests under
+`travelos/tests/test_platform_*.py`:
+
+| Area | Direct contracts covered |
+|---|---|
+| SDK | schema validation, service delegation, getters, knowledge normalisation, reasoning, async concierge |
+| Registry | lazy import, caching, overrides, discovery, reset, actionable import failures |
+| Configuration | environment defaults/overrides, CORS, booleans, provider precedence, numeric settings, capability modes, singleton reload |
+| Events | event identity/serialisation, typed and wildcard subscribers, unsubscribe, handler-failure isolation, snapshot delivery |
+| Logging | level resolution, dynamic level reload, structured context, exception metadata |
+| Container | instances, lazy singletons, dependency resolution, child scope, reset |
+| Shared types | Result/Error, Identifier, Timestamp, Pagination/Page |
+| Base classes | repository CRUD/existence/pagination and service identity/logger |
+
+The full suite after T-012A contains 1,371 tests. Platform tests open no socket,
+require no credential, use no database, and add no dependency.
 
 ## Running Tests
 
@@ -24,6 +44,9 @@ pytest services/api/tests/
 # AI layer only
 pytest ai/tests/
 
+# Platform layer only
+pytest travelos/tests/
+
 # Verbose with failure detail
 pytest -v --tb=short
 ```
@@ -34,7 +57,7 @@ pytest -v --tb=short
 
 ```ini
 [pytest]
-testpaths = services/api/tests ai/tests
+testpaths = services/api/tests ai/tests travelos/tests
 python_files = test_*.py
 python_classes = Test*
 python_functions = test_*
