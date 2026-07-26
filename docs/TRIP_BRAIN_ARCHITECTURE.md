@@ -12,7 +12,11 @@ explainability path. See `docs/EVENT_INTELLIGENCE.md` and ADR-033.
 
 Every Discovery module built so far (T-015–T-020) is invoked one at a time: a traveller message classifies to exactly one `Intent`, and `ConversationEngine` routes it to exactly one Discovery module's service (`_get_flight_recommendations`, `_get_weather_assessment`, etc.). This works for a single, narrow question ("recommend flights to Tokyo") but not for what a travel concierge actually needs to do: answer "help me plan a football trip to Tokyo in April" by drawing on *all six* modules at once, reconciling their outputs, and replying with one coherent recommendation — not six separate answers stitched together by the traveller themselves.
 
-There is also a second, more concrete problem this document surfaces: **`PLAN_TRIP` — the intent a broad planning request actually classifies to — does not call any of the six real Discovery modules today.** It still calls the Sprint-1 placeholder specialist agents (`flight_agent`, `hotel_agent`, `budget_agent`, `experience_agent`, `visa_agent` via `ai/manager/TravelManager` + `ai/registry/AgentRegistry`), which return static "pending_live_data" stubs. The six real modules are only reachable through their own narrow, single-purpose intents (`FLIGHT_SEARCH`, `ACCOMMODATION_SEARCH`, etc.). Trip Brain's primary job is to close this gap — see "Relationship to Existing Orchestration" below.
+At the time this architecture was written, `PLAN_TRIP` still called Sprint-1
+placeholder agents instead of the real Discovery modules. T-022 closed that
+gap for new plans. T-032 later completed the migration for the four remaining
+legacy intents and removed the placeholder runtime; see "Relationship to
+Existing Orchestration" below.
 
 ## Responsibilities
 
@@ -42,6 +46,15 @@ The repository currently has two parallel, disconnected orchestration paths. Tri
 Trip Brain's core architectural move: **`PLAN_TRIP` (and any future broad-planning intent) routes through Trip Brain, which calls the six real Discovery module services instead of the five placeholder agents.** `TravelManager`/`AgentRegistry` is not deleted by this document (no code changes here at all). Implementation is deliberately split across two later tasks: **T-022** builds Trip Brain and repoints `PLAN_TRIP` at it; **T-023**, a distinct task started only after T-022 is fully implemented and verified, investigates retiring Track A. Track B's per-domain intents (`FLIGHT_SEARCH` etc.) are untouched throughout; a traveller can still ask a narrow single-domain question and get a fast, single-module answer without invoking the full Trip Brain pipeline.
 
 **Correction (T-023, see ADR-018):** the sentence above originally claimed T-022 left Track A's code "in place, uncalled, as a rollback path," to be removed wholesale by T-023. That was inaccurate. `TravelManager`/`AgentRegistry` and the five placeholder agents were only ever bypassed for **`PLAN_TRIP`**. `ConversationEngine.process()` still dispatches `MODIFY_TRIP`, `DESTINATION_QUESTION`, `TRAVEL_ADVICE`, and `BUDGET_ADVICE` through `travel_manager.execute()` — this was true before T-022 and remains true after it; those four intents have no Trip Brain or Discovery-module equivalent. T-023's investigation (full repository import trace) confirmed Track A is live, active code for those four intents, not dormant rollback code, and left it in place. Full retirement is possible only after those four intents are migrated to a real module or folded into Trip Brain — that migration is unscoped, future work (see `docs/TASK_TRACKER.md` T-032).
+
+**Completion (T-032, see ADR-044):** the migration prerequisite is now
+satisfied. `MODIFY_TRIP` merges the active session's planning entities,
+Trip ID, and latest recommendation before rerunning Trip Brain; incomplete
+standalone changes ask for the missing trip and modification details.
+`DESTINATION_QUESTION` and `TRAVEL_ADVICE` call Destination Intelligence,
+while `BUDGET_ADVICE` calls Budget Intelligence. The old `ai/manager/`,
+`ai/registry/`, and `ai/agents/` placeholder packages are deleted and a
+repository test prevents their production imports from returning.
 
 ## Orchestration Lifecycle
 
@@ -97,7 +110,9 @@ What happens, end to end, for one traveller message:
 4. `DecisionEngine.decide()` runs, as today, producing `has_enough_information`, `follow_up_questions`, `is_safety_sensitive`.
 5. If information is missing, the existing clarification path fires unchanged — Trip Brain is never invoked for an incomplete request, exactly like every Discovery module today.
 6. If the intent is a **narrow, single-domain intent** (`FLIGHT_SEARCH`, `ACCOMMODATION_SEARCH`, `DESTINATION_DISCOVERY`, `BUDGET_ANALYSIS`, `VISA_CHECK`, `WEATHER_ANALYSIS`), `ConversationEngine` continues to call that one module directly, exactly as it does today — Trip Brain adds nothing here, and nothing regresses.
-7. If the intent is **broad** (`PLAN_TRIP`, or a future `TRIP_BRAIN` catch-all — see ADR-017), `ConversationEngine` hands off to Trip Brain instead of `TravelManager`.
+7. If the intent is **broad** (`PLAN_TRIP`) or a grounded change request
+   (`MODIFY_TRIP`), `ConversationEngine` hands off to Trip Brain. Destination
+   and budget advice intents call their focused Discovery services directly.
 8. Trip Brain builds context, selects modules, runs them, merges, resolves conflicts, computes confidence, and returns one `UnifiedRecommendation`.
 9. `ResponseComposer` composes the traveller-facing text from the `UnifiedRecommendation`, the same place it already composes text from a single `AgentResult` today.
 10. The session is updated and persisted, as today.
@@ -144,7 +159,11 @@ Trip Brain formalizes this into an explicit policy rather than an implicit per-c
 
 1. **Per-module isolation.** Each of the (up to six) module calls is wrapped independently. One module raising or timing out does not abort the others — they run to completion regardless (see the sequence diagram below).
 2. **Graceful degradation, not failure.** If Weather Intelligence fails but Flight and Accommodation succeed, Trip Brain returns a `UnifiedRecommendation` built from the two that succeeded, with an `assumptions` entry stating plainly that the weather assessment could not be produced — the same honesty convention every Discovery module already uses for missing input ("No traveller profile linked...", "No goal budget cap supplied...").
-3. **Total failure floor.** If *zero* modules succeed, Trip Brain returns a result equivalent to today's `AgentStatus.NEEDS_INFORMATION` / empty-results path — `ResponseComposer` already has a fallback branch for "no results" (`"I'll bring in live data for flights, hotels, and pricing in a future sprint..."`) that this reuses without modification.
+3. **Total failure floor.** If *zero* modules succeed, Trip Brain returns a
+   result equivalent to the `AgentStatus.NEEDS_INFORMATION` / empty-results
+   path. `ResponseComposer` explains that there is not enough planning data
+   for a complete answer and offers to refine the request; it does not promise
+   a future sprint or imply a live source.
 4. **No silent retries, no cross-module fallback substitution.** If Visa Intelligence fails, Trip Brain does not attempt to answer the visa question from another module — it omits that section and says so. Inventing an answer from the wrong source would violate the "not legal advice" / "not a forecast" disclaimers every affected module already carries.
 
 ## Confidence Propagation

@@ -79,13 +79,13 @@ class ResponseComposer:
         # empty.
         if not any(r.status != AgentStatus.FAILED for r in results):
             parts.append(
-                "I'll bring in live data for flights, hotels, and pricing in a future sprint. "
-                "For now, I can give you cost estimates and destination insights."
+                "I couldn't retrieve enough planning data for a complete answer. "
+                "I can still help refine the request or provide destination guidance."
             )
 
         if decision.requires_live_data:
             parts.append(
-                "_Live pricing and availability will be connected in Sprint 4._"
+                "_Availability and prices are estimates unless this response names a live source._"
             )
 
         return "\n\n".join(parts)
@@ -110,17 +110,6 @@ class ResponseComposer:
             return ""
 
         d = result.data
-
-        if result.agent_name == "budget_agent":
-            flight = d.get("estimated_flight_cost", "TBD")
-            hotel = d.get("estimated_hotel_per_night", "TBD")
-            daily = d.get("estimated_daily_total", "TBD")
-            cabin = d.get("cabin_class", "economy")
-            return (
-                f"**Budget estimate ({cabin} class):** "
-                f"Flights from ~{flight}, hotels from ~{hotel}/night, "
-                f"daily spend ~{daily}."
-            )
 
         if result.agent_name == "flight_intelligence":
             top = d.get("top_option", {})
@@ -197,48 +186,6 @@ class ResponseComposer:
                 f"{d.get('destination', 'the destination')}. "
                 f"Best interest match: {top.get('name')}. "
                 "No live calendar, fixture, ticket, price, or availability was confirmed."
-            )
-
-        if result.agent_name == "flight_agent":
-            dest = d.get("destination", "your destination")
-            origin = d.get("origin", "your home airport")
-            dates = d.get("date_hint", "dates TBD")
-            cabin = d.get("cabin_class", "economy")
-            return (
-                f"**Flights:** {origin} → {dest} ({dates}), {cabin} class. "
-                f"Live pricing available in Sprint 4."
-            )
-
-        if result.agent_name == "hotel_agent":
-            dest = d.get("destination", "your destination")
-            acc_type = d.get("accommodation_type", "hotel")
-            prefs = d.get("hotel_preferences", [])
-            pref_note = f" with {', '.join(prefs)}" if prefs else ""
-            return (
-                f"**Accommodation:** {acc_type.title()}{pref_note} in {dest}. "
-                f"Live availability in Sprint 4."
-            )
-
-        if result.agent_name == "experience_agent":
-            dest = d.get("destination", "your destination")
-            highlights = d.get("highlights", [])
-            tips = d.get("local_tips", [])
-            lines = [f"**{dest}:** {', '.join(highlights[:3])}."]
-            if tips:
-                lines.append(f"_Tip: {tips[0]}_")
-            return " ".join(lines)
-
-        if result.agent_name == "visa_agent":
-            if result.status == AgentStatus.PARTIAL:
-                return (
-                    "**Visa:** I couldn't check requirements without your passport country. "
-                    "Add it to your profile or check the destination embassy's website."
-                )
-            dest = d.get("destination", "your destination")
-            country = d.get("passport_country", "your country")
-            return (
-                f"**Visa:** Requirements for {country} nationals visiting {dest} "
-                f"will be confirmed via live data in Sprint 5."
             )
 
         return ""

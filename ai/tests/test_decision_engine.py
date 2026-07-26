@@ -36,7 +36,45 @@ class TestDecisionEngine:
             None,
         )
         assert len(decision.requires_agents) > 0
-        assert "flight_agent" in decision.requires_agents
+        assert "flight_intelligence" in decision.requires_agents
+
+    def test_legacy_intents_name_real_intelligence_paths(self, engine):
+        assert engine.decide(
+            Intent.DESTINATION_QUESTION,
+            {"destination": "Tokyo"},
+            None,
+        ).requires_agents == ["destination_intelligence"]
+        assert engine.decide(
+            Intent.TRAVEL_ADVICE,
+            {"destination": "Tokyo"},
+            None,
+        ).requires_agents == ["destination_intelligence"]
+        assert engine.decide(
+            Intent.BUDGET_ADVICE,
+            {"destination": "Tokyo"},
+            None,
+        ).requires_agents == ["budget_intelligence"]
+
+    def test_modify_trip_requires_trip_and_change_details(self, engine):
+        decision = engine.decide(Intent.MODIFY_TRIP, {}, None)
+
+        assert not decision.has_enough_information
+        assert decision.requires_agents == []
+        assert len(decision.follow_up_questions) == 2
+
+    def test_modify_trip_with_context_and_detail_uses_trip_brain(self, engine):
+        decision = engine.decide(
+            Intent.MODIFY_TRIP,
+            {
+                "trip_id": "trip-1",
+                "destination": "Tokyo",
+                "modification_detail": "change my flight to 15 November",
+            },
+            None,
+        )
+
+        assert decision.has_enough_information
+        assert decision.requires_agents == ["trip_brain"]
 
     def test_not_ready_means_no_agents(self, engine):
         decision = engine.decide(Intent.PLAN_TRIP, {}, None)
@@ -99,7 +137,7 @@ class TestDecisionEngine:
         assert decision.has_enough_information
 
     def test_flight_search_does_not_dispatch_specialist_agents(self, engine):
-        # Routed directly to Flight Intelligence by ConversationEngine, not TravelManager.
+        # Routed directly to Flight Intelligence by ConversationEngine.
         decision = engine.decide(Intent.FLIGHT_SEARCH, {"destination": "Tokyo"}, None)
         assert decision.requires_agents == []
 

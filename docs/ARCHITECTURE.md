@@ -26,14 +26,15 @@ The system is built for orchestration, not integration. Every capability is expr
 ┌──────────────────────────────────────────────────────────┐
 │                   TRAVEL CONCIERGE                       │
 │   Natural language interface. Understands intent,        │
-│   delegates to Travel Manager. The user's single point   │
+│   delegates to Trip Brain or focused Intelligence.       │
+│   The user's single point                                │
 │   of contact.                                            │
 └────────────────────────┬─────────────────────────────────┘
                          │
 ┌────────────────────────▼─────────────────────────────────┐
-│                   TRAVEL MANAGER                         │
-│   Orchestrates the full trip. Decomposes requests into   │
-│   department tasks. Assembles the final itinerary.       │
+│             TRIP BRAIN / INTELLIGENCE ROUTER             │
+│   Orchestrates complete trips or selects one focused     │
+│   capability. Assembles the final recommendation.        │
 └──────┬──────────────┬──────────────┬──────────────┬──────┘
        │              │              │              │
 ┌──────▼──────┐ ┌─────▼──────┐ ┌────▼──────┐ ┌────▼──────┐
@@ -63,7 +64,7 @@ The system is built for orchestration, not integration. Every capability is expr
 | Layer | Role | Sprint |
 |-------|------|--------|
 | **Travel Concierge** | NL interface, intent parsing, user communication | Sprint 3 |
-| **Travel Manager** | Trip decomposition, department routing, assembly | Sprint 0 ✓ |
+| **Trip Brain / Intelligence Router** | Trip decomposition, capability routing, assembly | Sprint 3 ✓ |
 | **Departments** | Domain-scoped orchestration (flights, stays, etc.) | Sprint 2 |
 | **Specialist Agents** | Single-task executors (search, compare, book) | Sprint 2–4 |
 | **Memory** | Traveller profiles, history, preferences | Sprint 1 |
@@ -90,9 +91,10 @@ The system is built for orchestration, not integration. Every capability is expr
                            │ Python imports (Sprint 0–1)
                            │ Message queue (Sprint 3+)
 ┌──────────────────────────▼───────────────────────────────┐
-│               CONCIERGE / MANAGER LAYER                  │
+│                 CONCIERGE / TRIP BRAIN                   │
 │   ai/concierge/  intent, decision, conversation engine    │
-│   ai/trip_brain/ Trip Brain — PLAN_TRIP orchestration,    │
+│   ai/trip_brain/ Trip Brain — PLAN_TRIP and grounded      │
+│                   MODIFY_TRIP orchestration,              │
 │                   calls six core Discovery modules and    │
 │                   optional Event Intelligence;            │
 │                   trip_assembly.py (T-040) is a second,   │
@@ -101,18 +103,13 @@ The system is built for orchestration, not integration. Every capability is expr
 │   ai/explainability/ Explainability Engine — turns Trip   │
 │                   Brain's merged results into traveller-  │
 │                   facing drivers/trade-offs/confidence     │
-│   ai/manager/    TravelManager — dispatches via registry, │
-│                   still active for MODIFY_TRIP,           │
-│                   DESTINATION_QUESTION, TRAVEL_ADVICE,    │
-│                   BUDGET_ADVICE (not PLAN_TRIP)           │
-│   ai/registry/   AgentRegistry — agent name → class       │
-│    Session management · Agent routing · Error handling   │
+│    Session management · module routing · error handling  │
 └──────┬─────────────┬─────────────┬───────────────────────┘
        │              │             │
-┌──────▼──────┐ ┌─────▼──────┐ ┌────▼──────┐
-│   AGENTS    │ │ DISCOVERY  │ │  MEMORY   │
-│  ai/agents/ │ │ai/discovery/│ │ ai/memory/│
-└─────────────┘ └─────┬──────┘ └───────────┘
+               ┌─────▼──────┐ ┌────▼──────┐
+               │ DISCOVERY  │ │  MEMORY   │
+               │ai/discovery/│ │ ai/memory/│
+               └─────┬──────┘ └───────────┘
                        │ provider access (Flight/Accommodation/Weather/Events)
                 ┌──────▼───────────────────┐
                 │   INTELLIGENCE GATEWAY   │
@@ -136,7 +133,11 @@ The system is built for orchestration, not integration. Every capability is expr
                                          └──────────────────┘
 ```
 
-`PLAN_TRIP` is the only intent Trip Brain handles; `TravelManager`/`AgentRegistry` remain the active dispatcher for the four intents above. See `docs/TRIP_BRAIN_ARCHITECTURE.md` and `docs/ADR/ADR-018-legacy-orchestration-retirement.md` for why full retirement of `ai/manager/`/`ai/registry/` is not yet possible.
+`PLAN_TRIP` and a sufficiently grounded `MODIFY_TRIP` use Trip Brain.
+`DESTINATION_QUESTION` and `TRAVEL_ADVICE` call Destination Intelligence
+directly; `BUDGET_ADVICE` calls Budget Intelligence directly. The superseded
+`TravelManager`/`AgentRegistry`/placeholder-agent stack was removed by T-032.
+See `docs/TRIP_BRAIN_ARCHITECTURE.md`, ADR-018, and ADR-044.
 
 Trip Brain's `plan()` also calls the Explainability Engine once per request, right after merging module results — see `docs/EXPLAINABILITY_ENGINE.md` and `docs/ADR/ADR-019-explainability-engine.md`. It is presentation-only: it explains `ai/discovery/` and Trip Brain's existing output, never scores or recommends anything itself.
 
@@ -194,20 +195,14 @@ tralvana-ai/
 │           └── adapters/ API implementations of AI-owned ports
 │
 ├── ai/
-│   ├── agents/           One file per specialist agent class (flight/hotel/budget/
-│   │                     experience/visa — still live, dispatched by TravelManager
-│   │                     for MODIFY_TRIP/DESTINATION_QUESTION/TRAVEL_ADVICE/BUDGET_ADVICE)
 │   ├── concierge/        Intent classification, decision engine, conversation engine
 │   ├── discovery/        Six core modules plus optional events (flights,
 │   │                     accommodation, destinations, budget, visa, weather,
 │   │                     events) — provider-neutral and explainable
 │   ├── trip_brain/       Trip Brain — orchestrates core modules plus relevant events
+│   │                     for planning and grounded trip modification
 │   ├── explainability/   Explainability Engine — turns Trip Brain/Discovery reasoning
 │   │                     into traveller-facing drivers, trade-offs, and confidence
-│   ├── manager/          TravelManager — dispatches to agents via the registry;
-│   │                     active for MODIFY_TRIP/DESTINATION_QUESTION/TRAVEL_ADVICE/
-│   │                     BUDGET_ADVICE only, not PLAN_TRIP (see ADR-018)
-│   ├── registry/         AgentRegistry — agent name → class lookup
 │   ├── shared/           Canonical AgentContext / AgentResult / AgentStatus types
 │   └── memory/           Profile schema, memory adapters
 │
@@ -242,17 +237,17 @@ tralvana-ai/
 
 ## Communication Flow
 
-### Sprint 0–1 (current)
+### Current
 ```
-Browser → Next.js → FastAPI → TravelConcierge → TravelManager → Agent → return
+Browser → Next.js → FastAPI → TravelConcierge → Trip Brain/Discovery → return
 ```
 Direct Python calls within one process. No network hops after FastAPI.
 
-### Sprint 3+ (target)
+### Future service split
 ```
-Browser → Next.js → FastAPI → Message Queue → TravelManager → Agents
-                                                           ↕
-                                                    Memory / Knowledge
+Browser → Next.js → FastAPI → Message Queue → Trip Brain/Discovery
+                                                         ↕
+                                                  Memory / Knowledge
 ```
 Async task queue decouples API response time from agent execution time.
 

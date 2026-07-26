@@ -27,6 +27,7 @@ class TestIntentClassification:
     def test_modify_trip_intent(self, classifier):
         result = classifier.classify("I need to change my trip")
         assert result.intent == Intent.MODIFY_TRIP
+        assert "destination" not in result.entities
 
     def test_view_profile_intent(self, classifier):
         result = classifier.classify("Show me my profile")
