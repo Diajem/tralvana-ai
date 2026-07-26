@@ -77,6 +77,43 @@ def test_get_unknown_trip_returns_404(client):
     assert res.status_code == 404
 
 
+def test_list_traveller_trips_supports_bounded_pagination(client, sample_profile):
+    traveller_id = client.post("/traveller/profile", json=sample_profile).json()["id"]
+    payload = {
+        "traveller_id": traveller_id,
+        "origin": "London",
+        "destination": "Tokyo",
+        "duration_days": 3,
+        "budget_style": "moderate",
+        "cabin_class": "economy",
+        "adults": 1,
+        "children": 0,
+        "interests": ["culture"],
+    }
+    created = [
+        client.post("/trips/plan", json=payload).json()["trip_id"]
+        for _ in range(3)
+    ]
+
+    first_page = client.get(
+        f"/traveller/{traveller_id}/trips",
+        params={"limit": 2, "offset": 0},
+    )
+    second_page = client.get(
+        f"/traveller/{traveller_id}/trips",
+        params={"limit": 2, "offset": 2},
+    )
+
+    assert [trip["trip_id"] for trip in first_page.json()] == created[:2]
+    assert [trip["trip_id"] for trip in second_page.json()] == created[2:]
+
+
+def test_trip_pagination_rejects_invalid_bounds(client):
+    assert client.get("/traveller/test/trips?limit=0").status_code == 422
+    assert client.get("/traveller/test/trips?limit=101").status_code == 422
+    assert client.get("/traveller/test/trips?offset=-1").status_code == 422
+
+
 def test_trip_confidence_is_float(client, sample_profile):
     profile = client.post("/traveller/profile", json=sample_profile).json()
     res = client.post("/trips/plan", json={

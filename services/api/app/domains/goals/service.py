@@ -58,8 +58,20 @@ class GoalService:
         goal = self._repo.get(goal_id)
         return goal.to_dict() if goal else None
 
-    def list_by_traveller(self, traveller_id: str) -> list[dict[str, Any]]:
-        return [g.to_dict() for g in self._repo.list_by_traveller(traveller_id)]
+    def list_by_traveller(
+        self,
+        traveller_id: str,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        return [
+            goal.to_dict()
+            for goal in self._repo.list_by_traveller(
+                traveller_id,
+                limit=limit,
+                offset=offset,
+            )
+        ]
 
     def update(self, goal_id: str, request: UpdateGoalRequest) -> dict[str, Any] | None:
         updates: dict[str, Any] = {}

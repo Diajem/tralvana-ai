@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from app.domains.trips.schemas import CreateTripPlanRequest, TripPlanResponse, UpdateTripPlanRequest
 from app.domains.trips.service import trip_planning_service
@@ -36,8 +36,16 @@ async def get_trip(trip_id: str) -> dict:
 
 
 @router.get("/traveller/{traveller_id}/trips", response_model=list[TripPlanResponse])
-async def list_traveller_trips(traveller_id: str) -> list[dict]:
-    return trip_planning_service.list_by_traveller(traveller_id)
+async def list_traveller_trips(
+    traveller_id: str,
+    limit: int = Query(default=100, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+) -> list[dict]:
+    return trip_planning_service.list_by_traveller(
+        traveller_id,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.patch("/trips/{trip_id}", response_model=TripPlanResponse)

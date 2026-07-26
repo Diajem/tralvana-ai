@@ -37,6 +37,30 @@ def test_list_traveller_goals(client, sample_profile):
     assert len(res.json()) >= 2
 
 
+def test_list_traveller_goals_supports_bounded_pagination(client, sample_profile):
+    traveller_id = client.post("/traveller/profile", json=sample_profile).json()["id"]
+    for title in ("Goal A", "Goal B", "Goal C"):
+        client.post("/goals", json={"traveller_id": traveller_id, "title": title})
+
+    first_page = client.get(
+        f"/traveller/{traveller_id}/goals",
+        params={"limit": 2, "offset": 0},
+    )
+    second_page = client.get(
+        f"/traveller/{traveller_id}/goals",
+        params={"limit": 2, "offset": 2},
+    )
+
+    assert [goal["title"] for goal in first_page.json()] == ["Goal A", "Goal B"]
+    assert [goal["title"] for goal in second_page.json()] == ["Goal C"]
+
+
+def test_goal_pagination_rejects_invalid_bounds(client):
+    assert client.get("/traveller/test/goals?limit=0").status_code == 422
+    assert client.get("/traveller/test/goals?limit=101").status_code == 422
+    assert client.get("/traveller/test/goals?offset=-1").status_code == 422
+
+
 def test_goal_has_status_field(client, sample_goal):
     body = client.get(f"/goals/{sample_goal['goal_id']}").json()
     assert "status" in body

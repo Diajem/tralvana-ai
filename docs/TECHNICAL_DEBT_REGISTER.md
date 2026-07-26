@@ -258,12 +258,18 @@ Every module is below 500 lines. Snapshot tests prove the exact 199-node,
 
 ### TD-013 — No pagination on list endpoints
 **Severity**: Low
-**Status**: Open
+**Status**: Resolved (T-059)
 **Introduced**: T-007/T-008
 
 `GET /traveller/{id}/goals` and `GET /traveller/{id}/trips` return all results with no limit or cursor. In-memory stores make this safe now but it becomes a risk when stores are replaced by databases.
 
 **Resolution**: Add `limit` + `offset` query parameters when domains move to PostgreSQL in Sprint 3.
+
+**Resolution (T-059, 2026-07-26)**: Both traveller Goal and Trip list
+endpoints now accept validated `limit`/`offset` parameters, default to a
+maximum of 100 rows, and preserve the existing list response shape. SQL
+applies pagination after deterministic `(created_at, id)` ordering; in-memory
+repositories mirror the same semantics. See ADR-047.
 
 ---
 
