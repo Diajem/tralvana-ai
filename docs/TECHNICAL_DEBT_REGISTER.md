@@ -136,7 +136,7 @@ TASK_TRACKER.md was written in Sprint 0. The backlog it showed (old T-011–T-02
 
 ### TD-015 — `travelos/` platform layer has no test coverage
 **Severity**: High
-**Status**: Open
+**Status**: Resolved (T-012A)
 **Introduced**: T-011/T-012 (Sprint 2)
 
 T-012 established `services/api/tests/` and `ai/tests/`, but the platform layer (`travelos/` — SDK, DI container, `ServiceRegistry`, `ConfigurationManager`, `EventBus`, `TravelLogger`, and shared types `Result`/`Identifier`/`Timestamp`/`Pagination`/`BaseRepository`/`BaseService`) shipped in the same commit with zero tests. This is the foundation every future service (T-015–T-020 intelligence engines) will build on — untested infrastructure at the base of the stack is higher-risk than untested application code.
@@ -144,6 +144,16 @@ T-012 established `services/api/tests/` and `ai/tests/`, but the platform layer 
 **Resolution**: Tracked as backlog item **T-012A — Platform Layer Test Coverage** (`TASK_TRACKER.md`). Deliberately scheduled after T-014 (repository refactoring) so it doesn't delay current progress. Add `travelos/tests/` mirroring the module structure (`test_event_bus.py`, `test_service_registry.py`, `test_configuration_manager.py`, `test_result.py`, `test_container.py`, etc.).
 
 **Partial progress (T-025, 2026-07-11)**: `travelos/tests/` now exists, created for the new `travelos/intelligence_gateway/` package (110 tests — registration, selection, cache, retry, failover, rate limiting, secrets, discovery-adapter determinism) and registered in `pytest.ini`. SDK, `ServiceRegistry`, `ConfigurationManager` (beyond the five new intelligence-gateway properties, exercised only indirectly), `EventBus`, and the `shared/` types still have zero direct tests — T-012A remains open for those.
+
+**Resolution (T-012A, 2026-07-26)**: Added 67 direct platform tests covering
+the SDK delegation boundary, lazy and manual service registration, every
+configuration family and fail-closed provider mode, synchronous event delivery
+and handler isolation, structured logging, container instance/singleton/child
+semantics, repository pagination, base-service identity, and the
+Result/Identifier/Timestamp/Pagination value contracts. The tests use only
+stdlib/pytest and deterministic in-memory doubles. No production code, external
+network, database, or new dependency was required. The full repository now has
+1,371 passing tests.
 
 ---
 
