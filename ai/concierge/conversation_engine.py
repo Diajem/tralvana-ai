@@ -1,97 +1,16 @@
-import uuid
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from typing import Any
 
+from ai.concierge.conversation_session import ConversationSession
 from ai.concierge.decision_engine import Decision, DecisionEngine
 from ai.concierge.intent_classifier import ClassifiedIntent, Intent, IntentClassifier
 from ai.concierge.response_composer import ResponseComposer
+from ai.concierge.session_store import SessionStore, build_session_store
 from ai.explainability.explainability_engine import explainability_engine
 from ai.manager.travel_manager import travel_manager
 from ai.shared.agent_context import AgentContext
 from ai.shared.agent_result import AgentResult
 from ai.shared.agent_status import AgentStatus
 from ai.trip_brain.coordinator import trip_brain
-from ai.trip_brain.models import UnifiedRecommendation
-
-
-# ---------------------------------------------------------------------------
-# Session model
-# ---------------------------------------------------------------------------
-
-@dataclass
-class ConversationMessage:
-    role: str  # user | assistant | system
-    content: str
-    timestamp: str
-    intent: str | None = None
-
-
-@dataclass
-class ConversationSession:
-    conversation_id: str
-    created_at: str
-    updated_at: str
-    traveller_id: str | None = None
-    trip_id: str | None = None
-    goal_id: str | None = None
-    history: list[ConversationMessage] = field(default_factory=list)
-    active_goal: str | None = None
-    pending_questions: list[str] = field(default_factory=list)
-    # Planning facts are often supplied over several chat turns. Keep the
-    # extracted facts with the session so a follow-up answer (for example,
-    # just a date range) completes the active PLAN_TRIP request instead of
-    # being classified as unrelated general conversation.
-    planning_entities: dict[str, str] = field(default_factory=dict)
-    context_summary: str = ""
-    # The most recent Trip Brain result for this conversation, cached so
-    # EXPLAIN_RECOMMENDATION follow-ups (and POST /explain) can reuse it
-    # without re-running the selected Discovery modules
-    # (docs/EXPLAINABILITY_ENGINE.md's Conversation Integration section).
-    # Narrow, single-module intents don't populate this — only PLAN_TRIP.
-    last_recommendation: UnifiedRecommendation | None = None
-
-    def add_message(self, role: str, content: str, intent: str | None = None) -> None:
-        now = datetime.now(timezone.utc).isoformat()
-        self.history.append(
-            ConversationMessage(role=role, content=content, timestamp=now, intent=intent)
-        )
-        self.updated_at = now
-
-
-class _SessionStore:
-    def __init__(self) -> None:
-        self._sessions: dict[str, ConversationSession] = {}
-
-    def create(self, traveller_id: str | None = None) -> ConversationSession:
-        now = datetime.now(timezone.utc).isoformat()
-        s = ConversationSession(
-            conversation_id=str(uuid.uuid4()),
-            created_at=now,
-            updated_at=now,
-            traveller_id=traveller_id,
-        )
-        self._sessions[s.conversation_id] = s
-        return s
-
-    def get_or_create(
-        self, conversation_id: str | None, traveller_id: str | None
-    ) -> ConversationSession:
-        if conversation_id and conversation_id in self._sessions:
-            s = self._sessions[conversation_id]
-            if traveller_id and not s.traveller_id:
-                s.traveller_id = traveller_id
-            return s
-        return self.create(traveller_id)
-
-    def save(self, session: ConversationSession) -> None:
-        self._sessions[session.conversation_id] = session
-
-    def get(self, conversation_id: str) -> ConversationSession | None:
-        return self._sessions.get(conversation_id)
-
-    def find_by_trip_id(self, trip_id: str) -> ConversationSession | None:
-        return next((s for s in self._sessions.values() if s.trip_id == trip_id), None)
 
 
 # ---------------------------------------------------------------------------
@@ -112,8 +31,8 @@ class ConversationEngine:
     7. Persist session.
     """
 
-    def __init__(self) -> None:
-        self._store = _SessionStore()
+    def __init__(self, store: SessionStore | None = None) -> None:
+        self._store = store if store is not None else build_session_store()
         self._classifier = IntentClassifier()
         self._decision = DecisionEngine()
         self._composer = ResponseComposer()

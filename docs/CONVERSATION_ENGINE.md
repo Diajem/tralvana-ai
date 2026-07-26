@@ -21,7 +21,7 @@ TravelConcierge.handle(message, traveller_id, conversation_id)
        ▼
 ConversationEngine.process(message, traveller_id, conversation_id)
        │
-       ├─ _SessionStore.get_or_create()             → ConversationSession
+       ├─ SessionStore.get_or_create()              → ConversationSession
        ├─ IntentClassifier.classify(message)        → ClassifiedIntent
        ├─ _fetch_profile(traveller_id)              → dict | None (from MemoryService)
        ├─ DecisionEngine.decide(intent, entities, profile)
@@ -45,7 +45,7 @@ ConversationEngine.process(message, traveller_id, conversation_id)
        │       └─ Coherent traveller-facing answer
        │
        ├─ session.add_message("assistant", response)
-       ├─ _SessionStore.save(session)
+       ├─ SessionStore.save(session)
        └─ return structured output dict
 ```
 
@@ -97,6 +97,20 @@ class ConversationSession:
     created_at: str               # ISO 8601 UTC
     updated_at: str               # ISO 8601 UTC
 ```
+
+## Session persistence
+
+`ConversationEngine` depends on the `SessionStore` contract rather than a
+process-local dictionary:
+
+- `REDIS_URL` unset: `InMemorySessionStore` keeps local development and tests
+  zero-setup.
+- `REDIS_URL` configured: `RedisSessionStore` preserves the complete session
+  across API workers and instances.
+
+Redis records use versioned JSON and a configurable TTL. A separate
+same-expiry Trip-ID index keeps `/explain` lookups constant-time. See
+`docs/REDIS_SESSION_PERSISTENCE.md` and ADR-039.
 
 ---
 
@@ -161,7 +175,7 @@ Specialist agents run concurrently via `asyncio.gather()`. One failing agent doe
 | DecisionEngine (deterministic) | 1 ✅ |
 | Mock specialist agents | 1 ✅ |
 | Template-based ResponseComposer | 1 ✅ |
-| Redis session persistence | 3 |
+| Redis session persistence | 3 ✅ |
 | LLM intent classification | 3 |
 | LLM response generation | 3 |
 | Live flight search | 4 |

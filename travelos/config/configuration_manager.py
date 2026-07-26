@@ -267,6 +267,33 @@ class ConfigurationManager:
         """Allow clearly-labelled curated ideas after a failed live search."""
         return self._bool_env("TRALVANA_EVENT_MOCK_FALLBACK_ENABLED", default=False)
 
+    # ------------------------------------------------------------------
+    # Conversation session persistence (T-035).
+    # REDIS_URL is optional for local/test operation. When set, it is the
+    # explicit switch to Redis and is never logged or exposed by diagnostics.
+    # ------------------------------------------------------------------
+
+    @property
+    def redis_url(self) -> str | None:
+        raw = os.environ.get("REDIS_URL", "").strip()
+        return raw or None
+
+    @property
+    def conversation_session_ttl_seconds(self) -> int:
+        raw = os.environ.get("TRALVANA_SESSION_TTL_SECONDS")
+        value = int(raw) if raw else 604800
+        if value <= 0:
+            raise ValueError("TRALVANA_SESSION_TTL_SECONDS must be greater than zero")
+        return value
+
+    @property
+    def redis_socket_timeout_seconds(self) -> float:
+        raw = os.environ.get("TRALVANA_REDIS_TIMEOUT_SECONDS")
+        value = float(raw) if raw else 2.0
+        if value <= 0:
+            raise ValueError("TRALVANA_REDIS_TIMEOUT_SECONDS must be greater than zero")
+        return value
+
     def _bool_env(self, name: str, default: bool) -> bool:
         raw = os.environ.get(name)
         if raw is None:

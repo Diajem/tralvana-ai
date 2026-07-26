@@ -38,6 +38,9 @@ Any default can be overridden with an environment variable:
 | `API_PORT` | `config.api_port` |
 | `CORS_ORIGINS` | `config.cors_origins` (comma-separated) |
 | `DATABASE_URL` | SQLAlchemy PostgreSQL connection URL used by Alembic and commercial persistence |
+| `REDIS_URL` | Private Redis URL; explicitly enables distributed conversation sessions |
+| `TRALVANA_SESSION_TTL_SECONDS` | Conversation/session-index expiry; defaults to `604800` |
+| `TRALVANA_REDIS_TIMEOUT_SECONDS` | Redis connect/operation timeout; defaults to `2` |
 
 ## Usage
 
@@ -64,6 +67,11 @@ config.get("DATABASE_URL")
 Production and Docker use a `postgresql+psycopg://` URL. SQLite is supported
 only by isolated automated tests; see `docs/COMMERCIAL_DATA_FOUNDATION.md`.
 
+`REDIS_URL` is optional for local/test operation. When absent, conversations
+use the in-memory adapter. When present, it must be reachable; Tralvana fails
+clearly instead of silently falling back to process-local state. See
+`docs/REDIS_SESSION_PERSISTENCE.md`.
+
 ## Singleton
 
 `ConfigurationManager` is a singleton â€” `config` is always the same instance:
@@ -79,24 +87,13 @@ config2 = ConfigurationManager.get_instance()
 
 ## Adding New Settings
 
-Add to `_DEFAULTS` in `configuration_manager.py`:
-
-```python
-@dataclass
-class EnvironmentConfig:
-    ...
-    redis_url: str = "redis://localhost:6379"
-
-_DEFAULTS = {
-    "development": EnvironmentConfig(... redis_url="redis://localhost:6379"),
-    "production":  EnvironmentConfig(... redis_url=os.environ.get("REDIS_URL", "")),
-}
-```
-
-Then add a property:
+Add environment-specific defaults to `_DEFAULTS` only when a setting genuinely
+differs by environment. Secret-backed or universal settings should normally be
+properties that read their environment variable directly.
 
 ```python
 @property
-def redis_url(self) -> str:
-    return os.environ.get("REDIS_URL", self._env.redis_url)
+def example_timeout_seconds(self) -> float:
+    raw = os.environ.get("EXAMPLE_TIMEOUT_SECONDS")
+    return float(raw) if raw else 2.0
 ```

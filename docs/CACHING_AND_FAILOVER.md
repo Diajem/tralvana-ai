@@ -6,10 +6,11 @@ this sits in the overall request flow.
 
 ## Cache Policy (`cache_policy.py`)
 
-**In-memory only — no Redis.** `InMemoryCachePolicy` is a plain dict,
-matching every other in-memory store already in this codebase
-(`ConversationSession`'s session store, the in-memory Goal/Trip
-repositories).
+**Provider-result cache remains in-memory.** `InMemoryCachePolicy` is a plain
+dict and is deliberately separate from T-035's Redis-backed conversation
+session store and T-034's PostgreSQL-backed Goal/Trip repositories. Redis
+session persistence does not silently turn provider responses into a
+distributed cache.
 
 - **Cache key** — `build_cache_key(capability, operation, params)` hashes
   the JSON-normalised (sorted-keys) params, so identical requests with
