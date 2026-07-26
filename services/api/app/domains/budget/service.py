@@ -6,7 +6,10 @@ from typing import Any
 
 from app.domains.budget.models import BudgetOption
 from app.domains.budget.repository import BudgetRepository
-from app.domains.budget.schemas import RecommendBudgetRequest
+from app.domains.budget.schemas import (
+    OptimiseBudgetRequest,
+    RecommendBudgetRequest,
+)
 
 
 class BudgetIntelligenceService:
@@ -105,6 +108,14 @@ class BudgetIntelligenceService:
 
     def list_by_trip(self, trip_id: str) -> list[dict[str, Any]]:
         return [o.to_dict() for o in self._repo.list_by_trip(trip_id)]
+
+    def optimise(self, request: OptimiseBudgetRequest) -> dict[str, Any]:
+        from ai.discovery.budget.budget_optimizer import budget_optimizer
+
+        return budget_optimizer.optimise(
+            portfolio_budget_usd=request.portfolio_budget_usd,
+            trips=[trip.model_dump() for trip in request.trips],
+        )
 
     def recommend_from_conversation(
         self,

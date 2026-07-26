@@ -32,9 +32,14 @@ Unlike the other three Discovery modules, Budget Intelligence doesn't rank provi
 Two budget-estimation components already existed before this module:
 
 - **`ai.intelligence.reasoning.budget_reasoner.BudgetReasoner`** — a single-style cost estimate keyed to knowledge-graph country/continent data, used for Goal readiness scoring.
-- **`ai.planning.budget_estimator.BudgetEstimator`** — a single-style cost estimate for Trip Planning, tries `BudgetReasoner` first and falls back to static global tables.
+- **`ai.planning.budget_estimator.BudgetEstimator`** — a single-style cost estimate for Trip Planning, tries `BudgetReasoner` first and falls back to the canonical Budget Intelligence cost model.
 
-Both answer "what will this trip cost at my chosen style?" — a single number. Budget Intelligence answers "which style should I choose, and why?" — a ranked, explainable comparison across all five. `MockBudgetProvider`'s regional daily-rate and flight-cost tables use the **same values** as `BudgetReasoner`'s `_DAILY_USD`/`_FLIGHT_USD`/`_HAUL`, and the cost-breakdown shares (accommodation/food/activities/misc) match `BudgetEstimator`'s, so a Budget Intelligence option and either existing estimator agree for the same style, region, and duration. Nothing about `BudgetReasoner` or `BudgetEstimator`'s public API changed — both are still used exactly as before by Goal readiness scoring and Trip Planning.
+Both answer "what will this trip cost at my chosen style?" — a single number. Budget Intelligence answers "which style should I choose, and why?" — a ranked, explainable comparison across all five. Since T-033, `ai/discovery/budget/budget_cost_model.py` is the canonical source for regional daily rates, cabin/haul flight anchors, style mapping, and the child-cost factor. `MockBudgetProvider` and `BudgetEstimator` both consume that model and the same `BudgetNormalizer`, so their fallback estimates cannot drift. `BudgetEstimator`'s public response shape remains unchanged.
+
+T-033 also adds cross-trip optimisation through `POST /budget/optimise`. It
+selects among these same tiers for up to ten trips under one shared cap while
+protecting each trip's priority and minimum acceptable style. See
+`docs/BUDGET_OPTIMISATION_ENGINE.md` and ADR-037.
 
 The Reasoner class is named `BudgetOptionReasoner`, not `BudgetReasoner`, specifically to avoid confusion with `ai.intelligence.reasoning.budget_reasoner.BudgetReasoner` despite living in a same-named `budget_reasoner.py` file (the Discovery Layer's `<domain>_reasoner.py` naming convention).
 
