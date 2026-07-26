@@ -18,6 +18,8 @@ from travelos.live_providers.accommodation_provider_bootstrap import configure_a
 from travelos.live_providers.event_provider_bootstrap import configure_event_provider
 from travelos.live_providers.flight_provider_bootstrap import configure_flight_provider
 from travelos.config import config
+from ai.ports import configure_planning_port
+from app.adapters.planning_adapter import PlanningAdapter
 
 # Composition root (T-038, extended T-039) — the one place that decides
 # whether Duffel gets registered for real. A no-op in MOCK mode (the
@@ -28,6 +30,7 @@ from travelos.config import config
 configure_flight_provider()
 configure_accommodation_provider()
 configure_event_provider()
+configure_planning_port(PlanningAdapter())
 
 app = FastAPI(title="Tralvana API", version="0.1.0")
 

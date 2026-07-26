@@ -7,6 +7,7 @@ without depending on the real mock providers' data.
 """
 
 from ai.shared.agent_status import AgentStatus
+from ai.ports import configure_planning_port
 from ai.trip_brain.context import TripBrainContext
 from ai.trip_brain.discovery_adapters import (
     run_accommodation_intelligence,
@@ -17,6 +18,9 @@ from ai.trip_brain.discovery_adapters import (
     run_visa_intelligence,
     run_weather_intelligence,
 )
+from app.adapters.planning_adapter import PlanningAdapter
+
+configure_planning_port(PlanningAdapter())
 
 
 def _context() -> TripBrainContext:

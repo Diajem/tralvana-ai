@@ -2,10 +2,11 @@
 Discovery Module adapters — Trip Brain's only call sites into the six
 Discovery modules.
 
-Each adapter calls exactly the same public `service.recommend()` /
-`check()` / `analyse()` entrypoint (via its `*_from_conversation()`
-convenience wrapper) that `ConversationEngine` already calls today for
-narrow intents — never a Provider, never another module's Repository
+Each adapter calls the AI-owned PlanningPort, whose application adapter
+delegates to exactly the same public `service.recommend()` / `check()` /
+`analyse()` entrypoint (via its `*_from_conversation()` convenience
+wrapper) that `ConversationEngine` uses for narrow intents — never a
+Provider, never another module's Repository
 (docs/KNOWLEDGE_SOURCE_STRATEGY.md's boundary rule, restated in
 ADR-017).
 
@@ -26,6 +27,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from ai.ports import get_planning_port
 from ai.shared.agent_result import AgentResult
 from ai.shared.agent_status import AgentStatus
 from ai.trip_brain.context import TripBrainContext
@@ -89,8 +91,7 @@ def _failed(agent_name: str, exc: Exception) -> AgentResult:
 
 def run_flight_intelligence(context: TripBrainContext) -> AgentResult:
     try:
-        from app.domains.flights.service import flight_intelligence_service
-        output = flight_intelligence_service.recommend_from_conversation(
+        output = get_planning_port().recommend_flights(
             traveller_id=context.traveller_id,
             trip_id=context.trip_id,
             entities=context.entities,
@@ -124,8 +125,7 @@ def run_flight_intelligence(context: TripBrainContext) -> AgentResult:
 
 def run_accommodation_intelligence(context: TripBrainContext) -> AgentResult:
     try:
-        from app.domains.accommodation.service import accommodation_intelligence_service
-        output = accommodation_intelligence_service.recommend_from_conversation(
+        output = get_planning_port().recommend_accommodation(
             traveller_id=context.traveller_id,
             trip_id=context.trip_id,
             entities=context.entities,
@@ -158,8 +158,7 @@ def run_accommodation_intelligence(context: TripBrainContext) -> AgentResult:
 
 def run_destination_intelligence(context: TripBrainContext) -> AgentResult:
     try:
-        from app.domains.destinations.service import destination_intelligence_service
-        output = destination_intelligence_service.recommend_from_conversation(
+        output = get_planning_port().recommend_destinations(
             traveller_id=context.traveller_id,
             trip_id=context.trip_id,
             entities=context.entities,
@@ -188,8 +187,7 @@ def run_destination_intelligence(context: TripBrainContext) -> AgentResult:
 
 def run_budget_intelligence(context: TripBrainContext) -> AgentResult:
     try:
-        from app.domains.budget.service import budget_intelligence_service
-        output = budget_intelligence_service.recommend_from_conversation(
+        output = get_planning_port().recommend_budget(
             traveller_id=context.traveller_id,
             trip_id=context.trip_id,
             entities=context.entities,
@@ -219,8 +217,7 @@ def run_budget_intelligence(context: TripBrainContext) -> AgentResult:
 
 def run_visa_intelligence(context: TripBrainContext) -> AgentResult:
     try:
-        from app.domains.visa.service import visa_intelligence_service
-        output = visa_intelligence_service.check_from_conversation(
+        output = get_planning_port().check_visa(
             traveller_id=context.traveller_id,
             trip_id=context.trip_id,
             entities=context.entities,
@@ -242,8 +239,7 @@ def run_visa_intelligence(context: TripBrainContext) -> AgentResult:
 
 def run_weather_intelligence(context: TripBrainContext) -> AgentResult:
     try:
-        from app.domains.weather.service import weather_intelligence_service
-        output = weather_intelligence_service.analyse_from_conversation(
+        output = get_planning_port().analyse_weather(
             traveller_id=context.traveller_id,
             trip_id=context.trip_id,
             entities=context.entities,
@@ -265,8 +261,7 @@ def run_weather_intelligence(context: TripBrainContext) -> AgentResult:
 
 def run_event_intelligence(context: TripBrainContext) -> AgentResult:
     try:
-        from app.domains.events.service import event_intelligence_service
-        output = event_intelligence_service.recommend_from_conversation(
+        output = get_planning_port().recommend_events(
             traveller_id=context.traveller_id,
             trip_id=context.trip_id,
             entities=context.entities,

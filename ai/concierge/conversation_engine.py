@@ -7,6 +7,7 @@ from ai.concierge.response_composer import ResponseComposer
 from ai.concierge.session_store import SessionStore, build_session_store
 from ai.explainability.explainability_engine import explainability_engine
 from ai.manager.travel_manager import travel_manager
+from ai.ports import PlanningPort, get_planning_port
 from ai.shared.agent_context import AgentContext
 from ai.shared.agent_result import AgentResult
 from ai.shared.agent_status import AgentStatus
@@ -31,8 +32,13 @@ class ConversationEngine:
     7. Persist session.
     """
 
-    def __init__(self, store: SessionStore | None = None) -> None:
+    def __init__(
+        self,
+        store: SessionStore | None = None,
+        planning_port: PlanningPort | None = None,
+    ) -> None:
         self._store = store if store is not None else build_session_store()
+        self._planning_port = planning_port
         self._classifier = IntentClassifier()
         self._decision = DecisionEngine()
         self._composer = ResponseComposer()
@@ -323,8 +329,7 @@ class ConversationEngine:
         profile: dict[str, Any] | None,
     ) -> str | None:
         try:
-            from app.domains.trips.service import trip_planning_service
-            trip = trip_planning_service.plan_from_conversation(
+            trip = self._port.create_trip(
                 traveller_id=session.traveller_id,
                 goal_id=session.goal_id,
                 entities=entities,
@@ -341,8 +346,7 @@ class ConversationEngine:
         profile: dict[str, Any] | None,
     ) -> AgentResult | None:
         try:
-            from app.domains.flights.service import flight_intelligence_service
-            output = flight_intelligence_service.recommend_from_conversation(
+            output = self._port.recommend_flights(
                 traveller_id=session.traveller_id,
                 trip_id=session.trip_id,
                 entities=entities,
@@ -382,8 +386,7 @@ class ConversationEngine:
         profile: dict[str, Any] | None,
     ) -> AgentResult | None:
         try:
-            from app.domains.accommodation.service import accommodation_intelligence_service
-            output = accommodation_intelligence_service.recommend_from_conversation(
+            output = self._port.recommend_accommodation(
                 traveller_id=session.traveller_id,
                 trip_id=session.trip_id,
                 entities=entities,
@@ -422,8 +425,7 @@ class ConversationEngine:
         profile: dict[str, Any] | None,
     ) -> AgentResult | None:
         try:
-            from app.domains.destinations.service import destination_intelligence_service
-            output = destination_intelligence_service.recommend_from_conversation(
+            output = self._port.recommend_destinations(
                 traveller_id=session.traveller_id,
                 trip_id=session.trip_id,
                 entities=entities,
@@ -462,8 +464,7 @@ class ConversationEngine:
         profile: dict[str, Any] | None,
     ) -> AgentResult | None:
         try:
-            from app.domains.budget.service import budget_intelligence_service
-            output = budget_intelligence_service.recommend_from_conversation(
+            output = self._port.recommend_budget(
                 traveller_id=session.traveller_id,
                 trip_id=session.trip_id,
                 entities=entities,
@@ -502,8 +503,7 @@ class ConversationEngine:
         profile: dict[str, Any] | None,
     ) -> AgentResult | None:
         try:
-            from app.domains.visa.service import visa_intelligence_service
-            output = visa_intelligence_service.check_from_conversation(
+            output = self._port.check_visa(
                 traveller_id=session.traveller_id,
                 trip_id=session.trip_id,
                 entities=entities,
@@ -529,8 +529,7 @@ class ConversationEngine:
         profile: dict[str, Any] | None,
     ) -> AgentResult | None:
         try:
-            from app.domains.weather.service import weather_intelligence_service
-            output = weather_intelligence_service.analyse_from_conversation(
+            output = self._port.analyse_weather(
                 traveller_id=session.traveller_id,
                 trip_id=session.trip_id,
                 entities=entities,
@@ -556,11 +555,14 @@ class ConversationEngine:
         entities: dict[str, str],
     ) -> str | None:
         try:
-            from app.domains.goals.service import goal_service
-            goal = goal_service.create_from_conversation(session.traveller_id, message, entities)
+            goal = self._port.create_goal(session.traveller_id, message, entities)
             return goal["goal_id"]
         except Exception:
             return None
+
+    @property
+    def _port(self) -> PlanningPort:
+        return self._planning_port or get_planning_port()
 
 
 conversation_engine = ConversationEngine()
