@@ -241,12 +241,18 @@ ADR-043.
 
 ### TD-012 — `travel_ontology.py` exceeds 500-line limit
 **Severity**: Low
-**Status**: Open
+**Status**: Resolved (T-058)
 **Introduced**: T-005 (TIL sprint)
 
 `ai/intelligence/ontology/travel_ontology.py` is 34KB — the largest file in the repo, well over the 500-line CLAUDE.md limit. It is a large static data file (ontology definitions).
 
 **Resolution**: Split into smaller domain-specific ontology modules (e.g. `transport_ontology.py`, `accommodation_ontology.py`, `destination_ontology.py`).
+
+**Resolution (T-058, 2026-07-26)**: Kept `travel_ontology.seed_graph` as the
+stable facade and split the definitions into geography, mobility/lodging,
+food, experiences, travel requirements, relationships, and shared helpers.
+Every module is below 500 lines. Snapshot tests prove the exact 199-node,
+205-edge graph and every entity-type count are unchanged. See ADR-046.
 
 ---
 
@@ -439,4 +445,4 @@ otherwise need to import from `travelos/live_providers/`; see ADR-021).
 |--------|---------------|
 | Sprint 2 | ~~TD-001, TD-002, TD-003, TD-004, TD-005, TD-015, TD-016, TD-017, TD-018~~ resolved; TD-019/TD-020 (deferred Intelligence Gateway integrations) opened in T-025; TD-021/TD-022/TD-023 (deferred Live Provider Framework items) opened in T-026 |
 | Sprint 3 | TD-010 (static KG enrichment), TD-011 (traveller domain), TD-013 (pagination), TD-019 (wire remaining Discovery providers to the gateway) |
-| Sprint 4+ | TD-012 (ontology split), TD-014 (infra), TD-020 (Maps/Currency providers, pending new Discovery modules), TD-022 (OAuth2 exchange, pending a vendor that requires it), TD-023 (mock provider metrics) |
+| Sprint 4+ | TD-014 (infra), TD-020 (Maps/Currency providers, pending new Discovery modules), TD-022 (OAuth2 exchange, pending a vendor that requires it), TD-023 (mock provider metrics) |
