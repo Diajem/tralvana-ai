@@ -184,7 +184,8 @@ Agent.run(input_data)  ← has full TIP + intelligence
 
 - **No persistence** — stored in process memory. Lost on server restart.
 - **No documents** — passport fields deferred to Sprint 2.
-- **No authentication** — profile ID is the only access control mechanism.
+- **Authentication** — Clerk owns sessions and its verified user ID is the
+  traveller/resource ownership boundary (T-031, ADR-048).
 - **No PATCH** — full replacement only via POST + new ID.
 
 ## Planned Extensions (Sprint 2+)

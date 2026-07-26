@@ -428,6 +428,24 @@ otherwise need to import from `travelos/live_providers/`; see ADR-021).
 
 ---
 
+### TD-024 — Next.js 15 dependency line retains high-severity advisories
+**Severity**: High
+**Status**: Open
+**Introduced**: Detected during T-031 dependency review
+
+T-031 updated Next.js from `15.5.20` to the latest compatible 15.x patch,
+`15.5.22`, removing the directly fixable App Router advisories. `npm audit`
+still reports high-severity transitive PostCSS and Sharp/libvips advisories
+with no non-breaking fix available in the Next.js 15 dependency line.
+`npm audit fix --force` proposes an invalid downgrade and must not be used.
+
+**Resolution**: T-060 must upgrade Next.js and `eslint-config-next` to the
+supported 16.x line, replace the removed `next lint` command, adopt the
+Next.js 16 Clerk proxy convention, and rerun the full frontend/authentication
+gates before deployment.
+
+---
+
 ## Resolved Items
 
 | ID | Description | Resolved in | Commit |

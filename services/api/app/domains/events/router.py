@@ -1,5 +1,11 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from app.auth import AuthenticatedTraveller, require_authenticated_traveller
+from app.auth.dependencies import (
+    authenticated_traveller_id,
+    require_resource_owner,
+    require_trip_owner,
+)
 from app.domains.events.schemas import (
     EventOptionResponse,
     EventRecommendationResponse,
@@ -18,7 +24,14 @@ router = APIRouter(tags=["events"])
     response_model=EventRecommendationResponse,
     status_code=201,
 )
-async def recommend_events(request: RecommendEventsRequest) -> dict:
+async def recommend_events(
+    request: RecommendEventsRequest,
+    principal: AuthenticatedTraveller | None = Depends(require_authenticated_traveller),
+) -> dict:
+    request.traveller_id = authenticated_traveller_id(
+        principal, request.traveller_id
+    )
+    require_trip_owner(principal, request.trip_id)
     trip = None
     goal = None
     if request.trip_id:
@@ -37,10 +50,14 @@ async def recommend_events(request: RecommendEventsRequest) -> dict:
 
 
 @router.get("/events/{event_option_id}", response_model=EventOptionResponse)
-async def get_event_option(event_option_id: str) -> dict:
+async def get_event_option(
+    event_option_id: str,
+    principal: AuthenticatedTraveller | None = Depends(require_authenticated_traveller),
+) -> dict:
     option = event_intelligence_service.get(event_option_id)
     if not option:
         raise HTTPException(status_code=404, detail="Event option not found")
+    require_resource_owner(principal, option)
     return option
 
 
@@ -48,5 +65,9 @@ async def get_event_option(event_option_id: str) -> dict:
     "/trips/{trip_id}/events",
     response_model=list[EventOptionResponse],
 )
-async def list_trip_events(trip_id: str) -> list[dict]:
+async def list_trip_events(
+    trip_id: str,
+    principal: AuthenticatedTraveller | None = Depends(require_authenticated_traveller),
+) -> list[dict]:
+    require_trip_owner(principal, trip_id)
     return event_intelligence_service.list_by_trip(trip_id)

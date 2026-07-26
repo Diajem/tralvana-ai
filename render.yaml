@@ -19,6 +19,12 @@ services:
         value: production
       - key: CORS_ORIGINS
         value: https://tralvana-web.onrender.com
+      - key: TRALVANA_AUTH_MODE
+        value: CLERK
+      - key: CLERK_AUTHORIZED_PARTIES
+        value: https://tralvana-web.onrender.com
+      - key: CLERK_JWT_KEY
+        sync: false
       - key: TRALVANA_PROVIDER_ENVIRONMENT
         value: MOCK
       - key: TRALVANA_FLIGHT_PROVIDER_MODE
@@ -38,6 +44,14 @@ services:
     envVars:
       - key: NEXT_PUBLIC_API_URL
         value: https://tralvana-api.onrender.com
+      - key: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: NEXT_PUBLIC_CLERK_SIGN_IN_URL
+        value: /sign-in
+      - key: NEXT_PUBLIC_CLERK_SIGN_UP_URL
+        value: /sign-up
 
 databases:
   - name: tralvana-production

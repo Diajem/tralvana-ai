@@ -1,4 +1,5 @@
 import { getDestinationOption } from "@/lib/api";
+import { serverSessionToken } from "@/lib/server-auth";
 import type { DestinationOption } from "@/types/destination";
 import { notFound } from "next/navigation";
 
@@ -51,9 +52,10 @@ export default async function DestinationOptionPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const token = await serverSessionToken();
   let destination: DestinationOption;
   try {
-    destination = await getDestinationOption(id);
+    destination = await getDestinationOption(id, token);
   } catch {
     notFound();
   }

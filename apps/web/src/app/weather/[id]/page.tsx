@@ -1,4 +1,5 @@
 import { getWeatherAssessment } from "@/lib/api";
+import { serverSessionToken } from "@/lib/server-auth";
 import type { WeatherAssessment } from "@/types/weather";
 import { notFound } from "next/navigation";
 
@@ -53,9 +54,10 @@ export default async function WeatherAssessmentPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const token = await serverSessionToken();
   let assessment: WeatherAssessment;
   try {
-    assessment = await getWeatherAssessment(id);
+    assessment = await getWeatherAssessment(id, token);
   } catch {
     notFound();
   }

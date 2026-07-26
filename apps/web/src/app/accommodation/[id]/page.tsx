@@ -1,5 +1,6 @@
 import { AffiliateCheckout } from "@/components/commercial/AffiliateCheckout";
 import { getAccommodationOption, getAffiliateProgrammes } from "@/lib/api";
+import { serverSessionToken } from "@/lib/server-auth";
 import type { AccommodationOption } from "@/types/accommodation";
 import { notFound } from "next/navigation";
 
@@ -51,11 +52,12 @@ export default async function AccommodationOptionPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const token = await serverSessionToken();
   let accommodation: AccommodationOption;
   const affiliateProgrammes = await getAffiliateProgrammes().catch(() => []);
   const expedia = affiliateProgrammes.find((programme) => programme.partner === "Expedia");
   try {
-    accommodation = await getAccommodationOption(id);
+    accommodation = await getAccommodationOption(id, token);
   } catch {
     notFound();
   }

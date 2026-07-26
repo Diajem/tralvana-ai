@@ -15,9 +15,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from app.auth import AuthenticatedTraveller, require_authenticated_traveller
+from app.auth.dependencies import (
+    authenticated_traveller_id,
+    require_conversation_owner,
+)
 router = APIRouter(prefix="/planner", tags=["planner"])
 
 
@@ -45,10 +50,17 @@ class PlanTripResponse(BaseModel):
 
 
 @router.post("/plan", response_model=PlanTripResponse)
-async def plan_trip(request: PlanTripRequest) -> dict:
+async def plan_trip(
+    request: PlanTripRequest,
+    principal: AuthenticatedTraveller | None = Depends(require_authenticated_traveller),
+) -> dict:
     from ai.concierge.conversation_engine import conversation_engine
     from ai.concierge.travel_concierge import travel_concierge
 
+    request.traveller_id = authenticated_traveller_id(
+        principal, request.traveller_id
+    )
+    require_conversation_owner(principal, request.conversation_id)
     reply = await travel_concierge.handle(
         request.message,
         traveller_id=request.traveller_id,

@@ -27,8 +27,28 @@ import type { AffiliateProgramme, OutboundLink } from "@/types/commercial";
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+type AuthTokenProvider = () => Promise<string | null>;
+let authTokenProvider: AuthTokenProvider | null = null;
+
+export function setAuthTokenProvider(provider: AuthTokenProvider | null): void {
+  authTokenProvider = provider;
+}
+
+async function apiFetch(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+  explicitToken?: string
+): Promise<Response> {
+  const token = explicitToken ?? (authTokenProvider ? await authTokenProvider() : null);
+  const headers = new Headers(init.headers);
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  return fetch(input, { ...init, headers });
+}
+
 export async function getAffiliateProgrammes(): Promise<AffiliateProgramme[]> {
-  const res = await fetch(`${BASE_URL}/commercial/programmes`, { cache: "no-store" });
+  const res = await apiFetch(`${BASE_URL}/commercial/programmes`, { cache: "no-store" });
   if (!res.ok) {
     throw new Error(`Failed to load affiliate programmes: ${res.status}`);
   }
@@ -39,7 +59,7 @@ export async function followAffiliateProgramme(
   programme: AffiliateProgramme,
   recommendationReference: string
 ): Promise<void> {
-  const res = await fetch(`${BASE_URL}/commercial/outbound-links`, {
+  const res = await apiFetch(`${BASE_URL}/commercial/outbound-links`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -59,7 +79,7 @@ export async function followAffiliateProgramme(
 export async function createProfile(
   data: CreateProfileRequest
 ): Promise<TravellerProfile> {
-  const res = await fetch(`${BASE_URL}/traveller/profile`, {
+  const res = await apiFetch(`${BASE_URL}/traveller/profile`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -70,10 +90,13 @@ export async function createProfile(
   return res.json();
 }
 
-export async function getProfile(id: string): Promise<TravellerProfile> {
-  const res = await fetch(`${BASE_URL}/traveller/profile/${id}`, {
+export async function getProfile(
+  id: string,
+  token?: string
+): Promise<TravellerProfile> {
+  const res = await apiFetch(`${BASE_URL}/traveller/profile/${id}`, {
     cache: "no-store",
-  });
+  }, token);
   if (!res.ok) {
     throw new Error(`Profile not found: ${res.status}`);
   }
@@ -85,7 +108,7 @@ export async function getProfile(id: string): Promise<TravellerProfile> {
 // ------------------------------------------------------------------
 
 export async function createGoal(data: CreateGoalRequest): Promise<Goal> {
-  const res = await fetch(`${BASE_URL}/goals`, {
+  const res = await apiFetch(`${BASE_URL}/goals`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -96,8 +119,12 @@ export async function createGoal(data: CreateGoalRequest): Promise<Goal> {
   return res.json();
 }
 
-export async function getGoal(goalId: string): Promise<Goal> {
-  const res = await fetch(`${BASE_URL}/goals/${goalId}`, { cache: "no-store" });
+export async function getGoal(goalId: string, token?: string): Promise<Goal> {
+  const res = await apiFetch(
+    `${BASE_URL}/goals/${goalId}`,
+    { cache: "no-store" },
+    token
+  );
   if (!res.ok) {
     throw new Error(`Goal not found: ${res.status}`);
   }
@@ -105,7 +132,7 @@ export async function getGoal(goalId: string): Promise<Goal> {
 }
 
 export async function getTravellerGoals(travellerId: string): Promise<Goal[]> {
-  const res = await fetch(`${BASE_URL}/traveller/${travellerId}/goals`, {
+  const res = await apiFetch(`${BASE_URL}/traveller/${travellerId}/goals`, {
     cache: "no-store",
   });
   if (!res.ok) {
@@ -121,7 +148,7 @@ export async function getTravellerGoals(travellerId: string): Promise<Goal[]> {
 export async function createTripPlan(
   data: CreateTripPlanRequest
 ): Promise<TripPlan> {
-  const res = await fetch(`${BASE_URL}/trips/plan`, {
+  const res = await apiFetch(`${BASE_URL}/trips/plan`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -132,8 +159,15 @@ export async function createTripPlan(
   return res.json();
 }
 
-export async function getTripPlan(tripId: string): Promise<TripPlan> {
-  const res = await fetch(`${BASE_URL}/trips/${tripId}`, { cache: "no-store" });
+export async function getTripPlan(
+  tripId: string,
+  token?: string
+): Promise<TripPlan> {
+  const res = await apiFetch(
+    `${BASE_URL}/trips/${tripId}`,
+    { cache: "no-store" },
+    token
+  );
   if (!res.ok) {
     throw new Error(`Trip not found: ${res.status}`);
   }
@@ -143,7 +177,7 @@ export async function getTripPlan(tripId: string): Promise<TripPlan> {
 export async function getTravellerTrips(
   travellerId: string
 ): Promise<TripPlan[]> {
-  const res = await fetch(`${BASE_URL}/traveller/${travellerId}/trips`, {
+  const res = await apiFetch(`${BASE_URL}/traveller/${travellerId}/trips`, {
     cache: "no-store",
   });
   if (!res.ok) {
@@ -159,7 +193,7 @@ export async function getTravellerTrips(
 export async function recommendFlights(
   data: RecommendFlightsRequest
 ): Promise<FlightRecommendationResponse> {
-  const res = await fetch(`${BASE_URL}/flights/recommend`, {
+  const res = await apiFetch(`${BASE_URL}/flights/recommend`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -180,10 +214,13 @@ export async function recommendFlights(
   return res.json();
 }
 
-export async function getFlightOption(flightOptionId: string): Promise<FlightOption> {
-  const res = await fetch(`${BASE_URL}/flights/${flightOptionId}`, {
+export async function getFlightOption(
+  flightOptionId: string,
+  token?: string
+): Promise<FlightOption> {
+  const res = await apiFetch(`${BASE_URL}/flights/${flightOptionId}`, {
     cache: "no-store",
-  });
+  }, token);
   if (!res.ok) {
     throw new Error(`Flight option not found: ${res.status}`);
   }
@@ -191,7 +228,7 @@ export async function getFlightOption(flightOptionId: string): Promise<FlightOpt
 }
 
 export async function getTripFlights(tripId: string): Promise<FlightOption[]> {
-  const res = await fetch(`${BASE_URL}/trips/${tripId}/flights`, {
+  const res = await apiFetch(`${BASE_URL}/trips/${tripId}/flights`, {
     cache: "no-store",
   });
   if (!res.ok) {
@@ -207,7 +244,7 @@ export async function getTripFlights(tripId: string): Promise<FlightOption[]> {
 export async function recommendAccommodation(
   data: RecommendAccommodationRequest
 ): Promise<AccommodationRecommendationResponse> {
-  const res = await fetch(`${BASE_URL}/accommodation/recommend`, {
+  const res = await apiFetch(`${BASE_URL}/accommodation/recommend`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -230,11 +267,12 @@ export async function recommendAccommodation(
 }
 
 export async function getAccommodationOption(
-  accommodationOptionId: string
+  accommodationOptionId: string,
+  token?: string
 ): Promise<AccommodationOption> {
-  const res = await fetch(`${BASE_URL}/accommodation/${accommodationOptionId}`, {
+  const res = await apiFetch(`${BASE_URL}/accommodation/${accommodationOptionId}`, {
     cache: "no-store",
-  });
+  }, token);
   if (!res.ok) {
     throw new Error(`Accommodation option not found: ${res.status}`);
   }
@@ -242,7 +280,7 @@ export async function getAccommodationOption(
 }
 
 export async function getTripAccommodation(tripId: string): Promise<AccommodationOption[]> {
-  const res = await fetch(`${BASE_URL}/trips/${tripId}/accommodation`, {
+  const res = await apiFetch(`${BASE_URL}/trips/${tripId}/accommodation`, {
     cache: "no-store",
   });
   if (!res.ok) {
@@ -258,7 +296,7 @@ export async function getTripAccommodation(tripId: string): Promise<Accommodatio
 export async function recommendDestinations(
   data: RecommendDestinationsRequest
 ): Promise<DestinationRecommendationResponse> {
-  const res = await fetch(`${BASE_URL}/destinations/recommend`, {
+  const res = await apiFetch(`${BASE_URL}/destinations/recommend`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -270,11 +308,12 @@ export async function recommendDestinations(
 }
 
 export async function getDestinationOption(
-  destinationOptionId: string
+  destinationOptionId: string,
+  token?: string
 ): Promise<DestinationOption> {
-  const res = await fetch(`${BASE_URL}/destinations/${destinationOptionId}`, {
+  const res = await apiFetch(`${BASE_URL}/destinations/${destinationOptionId}`, {
     cache: "no-store",
-  });
+  }, token);
   if (!res.ok) {
     throw new Error(`Destination option not found: ${res.status}`);
   }
@@ -282,7 +321,7 @@ export async function getDestinationOption(
 }
 
 export async function getTripDestinations(tripId: string): Promise<DestinationOption[]> {
-  const res = await fetch(`${BASE_URL}/trips/${tripId}/destinations`, {
+  const res = await apiFetch(`${BASE_URL}/trips/${tripId}/destinations`, {
     cache: "no-store",
   });
   if (!res.ok) {
@@ -298,7 +337,7 @@ export async function getTripDestinations(tripId: string): Promise<DestinationOp
 export async function recommendBudget(
   data: RecommendBudgetRequest
 ): Promise<BudgetRecommendationResponse> {
-  const res = await fetch(`${BASE_URL}/budget/recommend`, {
+  const res = await apiFetch(`${BASE_URL}/budget/recommend`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -309,10 +348,13 @@ export async function recommendBudget(
   return res.json();
 }
 
-export async function getBudgetOption(budgetOptionId: string): Promise<BudgetOption> {
-  const res = await fetch(`${BASE_URL}/budget/${budgetOptionId}`, {
+export async function getBudgetOption(
+  budgetOptionId: string,
+  token?: string
+): Promise<BudgetOption> {
+  const res = await apiFetch(`${BASE_URL}/budget/${budgetOptionId}`, {
     cache: "no-store",
-  });
+  }, token);
   if (!res.ok) {
     throw new Error(`Budget option not found: ${res.status}`);
   }
@@ -320,7 +362,7 @@ export async function getBudgetOption(budgetOptionId: string): Promise<BudgetOpt
 }
 
 export async function getTripBudget(tripId: string): Promise<BudgetOption[]> {
-  const res = await fetch(`${BASE_URL}/trips/${tripId}/budget`, {
+  const res = await apiFetch(`${BASE_URL}/trips/${tripId}/budget`, {
     cache: "no-store",
   });
   if (!res.ok) {
@@ -334,7 +376,7 @@ export async function getTripBudget(tripId: string): Promise<BudgetOption[]> {
 // ------------------------------------------------------------------
 
 export async function checkVisa(data: CheckVisaRequest): Promise<VisaAssessment> {
-  const res = await fetch(`${BASE_URL}/visa/check`, {
+  const res = await apiFetch(`${BASE_URL}/visa/check`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -345,10 +387,13 @@ export async function checkVisa(data: CheckVisaRequest): Promise<VisaAssessment>
   return res.json();
 }
 
-export async function getVisaAssessment(visaAssessmentId: string): Promise<VisaAssessment> {
-  const res = await fetch(`${BASE_URL}/visa/${visaAssessmentId}`, {
+export async function getVisaAssessment(
+  visaAssessmentId: string,
+  token?: string
+): Promise<VisaAssessment> {
+  const res = await apiFetch(`${BASE_URL}/visa/${visaAssessmentId}`, {
     cache: "no-store",
-  });
+  }, token);
   if (!res.ok) {
     throw new Error(`Visa assessment not found: ${res.status}`);
   }
@@ -356,7 +401,7 @@ export async function getVisaAssessment(visaAssessmentId: string): Promise<VisaA
 }
 
 export async function getTripVisa(tripId: string): Promise<VisaAssessment[]> {
-  const res = await fetch(`${BASE_URL}/trips/${tripId}/visa`, {
+  const res = await apiFetch(`${BASE_URL}/trips/${tripId}/visa`, {
     cache: "no-store",
   });
   if (!res.ok) {
@@ -370,7 +415,7 @@ export async function getTripVisa(tripId: string): Promise<VisaAssessment[]> {
 // ------------------------------------------------------------------
 
 export async function analyseWeather(data: AnalyseWeatherRequest): Promise<WeatherAssessment> {
-  const res = await fetch(`${BASE_URL}/weather/analyse`, {
+  const res = await apiFetch(`${BASE_URL}/weather/analyse`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -381,10 +426,13 @@ export async function analyseWeather(data: AnalyseWeatherRequest): Promise<Weath
   return res.json();
 }
 
-export async function getWeatherAssessment(weatherAssessmentId: string): Promise<WeatherAssessment> {
-  const res = await fetch(`${BASE_URL}/weather/${weatherAssessmentId}`, {
+export async function getWeatherAssessment(
+  weatherAssessmentId: string,
+  token?: string
+): Promise<WeatherAssessment> {
+  const res = await apiFetch(`${BASE_URL}/weather/${weatherAssessmentId}`, {
     cache: "no-store",
-  });
+  }, token);
   if (!res.ok) {
     throw new Error(`Weather assessment not found: ${res.status}`);
   }
@@ -392,7 +440,7 @@ export async function getWeatherAssessment(weatherAssessmentId: string): Promise
 }
 
 export async function getTripWeather(tripId: string): Promise<WeatherAssessment[]> {
-  const res = await fetch(`${BASE_URL}/trips/${tripId}/weather`, {
+  const res = await apiFetch(`${BASE_URL}/trips/${tripId}/weather`, {
     cache: "no-store",
   });
   if (!res.ok) {
@@ -406,7 +454,7 @@ export async function getTripWeather(tripId: string): Promise<WeatherAssessment[
 // ------------------------------------------------------------------
 
 export async function explainRecommendation(data: ExplainRequest): Promise<Explanation> {
-  const res = await fetch(`${BASE_URL}/explain`, {
+  const res = await apiFetch(`${BASE_URL}/explain`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -422,7 +470,7 @@ export async function explainRecommendation(data: ExplainRequest): Promise<Expla
 // ------------------------------------------------------------------
 
 export async function planTrip(data: PlanTripRequest): Promise<PlanTripResponse> {
-  const res = await fetch(`${BASE_URL}/planner/plan`, {
+  const res = await apiFetch(`${BASE_URL}/planner/plan`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -438,7 +486,7 @@ export async function planTrip(data: PlanTripRequest): Promise<PlanTripResponse>
 // ------------------------------------------------------------------
 
 export async function runJapanDemo(): Promise<DemoResponse> {
-  const res = await fetch(`${BASE_URL}/demo/japan-football-food`, {
+  const res = await apiFetch(`${BASE_URL}/demo/japan-football-food`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
   });

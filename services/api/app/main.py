@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import health, conversation, explain, internal, planner
@@ -21,6 +21,8 @@ from travelos.live_providers.flight_provider_bootstrap import configure_flight_p
 from travelos.config import config
 from ai.ports import configure_planning_port
 from app.adapters.planning_adapter import PlanningAdapter
+from app.auth.config import AuthSettings
+from app.auth.dependencies import require_authenticated_traveller
 
 # Composition root (T-038, extended T-039) — the one place that decides
 # whether Duffel gets registered for real. A no-op in MOCK mode (the
@@ -32,6 +34,10 @@ configure_flight_provider()
 configure_accommodation_provider()
 configure_event_provider()
 configure_planning_port(PlanningAdapter())
+if config.is_production:
+    # Fail closed before the server accepts traffic. Production must never
+    # fall back to the zero-setup local/test authentication mode.
+    AuthSettings.from_environment()
 
 app = FastAPI(title="Tralvana API", version="0.1.0")
 
@@ -44,23 +50,25 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
-app.include_router(traveller_router)
-app.include_router(conversation.router)
-app.include_router(explain.router)
-app.include_router(planner.router)
-app.include_router(internal.router)
-app.include_router(goals_router)
-app.include_router(trips_router)
-app.include_router(flights_router)
-app.include_router(accommodation_router)
-app.include_router(destinations_router)
-app.include_router(budget_router)
-app.include_router(visa_router)
-app.include_router(weather_router)
-app.include_router(events_router)
 app.include_router(demo_router)
-app.include_router(commercial_router)
 app.include_router(commercial_public_router)
+
+_authenticated = [Depends(require_authenticated_traveller)]
+app.include_router(traveller_router, dependencies=_authenticated)
+app.include_router(conversation.router, dependencies=_authenticated)
+app.include_router(explain.router, dependencies=_authenticated)
+app.include_router(planner.router, dependencies=_authenticated)
+app.include_router(internal.router, dependencies=_authenticated)
+app.include_router(goals_router, dependencies=_authenticated)
+app.include_router(trips_router, dependencies=_authenticated)
+app.include_router(flights_router, dependencies=_authenticated)
+app.include_router(accommodation_router, dependencies=_authenticated)
+app.include_router(destinations_router, dependencies=_authenticated)
+app.include_router(budget_router, dependencies=_authenticated)
+app.include_router(visa_router, dependencies=_authenticated)
+app.include_router(weather_router, dependencies=_authenticated)
+app.include_router(events_router, dependencies=_authenticated)
+app.include_router(commercial_router, dependencies=_authenticated)
 
 
 @app.get("/")

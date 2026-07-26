@@ -49,6 +49,8 @@ def test_render_blueprint_preserves_current_site_and_uses_safe_provider_modes():
     assert api_environment["TRALVANA_PROVIDER_ENVIRONMENT"] == "MOCK"
     assert api_environment["TRALVANA_FLIGHT_PROVIDER_MODE"] == "MOCK"
     assert api_environment["TRALVANA_ACCOMMODATION_PROVIDER_MODE"] == "MOCK"
+    assert api_environment["TRALVANA_AUTH_MODE"] == "CLERK"
+    assert api_environment["CLERK_AUTHORIZED_PARTIES"] == "https://tralvana-web.onrender.com"
     assert api_environment["CORS_ORIGINS"] == "https://tralvana-web.onrender.com"
     assert services["tralvana-api"]["healthCheckPath"] == "/health/ready"
 
@@ -58,6 +60,24 @@ def test_render_blueprint_preserves_current_site_and_uses_safe_provider_modes():
         if "key" in item
     }
     assert web_environment["NEXT_PUBLIC_API_URL"] == "https://tralvana-api.onrender.com"
+    assert web_environment["NEXT_PUBLIC_CLERK_SIGN_IN_URL"] == "/sign-in"
+    assert web_environment["NEXT_PUBLIC_CLERK_SIGN_UP_URL"] == "/sign-up"
+
+    api_secrets = {
+        item["key"]: item.get("sync")
+        for item in services["tralvana-api"]["envVars"]
+        if item["key"] == "CLERK_JWT_KEY"
+    }
+    web_secrets = {
+        item["key"]: item.get("sync")
+        for item in services["tralvana-web"]["envVars"]
+        if item["key"] in {"NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "CLERK_SECRET_KEY"}
+    }
+    assert api_secrets == {"CLERK_JWT_KEY": False}
+    assert web_secrets == {
+        "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": False,
+        "CLERK_SECRET_KEY": False,
+    }
 
 
 def test_render_beta_uses_free_private_database_and_no_secret_is_committed():
@@ -70,6 +90,10 @@ def test_render_beta_uses_free_private_database_and_no_secret_is_committed():
     assert all(service["plan"] == "free" for service in blueprint["services"])
     assert "DUFFEL_API_TOKEN" not in blueprint_text
     assert "OPENAI_API_KEY" not in blueprint_text
+    assert "pk_test_" not in blueprint_text
+    assert "pk_live_" not in blueprint_text
+    assert "sk_test_" not in blueprint_text
+    assert "sk_live_" not in blueprint_text
 
 
 def test_free_api_runs_migrations_and_seed_at_startup():

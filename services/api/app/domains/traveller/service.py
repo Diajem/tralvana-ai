@@ -17,10 +17,15 @@ class TravellerService:
     def __init__(self, repository: TravellerRepository) -> None:
         self._repository = repository
 
-    def create_profile(self, request: CreateProfileRequest) -> dict[str, Any]:
+    def create_profile(
+        self,
+        request: CreateProfileRequest,
+        *,
+        traveller_id: str | None = None,
+    ) -> dict[str, Any]:
         now = datetime.now(timezone.utc).isoformat()
         profile = TravellerProfile(
-            id=str(uuid.uuid4()),
+            id=traveller_id or str(uuid.uuid4()),
             created_at=now,
             updated_at=now,
             identity=request.identity.model_dump(),

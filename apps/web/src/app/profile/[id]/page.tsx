@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getProfile } from "@/lib/api";
+import { serverSessionToken } from "@/lib/server-auth";
 import type { TravellerProfile } from "@/types/traveller";
 
 interface Props {
@@ -34,12 +35,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default async function ProfilePage({ params }: Props) {
   const { id } = await params;
+  const token = await serverSessionToken();
 
   let profile: TravellerProfile | null = null;
   let error: string | null = null;
 
   try {
-    profile = await getProfile(id);
+    profile = await getProfile(id, token);
   } catch {
     error = "Could not load profile. Make sure the API is running on port 8000.";
   }
