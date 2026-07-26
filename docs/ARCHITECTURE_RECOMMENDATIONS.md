@@ -94,6 +94,8 @@ From T-010 audit. Prioritised actions for Sprint 2 and beyond.
 
 ### REC-008: Fix AI ↔ API dependency direction
 
+**Status**: Resolved (T-036)
+
 **What**: Introduce a `PlanningPort` interface in `ai/` so the conversation engine doesn't import from `app.domains`.
 
 **Why**: Currently `ai/concierge/conversation_engine.py` imports from `app.domains.goals.service` and `app.domains.trips.service`. The correct dependency direction is API → AI. In a multi-service deployment this creates a circular import.
@@ -112,6 +114,11 @@ class PlanningAdapter:
 
 # Inject PlanningAdapter into ConversationEngine at startup
 ```
+
+T-036 applied the boundary to the full dependency as it exists now, including
+Trip Brain context and all seven Discovery operations added after this
+recommendation was written. A static acceptance test prevents new `app.*`
+imports anywhere in production `ai/` code. See ADR-040.
 
 ---
 

@@ -4,8 +4,8 @@ Brain pass, so the selected Discovery modules it calls don't each
 independently re-fetch the same data.
 
 Request-scoped only: built at the start of one TripBrain.plan() call and
-discarded afterward. Not a new persistent store — reads exactly the same
-Goal/Trip domain services every narrow intent already reads today.
+discarded afterward. Not a new persistent store — reads Goal/Trip state
+through the AI-owned PlanningPort.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from ai.ports import PlanningPort, get_planning_port
 
 @dataclass
 class TripBrainContext:
@@ -102,6 +103,9 @@ class ContextBuilder:
     new memory store, per docs/TRIP_BRAIN_ARCHITECTURE.md's Memory Usage
     section."""
 
+    def __init__(self, planning_port: PlanningPort | None = None) -> None:
+        self._planning_port = planning_port
+
     def build(
         self,
         traveller_id: str | None,
@@ -113,16 +117,14 @@ class ContextBuilder:
         goal: dict[str, Any] | None = None
         if goal_id:
             try:
-                from app.domains.goals.service import goal_service
-                goal = goal_service.get(goal_id)
+                goal = self._port.get_goal(goal_id)
             except Exception:
                 goal = None
 
         trip: dict[str, Any] | None = None
         if trip_id:
             try:
-                from app.domains.trips.service import trip_planning_service
-                trip = trip_planning_service.get(trip_id)
+                trip = self._port.get_trip(trip_id)
             except Exception:
                 trip = None
 
@@ -135,3 +137,7 @@ class ContextBuilder:
             goal=goal,
             trip=trip,
         )
+
+    @property
+    def _port(self) -> PlanningPort:
+        return self._planning_port or get_planning_port()

@@ -97,7 +97,7 @@ The active stack uses `ai/shared/`.
 
 ### TD-006 — AI ↔ API dependency inversion
 **Severity**: Medium
-**Status**: Open
+**Status**: Resolved (T-036)
 **Introduced**: T-006/T-007/T-008 (Sprint 1)
 
 `ai/concierge/conversation_engine.py` imports from `app.domains.goals.service` and `app.domains.trips.service` (via lazy imports inside methods). This crosses the intended AI → API dependency direction.
@@ -105,6 +105,12 @@ The active stack uses `ai/shared/`.
 In Sprint 1 this works because all code runs in one process. In Sprint 3 (separate AI service), these imports will fail.
 
 **Resolution**: Define a `PlanningPort` interface that the concierge calls, with the domain service providing the implementation. The port lives in `ai/`, the adapter in `services/api/app/`.
+
+**Resolution (T-036, 2026-07-26)**: Added the AI-owned `PlanningPort`, an
+application-owned adapter, and composition-root binding. The fix covers the
+original Goal/Trip calls plus the Trip Brain context and seven Discovery calls
+added after TD-006 was first recorded. Production `ai/` now has zero
+`app.*` imports, enforced by an automated boundary test. See ADR-040.
 
 ---
 
@@ -406,5 +412,5 @@ otherwise need to import from `travelos/live_providers/`; see ADR-021).
 | Sprint | Items to close |
 |--------|---------------|
 | Sprint 2 | ~~TD-001, TD-002, TD-003, TD-004, TD-005, TD-016, TD-017~~ — all closed in T-014; TD-015 (platform layer tests) partially addressed in T-025, remains open for SDK/EventBus/shared types, tracked as T-012A; TD-018 (legacy orchestration retirement blocked on T-032) opened in T-023; TD-019/TD-020 (deferred Intelligence Gateway integrations) opened in T-025; TD-021/TD-022/TD-023 (deferred Live Provider Framework items) opened in T-026 |
-| Sprint 3 | TD-006 (AI↔API boundary), TD-010 (static KG enrichment), TD-011 (traveller domain), TD-013 (pagination), TD-019 (wire remaining Discovery providers to the gateway) |
+| Sprint 3 | TD-010 (static KG enrichment), TD-011 (traveller domain), TD-013 (pagination), TD-019 (wire remaining Discovery providers to the gateway) |
 | Sprint 4+ | TD-009 (demo isolation), TD-012 (ontology split), TD-014 (infra), TD-018 (legacy orchestration, pending T-032), TD-020 (Maps/Currency/Events providers, pending new Discovery modules), TD-021/TD-022 (real transport + OAuth2 exchange, pending the first real vendor integration), TD-023 (mock provider metrics) |
