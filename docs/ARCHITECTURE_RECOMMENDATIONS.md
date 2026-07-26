@@ -76,9 +76,16 @@ From T-010 audit. Prioritised actions for Sprint 2 and beyond.
 
 ### REC-006: Promote Traveller to a domain
 
+**Status**: Resolved (T-030)
+
 **What**: Move traveller to `services/api/app/domains/traveller/` with the standard `models/schemas/repository/service/router` split.
 
 **Why**: Goals and Trips both use the clean domain pattern. Traveller is the odd one out — it has `routers/traveller.py` and `services/traveller_service.py` at the top level without a proper models/schemas/repository split. This also means Traveller has no in-memory repository (it's a singleton dict in the service).
+
+T-030 created the canonical `app/domains/traveller/` package, separated the
+typed entity, schemas, repository, service, and router, and updated the API,
+SDK, and registry call sites without changing the public profile contract. See
+ADR-043.
 
 ---
 

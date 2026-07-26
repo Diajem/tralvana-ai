@@ -220,12 +220,16 @@ itinerary.
 
 ### TD-011 — Traveller domain not in `domains/`
 **Severity**: Low
-**Status**: Open
+**Status**: Resolved (T-030)
 **Introduced**: T-001B
 
 The traveller profile routes live in `services/api/app/routers/traveller.py` and `services/api/app/services/traveller_service.py`, outside the `domains/` structure used by Goals and Trips. No `models/`, `schemas/`, `repository/`, `service/`, `router/` split.
 
-**Resolution**: Promote to `services/api/app/domains/traveller/` in Sprint 2 to match the domain pattern.
+**Resolution**: T-030 moved the profile model, schemas, in-memory repository,
+service, and router into `services/api/app/domains/traveller/`; updated the
+composition root, SDK, and lazy service registry; and removed the superseded
+top-level modules. Public routes and response shapes are unchanged. See
+ADR-043.
 
 ---
 

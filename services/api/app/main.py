@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import health, traveller, conversation, explain, internal, planner
+from app.routers import health, conversation, explain, internal, planner
+from app.domains.traveller.router import router as traveller_router
 from app.domains.goals.router import router as goals_router
 from app.domains.trips.router import router as trips_router
 from app.domains.flights.router import router as flights_router
@@ -43,7 +44,7 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
-app.include_router(traveller.router)
+app.include_router(traveller_router)
 app.include_router(conversation.router)
 app.include_router(explain.router)
 app.include_router(planner.router)

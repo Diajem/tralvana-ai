@@ -1,7 +1,12 @@
+"""Traveller profile HTTP routes."""
+
 from fastapi import APIRouter, HTTPException
 
-from app.models.traveller import CreateProfileRequest, TravellerProfileResponse
-from app.services import traveller_service
+from app.domains.traveller.schemas import (
+    CreateProfileRequest,
+    TravellerProfileResponse,
+)
+from app.domains.traveller.service import traveller_service
 
 router = APIRouter(prefix="/traveller", tags=["traveller"])
 
