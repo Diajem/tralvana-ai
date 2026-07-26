@@ -380,6 +380,7 @@ class GatewayEventProvider:
     def __init__(self, gateway: IntelligenceGateway | None = None) -> None:
         self._gateway = gateway or intelligence_gateway
         self.last_result: ProviderResult | None = None
+        self.used_mock_fallback: bool = False
 
     def search(
         self,
@@ -388,6 +389,7 @@ class GatewayEventProvider:
         end_date: str | None = None,
         interests: list[str] | None = None,
     ) -> list[dict[str, Any]]:
+        self.used_mock_fallback = False
         request = ProviderRequest(
             capability=Capability.EVENTS,
             operation="search",
@@ -400,7 +402,35 @@ class GatewayEventProvider:
         )
         result = self._gateway.execute(Capability.EVENTS, request)
         self.last_result = result
-        return result.data if result.ok and result.data is not None else []
+        if result.ok and result.data is not None:
+            return result.data
+
+        from travelos.config.configuration_manager import config
+
+        if config.event_provider_mode != "LIVE":
+            return []
+
+        if config.event_mock_fallback_enabled:
+            from ai.discovery.events.mock_event_provider import MockEventProvider
+
+            self.used_mock_fallback = True
+            return MockEventProvider().search(
+                destination=destination,
+                start_date=start_date,
+                end_date=end_date,
+                interests=interests,
+            )
+
+        raise LiveEventSearchUnavailableError(
+            "Ticketmaster live event search is unavailable "
+            f"(provider_status={result.status.value}); "
+            "set TRALVANA_EVENT_MOCK_FALLBACK_ENABLED=true to use clearly "
+            "labelled curated fallback ideas."
+        )
+
+
+class LiveEventSearchUnavailableError(Exception):
+    """A live event search failed and curated fallback is disabled."""
 
 
 register_default_providers()

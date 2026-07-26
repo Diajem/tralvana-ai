@@ -39,6 +39,7 @@ _logger = TravelLogger.for_service("IntelligenceGateway")
 _CAPABILITY_MODE_CONFIG_ATTR: dict[Capability, str] = {
     Capability.FLIGHTS: "flight_provider_mode",
     Capability.ACCOMMODATION: "accommodation_provider_mode",
+    Capability.EVENTS: "event_provider_mode",
 }
 
 
@@ -105,7 +106,12 @@ class IntelligenceGateway:
         if config_attr is not None:
             try:
                 from travelos.config.configuration_manager import config
-                return ProviderEnvironment.SANDBOX if getattr(config, config_attr) == "LIVE_SANDBOX" else ProviderEnvironment.MOCK
+                mode = getattr(config, config_attr)
+                if mode == "LIVE_SANDBOX":
+                    return ProviderEnvironment.SANDBOX
+                if mode == "LIVE":
+                    return ProviderEnvironment.PRODUCTION
+                return ProviderEnvironment.MOCK
             except Exception:
                 return ProviderEnvironment.MOCK
         return self.environment

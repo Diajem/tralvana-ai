@@ -31,9 +31,19 @@ class EventScorer:
         else:
             interest_fit = 0.5
 
-        # A curated idea with no confirmed date or availability cannot receive
-        # a high confidence score, even when its category is a strong match.
-        evidence_fit = 0.35 if event["date_status"] == "UNVERIFIED" else 1.0
+        # Curated ideas and live listings with adverse provider statuses
+        # cannot outrank a healthy dated listing merely on interest match.
+        if event["date_status"] == "UNVERIFIED":
+            evidence_fit = 0.35
+        else:
+            evidence_fit = {
+                "CANCELLED": 0.0,
+                "OFF_SALE": 0.2,
+                "POSTPONED": 0.3,
+                "RESCHEDULED": 0.6,
+                "UNKNOWN": 0.75,
+                "ON_SALE": 1.0,
+            }.get(event.get("availability_status", "UNKNOWN"), 0.75)
         match_score = round((interest_fit * 0.75) + (evidence_fit * 0.25), 2)
         return {
             "match_score": min(max(match_score, 0.0), 1.0),

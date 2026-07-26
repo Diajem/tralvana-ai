@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from travelos.intelligence_gateway.discovery_adapters import (
+    LiveEventSearchUnavailableError,
+)
+
 
 def test_recommend_events_returns_provider_neutral_curated_results(client):
     response = client.post(
@@ -72,3 +76,26 @@ def test_event_response_never_claims_a_fixture_or_ticket(client):
     assert "no live calendar" in raw
     assert '"starts_at":null' in raw
     assert '"ticket_url":null' in raw
+
+
+def test_live_event_failure_returns_safe_503(client, monkeypatch):
+    from app.domains.events import router
+
+    def unavailable(*args, **kwargs):
+        raise LiveEventSearchUnavailableError(
+            "Ticketmaster live event search is unavailable"
+        )
+
+    monkeypatch.setattr(
+        router.event_intelligence_service,
+        "recommend",
+        unavailable,
+    )
+    response = client.post(
+        "/events/recommend",
+        json={"destination": "New York", "interests": ["soccer"]},
+    )
+    assert response.status_code == 503
+    assert response.json()["detail"] == (
+        "Ticketmaster live event search is unavailable"
+    )

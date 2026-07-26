@@ -10,6 +10,13 @@ class EventReasoner:
             fit = f"Matches the stated interest(s): {', '.join(matched)}."
         else:
             fit = "Does not directly match a stated event interest."
+        if event.get("_evidence_level") == "LIVE":
+            return (
+                f"{event['name']} is a live {event['category'].lower()} listing "
+                f"from {event['source_name']} for {event['destination']}. {fit} "
+                "The event date comes from the provider; current ticket inventory "
+                "and pricing must still be confirmed on the official event page."
+            )
         return (
             f"{event['name']} is a curated {event['category'].lower()} idea "
             f"for {event['destination']}. {fit} No exact date, fixture, ticket, "

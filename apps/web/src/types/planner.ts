@@ -31,8 +31,10 @@ export interface EventRecommendation extends Record<string, unknown> {
   venue_area: string;
   description: string;
   starts_at: string | null;
+  ends_at: string | null;
   date_status: string;
   availability_status: string;
+  ticket_url: string | null;
   interests_matched: string[];
   data_source: string;
 }

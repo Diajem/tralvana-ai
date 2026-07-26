@@ -339,7 +339,7 @@ class TestGroundingNotices:
             "weather": "CLIMATE_PROFILE",
         }
 
-    def test_event_interests_add_no_live_event_provider_notice(self):
+    def test_event_interests_without_a_result_add_an_idea_notice(self):
         itinerary = engine.assemble(
             _unified([_destination_result()]),
             destination="New York",
@@ -348,8 +348,8 @@ class TestGroundingNotices:
         )
         event_notice = next(n for n in itinerary.grounding_notices if n.domain == "events")
         assert event_notice.level == "IDEA"
-        assert event_notice.data_source == "NO_LIVE_EVENT_PROVIDER"
-        assert "No live event calendar" in event_notice.message
+        assert event_notice.data_source == "NO_CONFIRMED_EVENT_RESULT"
+        assert "did not return a usable current listing" in event_notice.message
 
     def test_structured_event_results_are_curated_not_live(self):
         itinerary = engine.assemble(
@@ -365,6 +365,58 @@ class TestGroundingNotices:
         assert event_notice.level == "CURATED"
         assert event_notice.is_current is False
         assert event_notice.data_source == "TRALVANA_CURATED_EVENT_IDEAS"
+
+    def test_ticketmaster_event_results_are_grounded_as_live(self):
+        result = _event_result()
+        live_option = {
+            **result.data["options"][0],
+            "starts_at": "2026-08-15T23:30:00Z",
+            "date_status": "CONFIRMED",
+            "availability_status": "ON_SALE",
+            "data_source": "TICKETMASTER_DISCOVERY_API",
+            "retrieved_at": "2026-07-26T10:00:00+00:00",
+        }
+        result.data = {"top_option": live_option, "options": [live_option]}
+        itinerary = engine.assemble(
+            _unified([result]),
+            destination="New York",
+            duration_days=5,
+            interests=["soccer"],
+        )
+        event_notice = next(
+            notice for notice in itinerary.grounding_notices
+            if notice.domain == "events"
+        )
+        assert event_notice.level == "LIVE"
+        assert event_notice.is_current is True
+        assert event_notice.requires_confirmation is True
+        assert event_notice.data_source == "TICKETMASTER_DISCOVERY_API"
+
+    def test_empty_successful_ticketmaster_search_is_still_grounded_as_live(self):
+        result = AgentResult(
+            agent_name="event_intelligence",
+            status=AgentStatus.NEEDS_INFORMATION,
+            confidence=0.0,
+            data={
+                "options": [],
+                "data_source": "TICKETMASTER_DISCOVERY_API",
+                "provider_status": "AVAILABLE",
+                "retrieved_at": "2026-07-26T10:00:00+00:00",
+            },
+        )
+        itinerary = engine.assemble(
+            _unified([result]),
+            destination="New York",
+            duration_days=5,
+            interests=["fashion", "soccer"],
+        )
+        event_notice = next(
+            notice for notice in itinerary.grounding_notices
+            if notice.domain == "events"
+        )
+        assert event_notice.level == "LIVE"
+        assert event_notice.is_current is True
+        assert "returned no matching listings" in event_notice.message
 
 
 class TestToDict:
