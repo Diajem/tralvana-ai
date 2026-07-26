@@ -24,6 +24,9 @@ _CONFIG_ENV_VARS = {
     "TRALVANA_ACCOMMODATION_MOCK_FALLBACK_ENABLED",
     "TRALVANA_EVENT_PROVIDER_MODE",
     "TRALVANA_EVENT_MOCK_FALLBACK_ENABLED",
+    "REDIS_URL",
+    "TRALVANA_SESSION_TTL_SECONDS",
+    "TRALVANA_REDIS_TIMEOUT_SECONDS",
 }
 
 
@@ -137,6 +140,42 @@ def test_provider_numeric_and_override_settings(monkeypatch):
     assert config.provider_http_timeout_seconds == 2.5
     assert config.provider_retry_max_attempts == 4
     assert config.provider_healthcheck_enabled is True
+
+
+def test_conversation_session_persistence_settings(monkeypatch):
+    config = ConfigurationManager()
+    assert config.redis_url is None
+    assert config.conversation_session_ttl_seconds == 604800
+    assert config.redis_socket_timeout_seconds == 2.0
+
+    monkeypatch.setenv("REDIS_URL", " redis://private-host:6379/0 ")
+    monkeypatch.setenv("TRALVANA_SESSION_TTL_SECONDS", "3600")
+    monkeypatch.setenv("TRALVANA_REDIS_TIMEOUT_SECONDS", "1.5")
+    config = ConfigurationManager()
+    assert config.redis_url == "redis://private-host:6379/0"
+    assert config.conversation_session_ttl_seconds == 3600
+    assert config.redis_socket_timeout_seconds == 1.5
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("TRALVANA_SESSION_TTL_SECONDS", "0"),
+        ("TRALVANA_REDIS_TIMEOUT_SECONDS", "-1"),
+    ],
+)
+def test_conversation_session_numeric_settings_reject_non_positive_values(
+    monkeypatch, name, value
+):
+    monkeypatch.setenv(name, value)
+    config = ConfigurationManager()
+
+    property_name = {
+        "TRALVANA_SESSION_TTL_SECONDS": "conversation_session_ttl_seconds",
+        "TRALVANA_REDIS_TIMEOUT_SECONDS": "redis_socket_timeout_seconds",
+    }[name]
+    with pytest.raises(ValueError):
+        getattr(config, property_name)
 
 
 @pytest.mark.parametrize(

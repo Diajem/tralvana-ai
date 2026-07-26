@@ -26,6 +26,9 @@ migrations and idempotently seeds the 11 already-verified affiliate programmes.
 - No OpenAI, Anthropic, Duffel, payment, or affiliate secret is defined by the
   Blueprint.
 - The database rejects public network connections.
+- The free single-instance acceptance API may use the in-memory conversation
+  adapter. Do not add API workers or replicas until a private managed Redis
+  service supplies `REDIS_URL`; see `docs/REDIS_SESSION_PERSISTENCE.md`.
 - `/health` is liveness only. `/health/ready` fails with HTTP 503 until the
   database is reachable, Alembic is at revision `0004`, and the verified
   affiliate catalogue has been seeded.
@@ -65,6 +68,9 @@ history unless deletion is separately authorised.
 ## Free-test limitations
 
 - Free web services sleep when inactive, so the first request can be slow.
+- Conversation sessions are process-local in the free Blueprint until a
+  private Redis service is attached; redeployment can therefore end an
+  unfinished chat during acceptance testing.
 - The free PostgreSQL database expires after 30 days and must not become the
   permanent commission ledger.
 - Testing uses Render's temporary service addresses first. Custom-domain DNS is

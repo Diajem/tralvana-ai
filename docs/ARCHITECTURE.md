@@ -256,7 +256,8 @@ Async task queue decouples API response time from agent execution time.
 | Validation | Pydantic v2 | Schema-first, fast |
 | Agent runtime | Python async | Native async agent execution |
 | LLM (Sprint 1+) | Anthropic Claude (default) | Best reasoning, model-agnostic design |
-| Memory (Sprint 1) | SQLite → PostgreSQL | Progressive persistence |
+| Domain persistence | PostgreSQL | Goals, Trips, commerce ledger |
+| Conversation sessions | Redis with local in-memory adapter | TTL state shared across API workers |
 | Vector store (Sprint 4) | pgvector or Chroma | RAG for knowledge layer |
 | Auth (Sprint 2) | Clerk or NextAuth.js | Delegated, not custom |
 | Infra (Sprint 5+) | Docker, Railway / Fly.io | Incremental cloud migration |
