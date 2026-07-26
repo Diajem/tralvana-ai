@@ -9,6 +9,8 @@ from sqlalchemy import engine_from_config, pool
 from app.database.base import Base
 from app.database.session import normalize_database_url
 import app.domains.commercial.orm  # noqa: F401
+import app.domains.goals.orm  # noqa: F401
+import app.domains.trips.orm  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:

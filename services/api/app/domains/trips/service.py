@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.domains.trips.models import TripPlan, TripStatus
-from app.domains.trips.repository import TripRepository
+from app.domains.trips.repository import TripRepository, build_trip_repository
 from app.domains.trips.schemas import CreateTripPlanRequest, UpdateTripPlanRequest
 
 
@@ -172,5 +172,5 @@ class TripPlanningService:
         return f"{type_label} — {dest} ({duration} days)"
 
 
-_repository = TripRepository()
+_repository = build_trip_repository()
 trip_planning_service = TripPlanningService(_repository)
