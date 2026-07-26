@@ -150,6 +150,13 @@ one cost model. `POST /budget/optimise` allocates existing budget tiers across
 multiple trips without adding a booking or price-availability claim. See
 `docs/BUDGET_OPTIMISATION_ENGINE.md` and ADR-037.
 
+Goals and Trip Plans persist through repository interfaces. When
+`DATABASE_URL` is present, their services select SQLAlchemy adapters backed by
+the same PostgreSQL/Alembic foundation as the commercial ledger; otherwise
+they retain in-memory adapters for local development. Alembic revision `0004`
+owns the two tables and the deployment readiness gate requires that revision.
+See `docs/GOAL_TRIP_PERSISTENCE.md` and ADR-038.
+
 `travelos/live_providers/` (T-026) is the reusable base a real vendor integration would extend — `BaseLiveProvider` implements the same `Provider` contract a mock provider does, so the gateway above needed zero changes to support it. See `docs/LIVE_PROVIDER_FRAMEWORK.md` and `docs/ADR/ADR-021-live-provider-framework.md`.
 
 **FLIGHTS and ACCOMMODATION each have a real, independently switchable live vendor (T-038, T-039)** — `DuffelFlightProvider` (T-027) and `DuffelStaysProvider` (T-039), both over `HttpxTransport` (T-037), selected by `TRALVANA_FLIGHT_PROVIDER_MODE`/`TRALVANA_ACCOMMODATION_PROVIDER_MODE` respectively (`MOCK` by default for both), via `IntelligenceGateway._environment_for(capability)`'s generalized per-capability lookup (`docs/INTELLIGENCE_GATEWAY.md`'s "Live Providers and Per-Capability Environment Resolution" section) — Weather still resolves its provider environment from the general `PROVIDER_ENVIRONMENT` var, untouched by either switch. See `docs/LIVE_FLIGHT_SEARCH.md`/`docs/ADR/ADR-024-live-flight-product-integration.md` and `docs/LIVE_ACCOMMODATION_SEARCH.md`/`docs/ADR/ADR-025-duffel-stays-integration.md`. **Accommodation's live path is fully built and tested but not yet verified against real Duffel Stays data** — the account's token lacks Stays access (`docs/DUFFEL_STAYS_INTEGRATION.md`'s Access Requirement section).

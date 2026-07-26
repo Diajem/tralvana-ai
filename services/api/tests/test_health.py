@@ -42,7 +42,7 @@ def test_readiness_fails_closed_without_database(client, monkeypatch):
         "status": "not_ready",
         "database_reachable": False,
         "schema_version": "unconfigured",
-        "expected_schema_version": "0003",
+        "expected_schema_version": "0004",
         "affiliate_programmes": 0,
     }
 
@@ -56,7 +56,7 @@ def test_readiness_passes_only_after_migration_and_affiliate_seed(
     factory = create_session_factory(engine)
     with factory.begin() as session:
         session.execute(text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"))
-        session.execute(text("INSERT INTO alembic_version (version_num) VALUES ('0003')"))
+        session.execute(text("INSERT INTO alembic_version (version_num) VALUES ('0004')"))
         seed_verified_affiliates(SqlAlchemyCommercialRepository(session))
     monkeypatch.setenv("DATABASE_URL", url)
 
@@ -66,8 +66,8 @@ def test_readiness_passes_only_after_migration_and_affiliate_seed(
     assert res.json() == {
         "status": "ok",
         "database_reachable": True,
-        "schema_version": "0003",
-        "expected_schema_version": "0003",
+        "schema_version": "0004",
+        "expected_schema_version": "0004",
         "affiliate_programmes": 11,
     }
     engine.dispose()

@@ -27,7 +27,7 @@ migrations and idempotently seeds the 11 already-verified affiliate programmes.
   Blueprint.
 - The database rejects public network connections.
 - `/health` is liveness only. `/health/ready` fails with HTTP 503 until the
-  database is reachable, Alembic is at revision `0003`, and the verified
+  database is reachable, Alembic is at revision `0004`, and the verified
   affiliate catalogue has been seeded.
 - Affiliate links retain the disclosure and destination allow-list controls
   implemented in T-043.

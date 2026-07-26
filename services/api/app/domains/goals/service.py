@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.domains.goals.models import Goal, GoalStatus, GoalType
-from app.domains.goals.repository import GoalRepository
+from app.domains.goals.repository import GoalRepository, build_goal_repository
 from app.domains.goals.schemas import CreateGoalRequest, UpdateGoalRequest
 
 
@@ -168,5 +168,5 @@ class GoalService:
         return score
 
 
-_repository = GoalRepository()
+_repository = build_goal_repository()
 goal_service = GoalService(_repository)

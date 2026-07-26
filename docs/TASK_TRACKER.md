@@ -61,6 +61,7 @@ Live register of all engineering tasks. Update status in the same PR that comple
 | T-055 | Event Date and Relevance Quality | `complete` | high | `4edc320` | Adds bounded interest-specific live searches with provider-ID deduplication; independently enforces inclusive destination-local travel dates and excludes past/undated live listings; removes unrelated results; prevents generic Sports classifications from masquerading as soccer; exposes safe filter counts in the API and verification script. Curated ideas remain explicitly undated. No booking, price, or inventory claims. ADR-035. |
 | T-056 | Senior-Team Event Preference and Planner Validation | `complete` | high | `28f5a7e` | Conservatively labels explicit reserve/youth soccer listings, prefers comparable senior/open listings without claiming a guaranteed first-team tier, retains reserve matches when they are the only relevant option, exposes the signal through API/planner/UI, and validates the full 15-day New York planner with deterministic live-provider responses. No booking, price, inventory, or team-tier guarantee. ADR-036. |
 | T-033 | Budget Optimisation Engine | `complete` | medium | This PR | Adds deterministic cross-trip allocation for 1–10 trips under one USD cap, protects priority/preferred/minimum tier constraints, returns exact savings/headroom/shortfall and per-trip trade-offs, and labels every result as estimated. Centralises the Budget Intelligence cost model and makes the legacy Trip Planner fallback consume it without changing its public shape. No live price, currency, tax, booking, or payment behaviour. Validation: 1,386 tests, Ruff, frontend lint/build. ADR-037. |
+| T-034 | PostgreSQL Persistence — Goals and Trips | `complete` | critical | This PR | Replaces process-local Goal and Trip storage with transactional SQLAlchemy adapters when `DATABASE_URL` is configured, reusing Tralvana's existing PostgreSQL/Alembic stack and preserving zero-setup in-memory adapters when it is absent. Alembic `0004` adds indexed Goal/Trip tables and advances readiness gating. Public APIs and planning behaviour are unchanged; no traveller or conversation persistence. Validation: migration upgrade/downgrade, persistent cross-instance CRUD, 1,392 tests, Ruff, frontend lint/build. ADR-038. |
 
 ---
 
@@ -74,7 +75,6 @@ No remaining tasks.
 
 | Task ID | Title | Status | Priority | Notes |
 |---------|-------|--------|----------|-------|
-| T-034 | PostgreSQL persistence — Goals + Trips | `planned` | critical | Replace in-memory repositories; Alembic migrations |
 | T-035 | Redis session store | `planned` | high | Replace in-memory conversation store; enables horizontal scaling |
 | T-036 | Fix AI↔API dependency direction | `planned` | medium | Introduce PlanningPort interface; see REC-008, TD-006 |
 | T-028 | Replace static KG enrichments with live queries | `planned` | medium | ItineraryBuilder reads from KnowledgeService at runtime; see REC-009, TD-010 |
