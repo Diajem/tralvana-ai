@@ -44,6 +44,7 @@ def test_readiness_fails_closed_without_database(client, monkeypatch):
         "schema_version": "unconfigured",
         "expected_schema_version": "0005",
         "affiliate_programmes": 0,
+        "authentication_configured": False,
     }
 
 
@@ -69,5 +70,6 @@ def test_readiness_passes_only_after_migration_and_affiliate_seed(
         "schema_version": "0005",
         "expected_schema_version": "0005",
         "affiliate_programmes": 11,
+        "authentication_configured": False,
     }
     engine.dispose()

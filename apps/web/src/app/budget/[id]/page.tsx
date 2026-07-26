@@ -1,4 +1,5 @@
 import { getBudgetOption } from "@/lib/api";
+import { serverSessionToken } from "@/lib/server-auth";
 import type { BudgetOption } from "@/types/budget";
 import { notFound } from "next/navigation";
 
@@ -48,9 +49,10 @@ export default async function BudgetOptionPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const token = await serverSessionToken();
   let option: BudgetOption;
   try {
-    option = await getBudgetOption(id);
+    option = await getBudgetOption(id, token);
   } catch {
     notFound();
   }

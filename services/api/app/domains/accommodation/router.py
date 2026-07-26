@@ -1,5 +1,11 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from app.auth import AuthenticatedTraveller, require_authenticated_traveller
+from app.auth.dependencies import (
+    authenticated_traveller_id,
+    require_resource_owner,
+    require_trip_owner,
+)
 from ai.discovery.accommodation.live_search_validator import LiveAccommodationSearchValidationError
 from app.domains.accommodation.schemas import (
     AccommodationOptionResponse,
@@ -13,7 +19,14 @@ router = APIRouter(tags=["accommodation"])
 
 
 @router.post("/accommodation/recommend", response_model=AccommodationRecommendationResponse, status_code=201)
-async def recommend_accommodation(request: RecommendAccommodationRequest) -> dict:
+async def recommend_accommodation(
+    request: RecommendAccommodationRequest,
+    principal: AuthenticatedTraveller | None = Depends(require_authenticated_traveller),
+) -> dict:
+    request.traveller_id = authenticated_traveller_id(
+        principal, request.traveller_id
+    )
+    require_trip_owner(principal, request.trip_id)
     trip = None
     if request.trip_id:
         try:
@@ -47,13 +60,21 @@ async def recommend_accommodation(request: RecommendAccommodationRequest) -> dic
 
 
 @router.get("/accommodation/{accommodation_option_id}", response_model=AccommodationOptionResponse)
-async def get_accommodation_option(accommodation_option_id: str) -> dict:
+async def get_accommodation_option(
+    accommodation_option_id: str,
+    principal: AuthenticatedTraveller | None = Depends(require_authenticated_traveller),
+) -> dict:
     option = accommodation_intelligence_service.get(accommodation_option_id)
     if not option:
         raise HTTPException(status_code=404, detail="Accommodation option not found")
+    require_resource_owner(principal, option)
     return option
 
 
 @router.get("/trips/{trip_id}/accommodation", response_model=list[AccommodationOptionResponse])
-async def list_trip_accommodation(trip_id: str) -> list[dict]:
+async def list_trip_accommodation(
+    trip_id: str,
+    principal: AuthenticatedTraveller | None = Depends(require_authenticated_traveller),
+) -> list[dict]:
+    require_trip_owner(principal, trip_id)
     return accommodation_intelligence_service.list_by_trip(trip_id)

@@ -123,8 +123,9 @@ first. See `docs/ADR/ADR-018-legacy-orchestration-retirement.md` and
   (T-026) exists to receive a real integration; none has been built.
 - **No persistence.** Goals, Trips, and conversation sessions are all
   in-memory — restart the API and they're gone (T-034, T-035 planned).
-- **No authentication.** Every endpoint, including the internal
-  diagnostics endpoint, is open (T-031 planned).
+- **Clerk authentication is implemented.** Non-public API routers require a
+  verified session, and Profile/Goal/Trip ownership is bound to the Clerk user
+  ID (T-031, ADR-048). Secure deployment values still have to be supplied.
 - **No real HTTP transport** for live providers — only the deterministic
   `FakeTransport` (TD-021).
 - **No real OAuth2 token exchange** — the client-credentials strategy is
@@ -156,7 +157,7 @@ From `docs/TASK_TRACKER.md`, highest-signal open items:
 | T-032 — Migrate remaining intents off legacy TravelManager | medium | Nothing — unblocked, not started |
 | T-012A — Platform layer test coverage (SDK, EventBus, shared types) | medium | Nothing — unblocked, not started |
 | T-034 — PostgreSQL persistence (Goals + Trips) | critical | Nothing — unblocked, not started |
-| T-031 — Auth layer | high | Nothing — unblocked, not started |
+| T-031 — Auth layer | high | Complete — Clerk selected and implemented |
 | T-035 — Redis session store | high | Nothing — unblocked, not started |
 | TD-019 — Wire Destination/Budget/Visa to the Intelligence Gateway | — | Nothing — same proven pattern as Flight/Accommodation/Weather |
 

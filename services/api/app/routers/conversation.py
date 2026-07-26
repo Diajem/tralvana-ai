@@ -1,6 +1,11 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from app.auth import AuthenticatedTraveller, require_authenticated_traveller
+from app.auth.dependencies import (
+    authenticated_traveller_id,
+    require_conversation_owner,
+)
 router = APIRouter(prefix="/conversation", tags=["conversation"])
 
 
@@ -24,7 +29,14 @@ class ConversationMessageResponse(BaseModel):
 
 
 @router.post("/message", response_model=ConversationMessageResponse)
-async def conversation_message(request: ConversationMessageRequest) -> dict:
+async def conversation_message(
+    request: ConversationMessageRequest,
+    principal: AuthenticatedTraveller | None = Depends(require_authenticated_traveller),
+) -> dict:
+    request.traveller_id = authenticated_traveller_id(
+        principal, request.traveller_id
+    )
+    require_conversation_owner(principal, request.conversation_id)
     from ai.concierge.travel_concierge import travel_concierge
     return await travel_concierge.handle(
         request.message,

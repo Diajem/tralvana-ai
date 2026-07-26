@@ -216,8 +216,10 @@ curl http://localhost:8000/traveller/profile/a3f1c7d2-9e4b-4f1a-8c3d-2b5e6f7a8d9
 
 ## Notes
 
-- Profile IDs are UUIDs generated server-side. Store the `id` from the POST response.
+- With Clerk enabled, the verified Clerk user ID is the profile `id`. In
+  disabled local/test mode, a UUID is generated server-side.
 - Profiles are held in process memory in Sprint 1 and are lost on server restart.
-- No authentication is required in Sprint 1. Sprint 2 adds JWT-based auth.
+- Production requires a Clerk session; the API never trusts a client-supplied
+  traveller identity.
 - `travel_history` is append-only. Agents write to it; the create endpoint does not.
 - Preference arrays (`travel_interests`, `hotel_preferences`, `accessibility_needs`) accept any subset of the listed values.

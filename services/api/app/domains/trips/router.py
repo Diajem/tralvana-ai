@@ -1,5 +1,11 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.auth import AuthenticatedTraveller, require_authenticated_traveller
+from app.auth.dependencies import (
+    authenticated_traveller_id,
+    require_goal_owner,
+    require_owner,
+)
 from app.domains.trips.schemas import CreateTripPlanRequest, TripPlanResponse, UpdateTripPlanRequest
 from app.domains.trips.service import trip_planning_service
 
@@ -7,7 +13,14 @@ router = APIRouter(tags=["trips"])
 
 
 @router.post("/trips/plan", response_model=TripPlanResponse, status_code=201)
-async def plan_trip(request: CreateTripPlanRequest) -> dict:
+async def plan_trip(
+    request: CreateTripPlanRequest,
+    principal: AuthenticatedTraveller | None = Depends(require_authenticated_traveller),
+) -> dict:
+    request.traveller_id = authenticated_traveller_id(
+        principal, request.traveller_id
+    )
+    require_goal_owner(principal, request.goal_id)
     goal = None
     if request.goal_id:
         try:
@@ -28,10 +41,14 @@ async def plan_trip(request: CreateTripPlanRequest) -> dict:
 
 
 @router.get("/trips/{trip_id}", response_model=TripPlanResponse)
-async def get_trip(trip_id: str) -> dict:
+async def get_trip(
+    trip_id: str,
+    principal: AuthenticatedTraveller | None = Depends(require_authenticated_traveller),
+) -> dict:
     trip = trip_planning_service.get(trip_id)
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
+    require_owner(principal, trip["traveller_id"])
     return trip
 
 
@@ -40,7 +57,9 @@ async def list_traveller_trips(
     traveller_id: str,
     limit: int = Query(default=100, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    principal: AuthenticatedTraveller | None = Depends(require_authenticated_traveller),
 ) -> list[dict]:
+    require_owner(principal, traveller_id)
     return trip_planning_service.list_by_traveller(
         traveller_id,
         limit=limit,
@@ -49,7 +68,15 @@ async def list_traveller_trips(
 
 
 @router.patch("/trips/{trip_id}", response_model=TripPlanResponse)
-async def update_trip(trip_id: str, request: UpdateTripPlanRequest) -> dict:
+async def update_trip(
+    trip_id: str,
+    request: UpdateTripPlanRequest,
+    principal: AuthenticatedTraveller | None = Depends(require_authenticated_traveller),
+) -> dict:
+    existing = trip_planning_service.get(trip_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    require_owner(principal, existing["traveller_id"])
     trip = trip_planning_service.update(trip_id, request)
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")

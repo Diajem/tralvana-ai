@@ -1,4 +1,5 @@
 import { getVisaAssessment } from "@/lib/api";
+import { serverSessionToken } from "@/lib/server-auth";
 import type { VisaAssessment } from "@/types/visa";
 import { notFound } from "next/navigation";
 
@@ -33,9 +34,10 @@ export default async function VisaAssessmentPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const token = await serverSessionToken();
   let assessment: VisaAssessment;
   try {
-    assessment = await getVisaAssessment(id);
+    assessment = await getVisaAssessment(id, token);
   } catch {
     notFound();
   }

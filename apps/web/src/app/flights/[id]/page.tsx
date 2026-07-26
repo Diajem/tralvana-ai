@@ -1,5 +1,6 @@
 import { AffiliateCheckout } from "@/components/commercial/AffiliateCheckout";
 import { getAffiliateProgrammes, getFlightOption } from "@/lib/api";
+import { serverSessionToken } from "@/lib/server-auth";
 import type { FlightOption } from "@/types/flight";
 import { notFound } from "next/navigation";
 
@@ -36,11 +37,12 @@ export default async function FlightOptionPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const token = await serverSessionToken();
   let flight: FlightOption;
   const affiliateProgrammes = await getAffiliateProgrammes().catch(() => []);
   const expedia = affiliateProgrammes.find((programme) => programme.partner === "Expedia");
   try {
-    flight = await getFlightOption(id);
+    flight = await getFlightOption(id, token);
   } catch {
     notFound();
   }

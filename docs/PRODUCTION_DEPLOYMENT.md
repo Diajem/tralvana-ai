@@ -31,7 +31,11 @@ migrations and idempotently seeds the 11 already-verified affiliate programmes.
   service supplies `REDIS_URL`; see `docs/REDIS_SESSION_PERSISTENCE.md`.
 - `/health` is liveness only. `/health/ready` fails with HTTP 503 until the
   database is reachable, Alembic is at revision `0005`, and the verified
-  affiliate catalogue has been seeded.
+  affiliate catalogue has been seeded. It also reports whether Clerk
+  authentication is configured.
+- Production is fail-closed on Clerk configuration. Add the Blueprint's three
+  `sync: false` Clerk values from one Clerk application before deploying; never
+  paste them into source control.
 - Affiliate links retain the disclosure and destination allow-list controls
   implemented in T-043.
 
@@ -39,8 +43,9 @@ migrations and idempotently seeds the 11 already-verified affiliate programmes.
 
 1. In Render, create a Blueprint from `Diajem/tralvana-ai`. All three resources
    should show the Free instance type; do not continue if a paid plan appears.
-2. Wait for `tralvana-api` and `tralvana-web` to deploy successfully using their
-   temporary Render addresses.
+2. Supply the requested Clerk publishable key, secret key, and PEM public key
+   in Render's secure environment fields. Then wait for `tralvana-api` and
+   `tralvana-web` to deploy using their temporary Render addresses.
 3. During free hosted acceptance, use `tralvana-web.onrender.com` and
    `tralvana-api.onrender.com`. Do not add or alter any `tralvana.com` DNS
    records.

@@ -1,4 +1,5 @@
 import { getTripPlan } from "@/lib/api";
+import { serverSessionToken } from "@/lib/server-auth";
 import type { TripPlan, DayPlan, TripRisk, BudgetBreakdown } from "@/types/trip";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -151,9 +152,10 @@ export default async function TripPlanPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const token = await serverSessionToken();
   let trip: TripPlan;
   try {
-    trip = await getTripPlan(id);
+    trip = await getTripPlan(id, token);
   } catch {
     notFound();
   }

@@ -11,9 +11,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from app.auth import AuthenticatedTraveller, require_authenticated_traveller
+from app.auth.dependencies import require_owner
 router = APIRouter(tags=["explainability"])
 
 
@@ -67,7 +69,10 @@ class ExplanationResponse(BaseModel):
 
 
 @router.post("/explain", response_model=ExplanationResponse)
-async def explain(request: ExplainRequest) -> dict:
+async def explain(
+    request: ExplainRequest,
+    principal: AuthenticatedTraveller | None = Depends(require_authenticated_traveller),
+) -> dict:
     from ai.explainability.explainability_engine import explainability_engine
     from ai.shared.agent_result import AgentResult
     from ai.shared.agent_status import AgentStatus
@@ -107,6 +112,7 @@ async def explain(request: ExplainRequest) -> dict:
             detail="No recommendation found to explain — provide module_results, "
             "or a conversation_id/trip_id with a prior PLAN_TRIP result.",
         )
+    require_owner(principal, session.traveller_id)
 
     unified = session.last_recommendation
     explanation = dict(unified.explanation)

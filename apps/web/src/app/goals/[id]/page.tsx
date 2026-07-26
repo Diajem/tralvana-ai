@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getGoal } from "@/lib/api";
+import { serverSessionToken } from "@/lib/server-auth";
 import type { Goal } from "@/types/goal";
 
 interface Props {
@@ -77,12 +78,13 @@ function computeReadiness(goal: Goal): { score: number; missing: string[] } {
 
 export default async function GoalPage({ params }: Props) {
   const { id } = await params;
+  const token = await serverSessionToken();
 
   let goal: Goal | null = null;
   let fetchError: string | null = null;
 
   try {
-    goal = await getGoal(id);
+    goal = await getGoal(id, token);
   } catch {
     fetchError = "Could not load goal. Make sure the API is running on port 8000.";
   }
