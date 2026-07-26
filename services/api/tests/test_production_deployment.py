@@ -2,7 +2,7 @@ from pathlib import Path
 
 import yaml
 
-from app.database import session as database_session
+from travelos.persistence import session as database_session
 
 
 ROOT = Path(__file__).parents[3]

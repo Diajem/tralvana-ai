@@ -80,6 +80,9 @@ Zero-config, ships with Python. But EAV tables for a property graph are awkward,
 Production-ready. But requires a running server, adds infra cost, and violates Sprint 1's no-database constraint. The **recommended Sprint 4 migration target**.
 
 ### E. Kuzu (embedded graph DB)
+
+**Superseded by ADR-042:** Kuzu was archived by its maintainers in October
+2025. T-029 reuses Tralvana's existing PostgreSQL/SQLAlchemy stack instead.
 MIT-licensed, embeddable (no server), Cypher-compatible. An ideal Sprint 4 migration because it eliminates the server requirement while keeping Cypher query capability. **Primary Sprint 4 recommendation.**
 
 ---

@@ -97,7 +97,7 @@ class SafetyReasoner(BaseReasoner):
                 else None,
                 "local_languages": languages,
                 "health_tips": health_tips,
-                "data_source": "Sprint 1 static knowledge graph",
+                "data_source": "Tralvana seeded knowledge graph",
                 "advisory_note": (
                     "Always check your government's official travel advisory for the most current information "
                     "before booking or travelling."

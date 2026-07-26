@@ -1,6 +1,9 @@
 # Travel Knowledge Graph
 
-The TravelOS Knowledge Graph is an in-memory property graph connecting all travel entities through typed relationships. It powers all six reasoning services and the Traveller DNA inference system.
+The TravelOS Knowledge Graph connects all travel entities through typed
+relationships. It powers all six reasoning services and the Traveller DNA
+inference system. When `DATABASE_URL` is configured, nodes and edges persist in
+PostgreSQL; without it, the same seeded graph runs in memory.
 
 ## Package
 
@@ -125,8 +128,12 @@ second venue catalogue, so entities and relationships added through
 | Travel Seasons | 6 |
 | Weather records | 26 |
 
-## Graph DB Migration (Sprint 4)
+## Persistence (T-029)
 
-The `KnowledgeService` and `KnowledgeGraph` are the only two classes that need replacing when migrating to Neo4j or Kuzu. All 6 reasoners call `KnowledgeService` — they require no changes.
+`KnowledgeService` is unchanged across both backends:
 
-Recommended path: **Kuzu** (MIT-licensed, embeddable, Cypher-compatible, no server required).
+- `KnowledgeGraph` provides zero-setup in-memory operation.
+- `SqlAlchemyKnowledgeGraph` persists through the configured PostgreSQL stack.
+
+The original Kuzu plan was retired after that project was archived in October
+2025. See `docs/PERSISTENT_KNOWLEDGE_GRAPH.md` and ADR-042.

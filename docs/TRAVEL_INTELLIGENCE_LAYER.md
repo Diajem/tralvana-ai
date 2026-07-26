@@ -16,7 +16,9 @@ ai/intelligence/
 
 ### 1. Knowledge Graph (`knowledge/`)
 
-An in-memory property graph storing 20 entity types and 22 relationship types. The graph is seeded on import from `ontology/travel_ontology.py`.
+A property graph storing 20 entity types and 22 relationship types. It uses the
+configured PostgreSQL database in deployed environments and a seeded in-memory
+adapter for zero-setup local operation.
 
 Sprint 1 coverage: ~200 nodes, ~200 edges across 11 cities and 10 countries.
 
@@ -81,7 +83,7 @@ result = safety_reasoner.reason("Lagos", passport_country_iso="GB")
 
 | Sprint | Enhancement |
 |--------|-------------|
-| 1 (current) | In-memory graph, static seed data, rule-based DNA, 6 reasoners |
+| 1 | In-memory graph, static seed data, rule-based DNA, 6 reasoners |
 | 2 | Expand to 50+ cities; add live weather API integration |
 | 3 | ML-ranked experiences; DNA trained on trip history |
-| 4 | Graph DB migration (Kuzu / Neo4j); real-time advisories |
+| 4 | PostgreSQL-backed graph persistence complete; real-time advisories remain future work |

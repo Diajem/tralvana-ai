@@ -6,6 +6,9 @@ from ai.intelligence.knowledge.relationships import Relationship, RelationshipTy
 
 if TYPE_CHECKING:
     from ai.intelligence.knowledge.knowledge_graph import KnowledgeGraph
+    from ai.intelligence.knowledge.sql_knowledge_graph import (
+        SqlAlchemyKnowledgeGraph,
+    )
 
 
 class KnowledgeService:
@@ -18,12 +21,14 @@ class KnowledgeService:
     - Expand a node's neighbourhood (subgraph up to N hops)
     - Retrieve connected entities of a specific type
 
-    Design intent: replacing KnowledgeGraph with a Neo4j or Kuzu driver
-    in Sprint 4 only requires updating KnowledgeGraph — all callers of
-    KnowledgeService remain unchanged.
+    The configured backend may be in memory or SQL-backed; callers remain
+    independent of that persistence choice.
     """
 
-    def __init__(self, graph: KnowledgeGraph) -> None:
+    def __init__(
+        self,
+        graph: KnowledgeGraph | SqlAlchemyKnowledgeGraph,
+    ) -> None:
         self._graph = graph
 
     # ------------------------------------------------------------------
