@@ -1,5 +1,6 @@
-"""Compatibility imports for shared TravelOS persistence helpers."""
+"""Shared relational persistence primitives for TravelOS services."""
 
+from travelos.persistence.base import Base
 from travelos.persistence.session import (
     create_engine_from_url,
     create_session_factory,
@@ -9,6 +10,7 @@ from travelos.persistence.session import (
 )
 
 __all__ = [
+    "Base",
     "create_engine_from_url",
     "create_session_factory",
     "database_url",

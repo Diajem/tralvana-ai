@@ -35,6 +35,7 @@ Key principles:
 
 ## Sprint 3+ Evolution
 
-When the Knowledge Graph is replaced by Kuzu and Goals/Trips move to PostgreSQL:
+When the Knowledge Graph and Goals/Trips use persistent storage (implemented
+with PostgreSQL in T-029/T-034):
 - `DemoService` requires no changes — it calls service facades, not infrastructure
 - Only the underlying singleton implementations change

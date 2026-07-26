@@ -12,9 +12,8 @@ class KnowledgeGraph:
     Nodes are typed entity instances keyed by ID.
     Edges are typed Relationship instances.
 
-    Interface contract: swapping this implementation for Neo4j, ArangoDB, or
-    Kuzu in Sprint 4+ requires only replacing this class. All callers (reasoners,
-    knowledge service, agents) remain unchanged.
+    This is the zero-setup adapter. Deployed environments use the SQLAlchemy
+    implementation behind the same KnowledgeService contract.
     """
 
     def __init__(self) -> None:
@@ -163,3 +162,14 @@ class KnowledgeGraph:
             "total_edges": len(self._edges),
             "nodes_by_type": type_counts,
         }
+
+    def iter_nodes(self) -> list[tuple[Any, str]]:
+        """Return nodes in insertion order for persistence seeding."""
+        return [
+            (node, self._node_types[node_id])
+            for node_id, node in self._nodes.items()
+        ]
+
+    def iter_edges(self) -> list[Relationship]:
+        """Return a snapshot of relationships in insertion order."""
+        return list(self._edges)

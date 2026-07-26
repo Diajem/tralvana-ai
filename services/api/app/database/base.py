@@ -1,5 +1,5 @@
-from sqlalchemy.orm import DeclarativeBase
+"""Compatibility import for the shared TravelOS declarative base."""
 
+from travelos.persistence.base import Base
 
-class Base(DeclarativeBase):
-    """Base metadata for API-owned relational tables."""
+__all__ = ["Base"]

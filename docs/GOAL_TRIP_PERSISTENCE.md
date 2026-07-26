@@ -49,8 +49,9 @@ Production startup already runs:
 alembic -c services/api/alembic.ini upgrade head
 ```
 
-The readiness gate now expects schema revision `0004`. It will reject traffic
-when a deployment is still on `0003`.
+T-034 advanced the readiness gate to schema revision `0004`. T-029 later
+advanced the shared schema to `0005` for persistent knowledge. The gate rejects
+traffic whenever a deployment is not at the current expected revision.
 
 Existing in-memory Goal/Trip records cannot be migrated because they were
 ephemeral and disappeared whenever the old process stopped. This migration

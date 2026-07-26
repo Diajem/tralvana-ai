@@ -11,7 +11,7 @@ class DestinationReasoner(BaseReasoner):
     Aggregates all graph knowledge about a destination city into one summary.
 
     Sprint 1: in-memory graph traversal.
-    Sprint 4+: replace _ks with Neo4j/Kuzu queries — interface unchanged.
+    The KnowledgeService backend is selected at composition time.
     """
 
     def reason(self, destination: str, traveller_profile: dict | None = None, **_) -> ReasoningResult:

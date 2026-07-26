@@ -30,7 +30,7 @@ migrations and idempotently seeds the 11 already-verified affiliate programmes.
   adapter. Do not add API workers or replicas until a private managed Redis
   service supplies `REDIS_URL`; see `docs/REDIS_SESSION_PERSISTENCE.md`.
 - `/health` is liveness only. `/health/ready` fails with HTTP 503 until the
-  database is reachable, Alembic is at revision `0004`, and the verified
+  database is reachable, Alembic is at revision `0005`, and the verified
   affiliate catalogue has been seeded.
 - Affiliate links retain the disclosure and destination allow-list controls
   implemented in T-043.

@@ -154,7 +154,10 @@ Goals and Trip Plans persist through repository interfaces. When
 `DATABASE_URL` is present, their services select SQLAlchemy adapters backed by
 the same PostgreSQL/Alembic foundation as the commercial ledger; otherwise
 they retain in-memory adapters for local development. Alembic revision `0004`
-owns the two tables and the deployment readiness gate requires that revision.
+owns the two tables. T-029 advances the shared schema to `0005`, adding
+persistent knowledge nodes and edges behind the unchanged `KnowledgeService`;
+the deployment readiness gate requires that revision. Local runs without
+`DATABASE_URL` retain the seeded in-memory graph.
 See `docs/GOAL_TRIP_PERSISTENCE.md` and ADR-038.
 
 The AI layer owns a `PlanningPort` contract and contains no imports from the
