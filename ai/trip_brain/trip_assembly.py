@@ -138,7 +138,14 @@ class TripAssemblyEngine:
         budget_rec = self._top_option(by_module.get("budget_intelligence"))
         visa_rec = self._assessment(by_module.get("visa_intelligence"))
         weather_rec = self._assessment(by_module.get("weather_intelligence"))
-        event_recs = self._options(by_module.get("event_intelligence"))
+        event_result = by_module.get("event_intelligence")
+        event_recs = self._options(event_result)
+        event_evidence = (
+            event_result.data
+            if event_result is not None
+            and event_result.status != AgentStatus.FAILED
+            else {}
+        )
 
         daily_outline = itinerary_builder.build(
             destination=destination or "your destination",
@@ -169,6 +176,7 @@ class TripAssemblyEngine:
             visa=visa_rec,
             weather=weather_rec,
             events=event_recs,
+            event_evidence=event_evidence,
             interests=interests or [],
         )
 
@@ -336,6 +344,7 @@ class TripAssemblyEngine:
         visa: dict[str, Any] | None,
         weather: dict[str, Any] | None,
         events: list[dict[str, Any]],
+        event_evidence: dict[str, Any],
         interests: list[str],
     ) -> list[GroundingNotice]:
         notices: list[GroundingNotice] = []
@@ -415,18 +424,50 @@ class TripAssemblyEngine:
                 events[0].get("data_source", "TRALVANA_CURATED_EVENT_IDEAS")
             )
             retrieved_at = events[0].get("retrieved_at")
+            live = source == "TICKETMASTER_DISCOVERY_API"
             notices.append(
                 GroundingNotice(
                     domain="events",
-                    level="CURATED",
-                    title="Curated event search ideas",
+                    level="LIVE" if live else "CURATED",
+                    title=(
+                        "Live event listings"
+                        if live
+                        else "Curated event search ideas"
+                    ),
                     message=(
-                        "Event Intelligence matched the traveller's interests to "
-                        "curated search ideas. It did not confirm a live calendar, "
-                        "fixture, ticket, price, or availability."
+                        "Event dates and public links were retrieved from "
+                        "Ticketmaster Discovery API. Ticket inventory, pricing, "
+                        "and final event status must still be confirmed."
+                        if live
+                        else (
+                            "Event Intelligence matched the traveller's interests to "
+                            "curated search ideas. It did not confirm a live calendar, "
+                            "fixture, ticket, price, or availability."
+                        )
                     ),
                     data_source=source,
-                    is_current=False,
+                    is_current=live,
+                    requires_confirmation=True,
+                    retrieved_at=str(retrieved_at) if retrieved_at else None,
+                )
+            )
+        elif (
+            event_evidence.get("data_source") == "TICKETMASTER_DISCOVERY_API"
+            and event_evidence.get("provider_status") == "AVAILABLE"
+        ):
+            retrieved_at = event_evidence.get("retrieved_at")
+            notices.append(
+                GroundingNotice(
+                    domain="events",
+                    level="LIVE",
+                    title="Live event search completed",
+                    message=(
+                        "Ticketmaster Discovery API was checked for the destination "
+                        "and travel dates but returned no matching listings. Generic "
+                        "activities remain ideas rather than confirmed events."
+                    ),
+                    data_source="TICKETMASTER_DISCOVERY_API",
+                    is_current=True,
                     requires_confirmation=True,
                     retrieved_at=str(retrieved_at) if retrieved_at else None,
                 )
@@ -436,13 +477,13 @@ class TripAssemblyEngine:
                 GroundingNotice(
                     domain="events",
                     level="IDEA",
-                    title="Event ideas require a live check",
+                    title="Event ideas require confirmation",
                     message=(
-                        "Fashion and football activities in the daily outline are planning "
-                        "ideas. No live event calendar, fixture, ticket, or availability "
-                        "provider was queried."
+                        "Fashion and football activities in the daily outline remain "
+                        "planning ideas because Event Intelligence did not return a "
+                        "usable current listing for the trip."
                     ),
-                    data_source="NO_LIVE_EVENT_PROVIDER",
+                    data_source="NO_CONFIRMED_EVENT_RESULT",
                     is_current=False,
                     requires_confirmation=True,
                 )

@@ -34,6 +34,7 @@ class EventIntelligence:
         for record in raw:
             event = event_normalizer.normalize(record)
             score = event_scorer.score(event, interests)
+            is_live = event.get("_evidence_level") == "LIVE"
             options.append(
                 {
                     **event,
@@ -41,9 +42,16 @@ class EventIntelligence:
                     "interests_matched": score["interests_matched"],
                     "reasoning": event_reasoner.explain(event, score),
                     "risks": event_risk_assessor.assess(event),
-                    "assumptions": [
-                        "This is a curated search idea, not a confirmed event listing."
-                    ],
+                    "assumptions": (
+                        [
+                            "This is a live provider listing; ticket inventory, "
+                            "pricing, and final event details still require confirmation."
+                        ]
+                        if is_live
+                        else [
+                            "This is a curated search idea, not a confirmed event listing."
+                        ]
+                    ),
                 }
             )
 
@@ -54,11 +62,64 @@ class EventIntelligence:
             )
             option.pop("_tags", None)
             option.pop("_requested_interests", None)
+            option.pop("_evidence_level", None)
 
         result = self._provider.last_result
-        data_source = "TRALVANA_CURATED_EVENT_IDEAS"
+        used_fallback = getattr(self._provider, "used_mock_fallback", False)
+        is_live = bool(
+            result
+            and result.provider_name == "ticketmaster_event_provider"
+            and not used_fallback
+        )
+        if used_fallback:
+            data_source = "MOCK_FALLBACK"
+        elif is_live:
+            data_source = "TICKETMASTER_DISCOVERY_API"
+        else:
+            data_source = "TRALVANA_CURATED_EVENT_IDEAS"
         provider_status = result.status.value if result else "UNAVAILABLE"
         retrieved_at = result.retrieved_at if result else None
+
+        if is_live:
+            assumptions = [
+                "Event dates and public links were retrieved from Ticketmaster "
+                "Discovery API; ticket inventory and pricing are not guaranteed."
+            ]
+            next_actions = [
+                "Open the official event page and confirm current status, price, "
+                "ticket inventory, venue rules, and accessibility details.",
+                "Recheck the listing before changing non-refundable travel plans.",
+            ]
+            summary = (
+                f"{len(ranked)} live event listing(s) matched for {destination}. "
+                "Availability and pricing still require confirmation."
+            )
+        elif used_fallback:
+            assumptions = [
+                "Ticketmaster live search was unavailable; results are curated "
+                "fallback ideas with no confirmed date, ticket, price, or availability."
+            ]
+            next_actions = [
+                "Retry the live event search.",
+                "Check the official organiser, venue, league, club, or fashion calendar.",
+            ]
+            summary = (
+                f"{len(ranked)} curated fallback event idea(s) matched for "
+                f"{destination}; none is a confirmed listing."
+            )
+        else:
+            assumptions = [
+                "Event results are deterministic curated ideas; no live calendar, "
+                "fixture, ticket, price, or availability provider was queried."
+            ]
+            next_actions = [
+                "Check the official organiser, venue, league, club, or fashion calendar.",
+                "Confirm the exact date and availability before changing the itinerary.",
+            ]
+            summary = (
+                f"{len(ranked)} curated event idea(s) matched for {destination}. "
+                "None is a confirmed date-specific listing."
+            )
 
         return {
             "destination": destination,
@@ -68,19 +129,10 @@ class EventIntelligence:
             "data_source": data_source,
             "provider_status": provider_status,
             "retrieved_at": retrieved_at,
-            "assumptions": [
-                "Event results are deterministic curated ideas; no live calendar, fixture, "
-                "ticket, price, or availability provider was queried."
-            ],
-            "next_actions": [
-                "Check the official organiser, venue, league, club, or fashion calendar.",
-                "Confirm the exact date and availability before changing the itinerary.",
-            ],
+            "assumptions": assumptions,
+            "next_actions": next_actions,
             "recommended_agents": ["experience_agent"],
-            "summary": (
-                f"{len(ranked)} curated event idea(s) matched for {destination}. "
-                "None is a confirmed date-specific listing."
-            ),
+            "summary": summary,
         }
 
 

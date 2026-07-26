@@ -6,6 +6,7 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $Python = Join-Path $RepoRoot ".venv\Scripts\python.exe"
 $Requirements = Join-Path $RepoRoot "services\api\requirements.txt"
+$EnvFile = Join-Path $RepoRoot ".env"
 
 if (-not (Test-Path $Python)) {
     Write-Host "Creating the Tralvana Python environment..."
@@ -20,7 +21,17 @@ Push-Location $RepoRoot
 try {
     Write-Host "Starting Tralvana API at http://localhost:$Port"
     Write-Host "Swagger: http://localhost:$Port/docs"
-    & $Python -m uvicorn app.main:app --app-dir services/api --host 0.0.0.0 --port $Port --reload
+    $UvicornArgs = @(
+        "-m", "uvicorn", "app.main:app",
+        "--app-dir", "services/api",
+        "--host", "0.0.0.0",
+        "--port", "$Port",
+        "--reload"
+    )
+    if (Test-Path $EnvFile) {
+        $UvicornArgs += @("--env-file", $EnvFile)
+    }
+    & $Python @UvicornArgs
 }
 finally {
     Pop-Location

@@ -249,6 +249,24 @@ class ConfigurationManager:
         failure is reported as an error, never silently masked."""
         return self._bool_env("TRALVANA_ACCOMMODATION_MOCK_FALLBACK_ENABLED", default=False)
 
+    # ------------------------------------------------------------------
+    # Live Event Search product settings (T-054) — Ticketmaster's
+    # Discovery API is a production discovery service (there is no
+    # sandbox catalogue). As with Flights and Accommodation, merely
+    # setting a credential never enables network calls.
+    # ------------------------------------------------------------------
+
+    @property
+    def event_provider_mode(self) -> str:
+        """MOCK / LIVE. Unrecognised values fail closed to MOCK."""
+        raw = os.environ.get("TRALVANA_EVENT_PROVIDER_MODE", "MOCK").strip().upper()
+        return raw if raw in ("MOCK", "LIVE") else "MOCK"
+
+    @property
+    def event_mock_fallback_enabled(self) -> bool:
+        """Allow clearly-labelled curated ideas after a failed live search."""
+        return self._bool_env("TRALVANA_EVENT_MOCK_FALLBACK_ENABLED", default=False)
+
     def _bool_env(self, name: str, default: bool) -> bool:
         raw = os.environ.get(name)
         if raw is None:

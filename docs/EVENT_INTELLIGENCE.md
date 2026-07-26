@@ -1,10 +1,10 @@
-# Event Intelligence Foundation — T-053
+# Event Intelligence — T-053/T-054
 
 Event Intelligence adds a provider-neutral `EVENTS` discovery path for
 event-shaped trip interests such as fashion, football, soccer, matches,
 concerts, festivals, and theatre.
 
-## Current evidence level
+## Evidence levels
 
 The first provider is `mock_event_provider`. It returns curated search ideas,
 not date-specific event listings. Every option therefore has:
@@ -20,6 +20,11 @@ The module never invents a fixture, fashion calendar, organiser, ticket,
 price, or availability. Its purpose is to match the traveller's interests to
 useful searches while preserving a stable contract for a later live provider.
 
+T-054 adds `ticketmaster_event_provider` as the first opt-in live source.
+It returns current public listings, exact dates, and event links only when
+present in Ticketmaster's response. It does not guarantee ticket inventory or
+price and does not implement booking.
+
 ## Architecture
 
 ```text
@@ -27,7 +32,8 @@ Trip Brain
   -> Event Intelligence
     -> GatewayEventProvider
       -> Intelligence Gateway (Capability.EVENTS)
-        -> mock_event_provider
+        -> mock_event_provider (MOCK mode)
+        -> ticketmaster_event_provider (LIVE mode)
 ```
 
 The Trip Brain selects Events only when a destination exists and either the
@@ -57,13 +63,14 @@ same safe option contract.
 renders them in a dedicated section. Grounding remains fail-closed:
 
 - structured mock event results are `CURATED`, never `LIVE`;
+- Ticketmaster results are `LIVE`, timestamped, and require confirmation;
+- an explicitly enabled curated fallback is `MOCK_FALLBACK`, never blended;
 - event interests with no successful Event Intelligence result remain `IDEA`;
 - every result requires official date and availability confirmation.
 
-## Future live provider
+## Live provider contract
 
-A live adapter must register for `Capability.EVENTS` and implement the same
-search parameters: destination, start date, end date, and interests. It must
-populate current timestamps, exact dates, source identity, and availability
-only from the provider response. Activating a live vendor, credential,
-commercial ticket link, or booking flow is outside T-053.
+The Ticketmaster adapter registers for `Capability.EVENTS` and implements the
+same search parameters: destination, start date, end date, and interests.
+It populates exact dates, source identity, event status, venue, and public URL
+only from the provider response. See `docs/LIVE_EVENT_SEARCH.md`.

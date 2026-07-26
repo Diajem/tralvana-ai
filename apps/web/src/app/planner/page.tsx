@@ -100,6 +100,9 @@ function GroundingCard({ notice }: { notice: GroundingNotice }) {
 }
 
 function ItineraryView({ itinerary }: { itinerary: TripItinerary }) {
+  const hasLiveEvents = itinerary.event_recommendations.some(
+    (event) => event.data_source === "TICKETMASTER_DISCOVERY_API"
+  );
   return (
     <div className="space-y-6">
       <div className="bg-indigo-600 rounded-2xl p-8 text-white">
@@ -160,17 +163,30 @@ function ItineraryView({ itinerary }: { itinerary: TripItinerary }) {
       {itinerary.event_recommendations.length > 0 && (
         <div>
           <h2 className="text-lg font-semibold text-gray-900 mb-1">
-            Event Ideas Matching Your Interests
+            {hasLiveEvents
+              ? "Live Events Matching Your Interests"
+              : "Event Ideas Matching Your Interests"}
           </h2>
           <p className="mb-3 text-sm text-gray-500">
-            These are curated searches to make with official organisers and venues,
-            not confirmed date-specific listings.
+            {hasLiveEvents
+              ? "Live listings include provider dates and official public links; confirm current ticket inventory and pricing before booking."
+              : "These are curated searches to make with official organisers and venues, not confirmed date-specific listings."}
           </p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {itinerary.event_recommendations.map((event) => (
               <SectionCard key={event.event_option_id} title={event.name}>
                 <RecommendationFacts data={event} />
                 <p className="mt-3 text-sm text-gray-600">{event.description}</p>
+                {event.ticket_url && (
+                  <a
+                    className="mt-3 inline-flex text-sm font-semibold text-indigo-700 hover:text-indigo-900"
+                    href={event.ticket_url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Check official event page
+                  </a>
+                )}
               </SectionCard>
             ))}
           </div>

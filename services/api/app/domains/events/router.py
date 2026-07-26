@@ -6,6 +6,9 @@ from app.domains.events.schemas import (
     RecommendEventsRequest,
 )
 from app.domains.events.service import event_intelligence_service
+from travelos.intelligence_gateway.discovery_adapters import (
+    LiveEventSearchUnavailableError,
+)
 
 router = APIRouter(tags=["events"])
 
@@ -27,7 +30,10 @@ async def recommend_events(request: RecommendEventsRequest) -> dict:
                 goal = goal_service.get(trip["goal_id"])
         except Exception:
             pass
-    return event_intelligence_service.recommend(request, trip=trip, goal=goal)
+    try:
+        return event_intelligence_service.recommend(request, trip=trip, goal=goal)
+    except LiveEventSearchUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.get("/events/{event_option_id}", response_model=EventOptionResponse)

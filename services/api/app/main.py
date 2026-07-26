@@ -15,6 +15,7 @@ from app.demo.demo_router import router as demo_router
 from app.domains.commercial.router import public_router as commercial_public_router
 from app.domains.commercial.router import router as commercial_router
 from travelos.live_providers.accommodation_provider_bootstrap import configure_accommodation_provider
+from travelos.live_providers.event_provider_bootstrap import configure_event_provider
 from travelos.live_providers.flight_provider_bootstrap import configure_flight_provider
 from travelos.config import config
 
@@ -26,6 +27,7 @@ from travelos.config import config
 # docs/LIVE_ACCOMMODATION_SEARCH.md.
 configure_flight_provider()
 configure_accommodation_provider()
+configure_event_provider()
 
 app = FastAPI(title="Tralvana API", version="0.1.0")
 
