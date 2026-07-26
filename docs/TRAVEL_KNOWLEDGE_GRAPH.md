@@ -94,6 +94,12 @@ print(knowledge_service.get_stats())
 # → {"total_nodes": 210, "total_edges": 195, "nodes_by_type": {...}}
 ```
 
+`ItineraryBuilder` is a runtime consumer of this API. For each build it finds
+the destination City, then reads connected Attractions, Museums, and
+Restaurants using their explicit relationship types. It does not keep a
+second venue catalogue, so entities and relationships added through
+`KnowledgeService` are available to the next generated itinerary.
+
 ## Sprint 1 Coverage
 
 | Entity | Count |
