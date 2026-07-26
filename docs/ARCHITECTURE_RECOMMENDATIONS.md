@@ -147,6 +147,8 @@ the graph has no matching data. See ADR-041.
 
 ### REC-010: Isolate demo data from live stores
 
+**Status**: Resolved (T-057)
+
 **What**: Give `DemoService` isolated in-memory stores so demo runs don't pollute live Goal/Trip data.
 
 **Options**:
@@ -154,7 +156,11 @@ the graph has no matching data. See ADR-041.
 2. Pass a `DemoGoalRepository` and `DemoTripRepository` to the demo service
 3. Accept and acknowledge as a known limitation while the store is in-memory (remove in Sprint 3 when DB adds proper isolation)
 
-**Recommendation**: Option 1 is cheapest; add `is_demo` field to both models now so Sprint 3 migrations can filter correctly.
+**Resolution**: T-057 selected repository isolation instead of `is_demo`
+flags. Every request builds normal Goal and Trip services over fresh in-memory
+repositories, a private conversation session store, and a request-scoped
+planning adapter. The response is unchanged and no synthetic demo record
+enters the shared stores. See ADR-045.
 
 ---
 

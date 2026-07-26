@@ -72,17 +72,41 @@ _DEMO_CONVERSATION_MSG = (
 class DemoService:
     """
     Orchestrates the full TravelOS pipeline for the demo scenario.
-    Each stage calls the same singleton service that the REST API uses.
+    Every run gets isolated Goal, Trip, and conversation-session stores.
     """
 
     async def run(self) -> dict[str, Any]:
+        from ai.concierge.conversation_engine import ConversationEngine
+        from ai.concierge.session_store import InMemorySessionStore
+        from ai.trip_brain.context import ContextBuilder
+        from ai.trip_brain.coordinator import TripBrain
+        from app.adapters.planning_adapter import PlanningAdapter
+        from app.domains.goals.repository import GoalRepository
+        from app.domains.goals.service import GoalService
+        from app.domains.trips.repository import TripRepository
+        from app.domains.trips.service import TripPlanningService
+
         generated_at = datetime.now(timezone.utc).isoformat()
+        goal_service = GoalService(GoalRepository())
+        trip_service = TripPlanningService(
+            TripRepository(),
+            goal_service=goal_service,
+        )
+        planning_port = PlanningAdapter(
+            goal_service=goal_service,
+            trip_planning_service=trip_service,
+        )
+        conversation_engine = ConversationEngine(
+            store=InMemorySessionStore(),
+            planning_port=planning_port,
+            brain=TripBrain(ContextBuilder(planning_port=planning_port)),
+        )
 
         # ── Stage 1: DNA inference ─────────────────────────────────────────
         dna_section = self._run_dna()
 
         # ── Stage 2: Goal ─────────────────────────────────────────────────
-        goal = self._run_goal()
+        goal = self._run_goal(goal_service)
 
         # ── Stage 3: Goal reasoning ────────────────────────────────────────
         reasoning = self._run_goal_reasoning(goal)
@@ -91,10 +115,10 @@ class DemoService:
         kg_insights = self._run_knowledge()
 
         # ── Stage 5: Conversation engine ──────────────────────────────────
-        conversation = await self._run_conversation()
+        conversation = await self._run_conversation(conversation_engine)
 
         # ── Stage 6: Trip planning ─────────────────────────────────────────
-        trip = self._run_trip(goal["goal_id"])
+        trip = self._run_trip(goal["goal_id"], goal_service, trip_service)
 
         # ── Stage 7: Pipeline summary ──────────────────────────────────────
         overall_conf = round(
@@ -153,13 +177,11 @@ class DemoService:
             "inferred_at": dna.inferred_at,
         }
 
-    def _run_goal(self) -> dict[str, Any]:
+    def _run_goal(self, goal_service: Any) -> dict[str, Any]:
         from app.domains.goals.schemas import (
             BudgetSchema, CreateGoalRequest, FlexibilitySchema,
             TimeframeSchema, TravellersSchema,
         )
-        from app.domains.goals.service import goal_service
-
         t = _DEMO_GOAL["timeframe"]
         b = _DEMO_GOAL["budget"]
         tr = _DEMO_GOAL["travellers"]
@@ -257,8 +279,7 @@ class DemoService:
             "graph_stats": knowledge_service.get_stats(),
         }
 
-    async def _run_conversation(self) -> dict[str, Any]:
-        from ai.concierge.conversation_engine import conversation_engine
+    async def _run_conversation(self, conversation_engine: Any) -> dict[str, Any]:
         result = await conversation_engine.process(
             _DEMO_CONVERSATION_MSG,
             traveller_id=_DEMO_TRAVELLER_ID,
@@ -274,11 +295,14 @@ class DemoService:
             "trip_id": result.get("trip_id"),
         }
 
-    def _run_trip(self, goal_id: str) -> dict[str, Any]:
+    def _run_trip(
+        self,
+        goal_id: str,
+        goal_service: Any,
+        trip_planning_service: Any,
+    ) -> dict[str, Any]:
         from app.domains.trips.schemas import CreateTripPlanRequest
         from app.domains.trips.schemas import TravellersSchema as TripTravellersSchema
-        from app.domains.trips.service import trip_planning_service
-        from app.domains.goals.service import goal_service
 
         goal = goal_service.get(goal_id)
         req = CreateTripPlanRequest(

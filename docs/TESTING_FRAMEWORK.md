@@ -85,7 +85,7 @@ pythonpath = . services/api
 | `test_goals.py` | POST/GET /goals, list | 6 |
 | `test_conversation.py` | POST /conversation | 5 |
 | `test_trips.py` | POST/GET /trips | 6 |
-| `test_demo.py` | POST /demo/japan-football-food | 7 |
+| `test_demo.py` | POST /demo/japan-football-food + shared-state isolation | 8 |
 
 ### Key Assertions
 

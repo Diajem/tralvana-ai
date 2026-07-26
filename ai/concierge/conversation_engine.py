@@ -9,7 +9,7 @@ from ai.explainability.explainability_engine import explainability_engine
 from ai.ports import PlanningPort, get_planning_port
 from ai.shared.agent_result import AgentResult
 from ai.shared.agent_status import AgentStatus
-from ai.trip_brain.coordinator import trip_brain
+from ai.trip_brain.coordinator import TripBrain, trip_brain
 
 
 # ---------------------------------------------------------------------------
@@ -34,9 +34,11 @@ class ConversationEngine:
         self,
         store: SessionStore | None = None,
         planning_port: PlanningPort | None = None,
+        brain: TripBrain | None = None,
     ) -> None:
         self._store = store if store is not None else build_session_store()
         self._planning_port = planning_port
+        self._trip_brain = brain or trip_brain
         self._classifier = IntentClassifier()
         self._decision = DecisionEngine()
         self._composer = ResponseComposer()
@@ -158,7 +160,7 @@ class ConversationEngine:
             classified.intent in {Intent.PLAN_TRIP, Intent.MODIFY_TRIP}
             and decision.has_enough_information
         ):
-            unified = await trip_brain.plan(
+            unified = await self._trip_brain.plan(
                 traveller_id=session.traveller_id,
                 trip_id=session.trip_id,
                 goal_id=session.goal_id,

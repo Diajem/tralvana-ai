@@ -17,8 +17,13 @@ class TripPlanningService:
     Sprint 3+: swap repository for DB; upgrade planners with live data.
     """
 
-    def __init__(self, repository: TripRepository) -> None:
+    def __init__(
+        self,
+        repository: TripRepository,
+        goal_service: Any | None = None,
+    ) -> None:
         self._repo = repository
+        self._goal_service_override = goal_service
 
     def plan(
         self,
@@ -118,8 +123,7 @@ class TripPlanningService:
         goal: dict[str, Any] | None = None
         if goal_id:
             try:
-                from app.domains.goals.service import goal_service
-                goal = goal_service.get(goal_id)
+                goal = self._goal_service.get(goal_id)
             except Exception:
                 pass
 
@@ -153,6 +157,14 @@ class TripPlanningService:
             travellers=travellers,
         )
         return self.plan(request, goal=goal, profile=profile)
+
+    @property
+    def _goal_service(self) -> Any:
+        if self._goal_service_override is not None:
+            return self._goal_service_override
+        from app.domains.goals.service import goal_service
+
+        return goal_service
 
     # ------------------------------------------------------------------
 

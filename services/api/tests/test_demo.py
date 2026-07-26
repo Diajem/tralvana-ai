@@ -39,3 +39,18 @@ def test_demo_pipeline_completes_7_stages(client):
 def test_demo_knowledge_insights_includes_tokyo(client):
     body = client.post("/demo/japan-football-food").json()
     assert body["knowledge_insights"]["destination_city"] == "Tokyo"
+
+
+def test_demo_does_not_write_shared_goal_trip_or_conversation_state(client):
+    from ai.concierge.conversation_engine import conversation_engine
+    from app.domains.goals.service import goal_service
+    from app.domains.trips.service import trip_planning_service
+
+    goals_before = goal_service.list_by_traveller("demo-traveller-001")
+    trips_before = trip_planning_service.list_by_traveller("demo-traveller-001")
+
+    body = client.post("/demo/japan-football-food").json()
+
+    assert goal_service.list_by_traveller("demo-traveller-001") == goals_before
+    assert trip_planning_service.list_by_traveller("demo-traveller-001") == trips_before
+    assert conversation_engine.get_session(body["conversation"]["conversation_id"]) is None
