@@ -96,6 +96,24 @@ def test_render_beta_uses_free_private_database_and_no_secret_is_committed():
     assert "sk_live_" not in blueprint_text
 
 
+def test_browser_api_calls_use_same_origin_server_proxy():
+    api_client = (ROOT / "apps/web/src/lib/api.ts").read_text(encoding="utf-8")
+    proxy = (
+        ROOT / "apps/web/src/app/api/[...path]/route.ts"
+    ).read_text(encoding="utf-8")
+
+    assert 'typeof window === "undefined"' in api_client
+    assert ': "/api"' in api_client
+    assert "process.env.TRALVANA_API_URL" in api_client
+
+    assert "process.env.TRALVANA_API_URL" in proxy
+    assert "process.env.NEXT_PUBLIC_API_URL" in proxy
+    assert 'headers.delete(header)' in proxy
+    assert 'export const POST = relay' in proxy
+    assert 'Authorization' not in proxy
+    assert "CLERK_SECRET_KEY" not in proxy
+
+
 def test_free_api_runs_migrations_and_seed_at_startup():
     startup = (ROOT / "services/api/scripts/start-production.sh").read_text(encoding="utf-8")
     dockerfile = (ROOT / "services/api/Dockerfile").read_text(encoding="utf-8")
