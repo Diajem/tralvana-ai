@@ -2,7 +2,7 @@ from ai.discovery.weather.mock_weather_provider import MockWeatherProvider
 
 _EXPECTED_DESTINATIONS = {
     "JAPAN", "SPAIN", "FRANCE", "UK", "IRELAND",
-    "USA", "NIGERIA", "GHANA", "JAMAICA", "UAE",
+    "USA", "NEW YORK", "NIGERIA", "GHANA", "JAMAICA", "UAE",
 }
 
 
@@ -23,12 +23,13 @@ class TestMockWeatherProvider:
         assert result["matched"] is False
         assert result["avg_temp_c"] is None
 
-    def test_new_york_uses_united_states_august_profile(self):
+    def test_new_york_uses_city_specific_august_profile(self):
         provider = MockWeatherProvider()
         result = provider.month("New York", 8)
-        assert result["destination"] == "United States"
+        assert result["destination"] == "New York City"
         assert result["matched"] is True
         assert result["season"] == "SUMMER"
+        assert "hurricane" not in result["hazards"]
 
     def test_dublin_uses_ireland_august_profile(self):
         provider = MockWeatherProvider()

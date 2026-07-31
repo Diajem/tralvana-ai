@@ -99,3 +99,86 @@ class TestEventSection:
         assert "**Events:**" in text
         assert "No live calendar" in text
         assert "availability was confirmed" in text
+
+
+class TestCoordinatedPlanEvidence:
+    def test_mock_suppliers_are_not_named_in_plan_answer(
+        self, composer, ready_decision
+    ):
+        results = [
+            AgentResult(
+                agent_name="flight_intelligence",
+                status=AgentStatus.SUCCESS,
+                confidence=0.8,
+                data={
+                    "top_option": {
+                        "airline": "AeroLondon",
+                        "flight_number": "AL123",
+                        "estimated_price": 700,
+                        "currency": "USD",
+                        "data_source": "MOCK",
+                    }
+                },
+            ),
+            AgentResult(
+                agent_name="accommodation_intelligence",
+                status=AgentStatus.SUCCESS,
+                confidence=0.8,
+                data={
+                    "top_option": {
+                        "property_name": "New York Guesthouse",
+                        "nightly_price": 60,
+                        "currency": "USD",
+                        "data_source": "MOCK",
+                    }
+                },
+            ),
+        ]
+
+        text = composer.compose(Intent.PLAN_TRIP, ready_decision, results)
+
+        assert "AeroLondon" not in text
+        assert "New York Guesthouse" not in text
+        assert "current bookable" in text
+
+    def test_declared_budget_is_preserved_without_fake_assessment(
+        self, composer, ready_decision
+    ):
+        result = AgentResult(
+            agent_name="budget_intelligence",
+            status=AgentStatus.NEEDS_INFORMATION,
+            confidence=0.55,
+            data={
+                "declared_budget": {
+                    "amount": 4000,
+                    "currency": "GBP",
+                    "source": "TRAVELLER_DECLARED",
+                }
+            },
+        )
+
+        text = composer.compose(Intent.PLAN_TRIP, ready_decision, [result])
+
+        assert "GBP 4000" in text
+        assert "not been assessed" in text
+        assert "USD" not in text
+
+    def test_esta_is_not_called_eta(self, composer, ready_decision):
+        result = AgentResult(
+            agent_name="visa_intelligence",
+            status=AgentStatus.SUCCESS,
+            confidence=0.8,
+            data={
+                "nationality": "British",
+                "destination_country": "United States",
+                "visa_status": "ETA_REQUIRED",
+                "visa_type": "ESTA",
+                "confidence": 0.8,
+                "recommendation": "Apply for ESTA before departure.",
+            },
+        )
+
+        text = composer.compose(Intent.PLAN_TRIP, ready_decision, [result])
+
+        assert "ESTA Required" in text
+        assert "ETA Required" not in text

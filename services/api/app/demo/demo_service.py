@@ -64,7 +64,7 @@ _DEMO_GOAL = {
 }
 
 _DEMO_CONVERSATION_MSG = (
-    "I need to plan a trip to Japan in October — 10 days, football and food, "
+    "I need to plan a trip to Tokyo in October — 10 days, football and food, "
     "two adults, balanced budget."
 )
 
@@ -122,14 +122,7 @@ class DemoService:
         trip_section = self._trip_section(trip)
 
         # ── Stage 7: Pipeline summary ──────────────────────────────────────
-        overall_conf = round(
-            (
-                reasoning["planning_readiness_score"]
-                + trip_section["confidence"]
-            )
-            / 2,
-            2,
-        )
+        overall_conf = trip_section["confidence"]
 
         return {
             "demo_id": "japan-football-food",
@@ -369,7 +362,7 @@ class DemoService:
                 f"Timeframe: October 2026, {goal['timeframe']['duration_days']} days. "
                 f"Interests: {', '.join(goal.get('interests', []))}."
             ),
-            "planning_readiness_score": reasoning["planning_readiness_score"],
+            "goal_completeness_score": reasoning["planning_readiness_score"],
             "missing_information": reasoning["missing_information"],
             "recommended_next_actions": reasoning["recommended_next_actions"],
             "suitable_agents": reasoning["suitable_agents"],

@@ -51,6 +51,25 @@ def test_demo_does_not_present_legacy_prices_as_booking_evidence(client):
     assert "current supplier prices" in trip["risks"][0]["description"]
 
 
+def test_demo_uses_one_planning_readiness_value(client):
+    body = client.post("/demo/japan-football-food").json()
+
+    assert body["goal"]["goal_completeness_score"] == 1.0
+    assert "planning_readiness_score" not in body["goal"]
+    assert body["pipeline_summary"]["overall_confidence"] == 0.55
+    assert body["trip_plan"]["confidence"] == 0.55
+
+
+def test_demo_conversation_never_names_mock_suppliers(client):
+    response = client.post("/demo/japan-football-food").json()["conversation"][
+        "response"
+    ]
+
+    assert "AeroLondon" not in response
+    assert "Guesthouse" not in response
+    assert "Match Day Experience" not in response
+
+
 def test_demo_pipeline_completes_7_stages(client):
     body = client.post("/demo/japan-football-food").json()
     assert body["pipeline_summary"]["stages_completed"] == 7

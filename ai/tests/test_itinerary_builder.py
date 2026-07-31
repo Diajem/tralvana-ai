@@ -216,3 +216,19 @@ def test_two_week_family_plan_is_destination_neutral_and_non_repetitive() -> Non
     assert "arrival & kids' first day" not in plan_text
     assert "theme park day" not in plan_text
     assert "leisure & beach day" not in plan_text
+
+
+def test_football_outline_never_invents_a_match_day() -> None:
+    builder, _ = _builder_with_city()
+    days = builder.build(
+        destination="New York",
+        duration_days=7,
+        goal_type="FOOTBALL_TRAVEL",
+        budget_style="balanced",
+        interests=["soccer"],
+    )
+
+    plan_text = str(days).lower()
+    assert "match day experience" not in plan_text
+    assert "watch the match at the ground" not in plan_text
+    assert "attend a confirmed fixture" in plan_text

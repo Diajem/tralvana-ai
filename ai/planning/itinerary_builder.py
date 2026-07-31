@@ -10,9 +10,9 @@ if TYPE_CHECKING:
 # (theme_title, morning, afternoon, evening) per goal type
 _TEMPLATES: dict[str, list[tuple[str, str, str, str]]] = {
     "FOOTBALL_TRAVEL": [
-        ("Stadium & Football Heritage", "Stadium tour and team shop visit", "Football museum or fan gallery", "Pre-match pub dinner and fan culture"),
-        ("Match Day Experience", "Fan zone, street food, and team colours", "Watch the match at the ground", "Post-match celebration dinner"),
-        ("Football City Walk", "Historic terraces and stadium exterior walk", "Visit legendary fan pubs and football landmarks", "Sports bar dinner with live match screening"),
+        ("Stadium & Football Heritage", "Check official stadium-tour availability", "Football museum, club shop, or fan gallery", "Explore local football culture over dinner"),
+        ("Fixture Check & Fan Culture", "Check the official club and league calendars for the chosen date", "Attend a confirmed fixture, or substitute a stadium tour or football museum", "Dinner in a neighbourhood known for local fan culture"),
+        ("Football City Walk", "Historic terraces and stadium exterior walk", "Visit established fan pubs and football landmarks", "Watch a confirmed broadcast at a reputable sports venue if desired"),
         ("Rest Day & City Exploration", "City centre sightseeing", "Local market or art district", "Traditional restaurant dinner"),
     ],
     "FOOD_TOUR": [

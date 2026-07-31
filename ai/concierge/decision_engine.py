@@ -42,6 +42,15 @@ _SAFETY_SENSITIVE = {
     "kabul", "mogadishu", "tripoli", "damascus", "khartoum",
 }
 
+# A country is not a sufficiently precise accommodation or activity location.
+# Keep the set explicit so city names such as New York are never guessed from
+# a country-level request.
+_COUNTRY_ONLY_DESTINATIONS = {
+    "france", "ghana", "ireland", "jamaica", "japan", "nigeria",
+    "spain", "uae", "united arab emirates", "uk", "united kingdom",
+    "usa", "united states", "united states of america",
+}
+
 
 @dataclass
 class Decision:
@@ -85,6 +94,11 @@ class DecisionEngine:
         if intent == Intent.PLAN_TRIP:
             if not destination:
                 questions.append("Where would you like to go?")
+            elif destination in _COUNTRY_ONLY_DESTINATIONS:
+                questions.append(
+                    f"Which city, town, or resort area in {entities['destination']} "
+                    "would you like to stay in?"
+                )
             if not entities.get("date_hint"):
                 questions.append("When are you planning to travel?")
 

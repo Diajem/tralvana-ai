@@ -70,6 +70,16 @@ _CLIMATE_PROFILES: dict[str, list[dict[str, Any]]] = {
         {"months": [9, 10, 11], "season": "AUTUMN", "avg_temp_c": 15, "rainfall": "MODERATE",
          "humidity": "MODERATE", "daylight_hours": 10.8, "hazards": ["hurricane"]},
     ],
+    "NEW YORK": [
+        {"months": [12, 1, 2], "season": "WINTER", "avg_temp_c": 3, "rainfall": "MODERATE",
+         "humidity": "MODERATE", "daylight_hours": 9.8, "hazards": ["extreme_cold"]},
+        {"months": [3, 4, 5], "season": "SPRING", "avg_temp_c": 15, "rainfall": "MODERATE",
+         "humidity": "MODERATE", "daylight_hours": 13.0, "hazards": []},
+        {"months": [6, 7, 8], "season": "SUMMER", "avg_temp_c": 25, "rainfall": "MODERATE",
+         "humidity": "HIGH", "daylight_hours": 14.5, "hazards": ["extreme_heat"]},
+        {"months": [9, 10, 11], "season": "AUTUMN", "avg_temp_c": 16, "rainfall": "MODERATE",
+         "humidity": "MODERATE", "daylight_hours": 11.0, "hazards": []},
+    ],
     # Near-equatorial destinations: a wet/dry season pattern, not four
     # temperate seasons — genuine climate variety, same idea as Destination
     # Intelligence differentiating region-appropriate attributes per city.
@@ -104,6 +114,7 @@ _CLIMATE_PROFILES: dict[str, list[dict[str, Any]]] = {
 # ai/discovery/visa/mock_visa_provider.py's _DISPLAY_NAME.
 _DISPLAY_NAME: dict[str, str] = {
     "UK": "United Kingdom", "USA": "United States", "UAE": "United Arab Emirates",
+    "NEW YORK": "New York City",
 }
 
 # Common long-form aliases -> canonical key, same convention as
@@ -113,7 +124,7 @@ _ALIASES: dict[str, str] = {
     "LONDON": "UK", "MANCHESTER": "UK", "EDINBURGH": "UK",
     "DUBLIN": "IRELAND", "CORK": "IRELAND", "GALWAY": "IRELAND",
     "UNITED STATES": "USA", "UNITED STATES OF AMERICA": "USA",
-    "NEW YORK": "USA", "NEW YORK CITY": "USA", "NYC": "USA",
+    "NEW YORK CITY": "NEW YORK", "NYC": "NEW YORK",
     "PARIS": "FRANCE",
     "BARCELONA": "SPAIN", "MADRID": "SPAIN",
     "TOKYO": "JAPAN", "OSAKA": "JAPAN",

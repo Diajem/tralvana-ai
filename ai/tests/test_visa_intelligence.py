@@ -59,6 +59,14 @@ class TestVisaIntelligence:
         assert "no visa action needed" in not_required["recommendation"].lower()
         assert "apply for a visa" in required["recommendation"].lower()
 
+    def test_uk_to_usa_names_esta_not_eta(self):
+        result = VisaIntelligence().check("UK", "USA", nationality="British")
+
+        assert result["visa_type"] == "ESTA"
+        assert "ESTA" in result["recommendation"]
+        assert "(ETA)" not in result["recommendation"]
+        assert "ESTA" in result["explanation"]
+
     def test_transit_country_requiring_action_produces_risk(self):
         engine = VisaIntelligence()
         result = engine.check("Nigeria", "France", transit_countries=["USA"])

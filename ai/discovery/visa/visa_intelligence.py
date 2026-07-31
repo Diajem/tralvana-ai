@@ -85,6 +85,14 @@ class VisaIntelligence:
         explanation = visa_reasoner.explain(option, score_result)
         risks = visa_risk_assessor.assess(option, confidence)
         recommendation = _RECOMMENDATION.get(option["visa_status"], "Verify requirements manually.")
+        if (
+            option["visa_status"] == "ETA_REQUIRED"
+            and str(option.get("visa_type")).upper() == "ESTA"
+        ):
+            recommendation = (
+                "Apply for an Electronic System for Travel Authorization "
+                "(ESTA) before departure."
+            )
 
         assumptions.append(
             "Visa data is a deterministic mock rule set — no live government, embassy, or "
