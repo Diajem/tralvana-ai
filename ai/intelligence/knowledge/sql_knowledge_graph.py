@@ -7,7 +7,7 @@ import json
 from dataclasses import asdict, is_dataclass
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from ai.intelligence.knowledge.entities import (
@@ -64,6 +64,11 @@ _ENTITY_CLASSES: dict[str, type] = {
     )
 }
 
+_OBSOLETE_BASELINE_NODE_IDS = {
+    "club_gamba",
+    "venue_panasonic",
+}
+
 
 class SqlAlchemyKnowledgeGraph:
     """Persistent property graph sharing Tralvana's configured SQL database."""
@@ -74,6 +79,17 @@ class SqlAlchemyKnowledgeGraph:
     def seed_from(self, source: KnowledgeGraph) -> None:
         """Upsert a complete baseline graph in one transaction."""
         with self._factory.begin() as session:
+            # Baseline corrections occasionally retire a wrongly identified
+            # entity. Upserts cannot remove those historical rows, so delete
+            # only explicitly deprecated seed IDs; FK cascades remove their
+            # obsolete relationships without touching runtime-added knowledge.
+            session.execute(
+                delete(KnowledgeNodeRow).where(
+                    KnowledgeNodeRow.node_id.in_(
+                        _OBSOLETE_BASELINE_NODE_IDS
+                    )
+                )
+            )
             existing_nodes = {
                 row.node_id: row
                 for row in session.scalars(select(KnowledgeNodeRow)).all()
