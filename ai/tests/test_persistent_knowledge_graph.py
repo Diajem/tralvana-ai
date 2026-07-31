@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from sqlalchemy import event, select
 
-from ai.intelligence.knowledge.entities import Attraction, City
+from ai.intelligence.knowledge.entities import (
+    Attraction,
+    City,
+    FootballClub,
+    SportsVenue,
+)
 from ai.intelligence.knowledge.factory import build_knowledge_graph
 from ai.intelligence.knowledge.knowledge_graph import KnowledgeGraph
 from ai.intelligence.knowledge.knowledge_service import KnowledgeService
@@ -104,6 +109,50 @@ def test_reseeding_is_idempotent_and_updates_node_payloads(tmp_path):
     reloaded = SqlAlchemyKnowledgeGraph(factory)
     assert reloaded.stats() == baseline.stats()
     assert reloaded.get_node("city_new_york") == updated
+    engine.dispose()
+
+
+def test_reseeding_removes_explicitly_retired_baseline_nodes(tmp_path):
+    engine, _, graph = _persistent_graph(tmp_path)
+    graph.seed_from(_baseline())
+    graph.add_node(
+        SportsVenue(
+            "venue_panasonic",
+            "Panasonic Stadium",
+            "city_tokyo",
+            "stadium",
+            39694,
+            "football",
+        ),
+        "SportsVenue",
+    )
+    graph.add_node(
+        FootballClub(
+            "club_gamba",
+            "Gamba Osaka",
+            "city_tokyo",
+            "J1 League",
+            "venue_panasonic",
+            1980,
+        ),
+        "FootballClub",
+    )
+    graph.add_edge(
+        Relationship(
+            source_id="club_gamba",
+            source_type="FootballClub",
+            relationship_type=RelationshipType.PLAYS_IN,
+            target_id="city_tokyo",
+            target_type="City",
+        )
+    )
+    assert graph.get_node("club_gamba").name == "Gamba Osaka"
+
+    graph.seed_from(_baseline())
+
+    assert graph.get_node("club_gamba") is None
+    assert graph.get_node("venue_panasonic") is None
+    assert graph.find_node_by_name("FootballClub", "FC Tokyo") is not None
     engine.dispose()
 
 
