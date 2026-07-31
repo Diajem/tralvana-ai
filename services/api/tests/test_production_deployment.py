@@ -127,6 +127,20 @@ def test_browser_api_calls_use_same_origin_server_proxy():
     assert '"/__clerk/:path*"' in middleware
 
 
+def test_clerk_sso_callbacks_remain_public_until_session_is_created():
+    auth_context = (
+        ROOT / "apps/web/src/lib/auth-context.tsx"
+    ).read_text(encoding="utf-8")
+    layout = (ROOT / "apps/web/src/app/layout.tsx").read_text(encoding="utf-8")
+
+    assert 'const PUBLIC_PATH_PREFIXES = ["/sign-in", "/sign-up"]' in auth_context
+    assert "pathname.startsWith(`${prefix}/`)" in auth_context
+    assert "isPublicPath(pathname)" in auth_context
+    assert 'title: "Sign in to Tralvana"' in layout
+    assert 'titleCombined: "Sign in to Tralvana"' in layout
+    assert "Tralvava" not in layout
+
+
 def test_free_api_runs_migrations_and_seed_at_startup():
     startup = (ROOT / "services/api/scripts/start-production.sh").read_text(encoding="utf-8")
     dockerfile = (ROOT / "services/api/Dockerfile").read_text(encoding="utf-8")

@@ -60,13 +60,23 @@ export function ClerkAuthBridge({ children }: { children: ReactNode }) {
   );
 }
 
-const PUBLIC_PATHS = new Set(["/", "/demo", "/sign-in", "/sign-up"]);
+const PUBLIC_PATHS = new Set(["/", "/demo"]);
+const PUBLIC_PATH_PREFIXES = ["/sign-in", "/sign-up"];
+
+function isPublicPath(pathname: string): boolean {
+  return (
+    PUBLIC_PATHS.has(pathname) ||
+    PUBLIC_PATH_PREFIXES.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+    )
+  );
+}
 
 export function AuthenticationGate({ children }: { children: ReactNode }) {
   const auth = useContext(AuthContext);
   const pathname = usePathname();
 
-  if (!auth.clerkEnabled || PUBLIC_PATHS.has(pathname)) {
+  if (!auth.clerkEnabled || isPublicPath(pathname)) {
     return children;
   }
   if (!auth.loaded) {
