@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from sqlalchemy import event, select
+
 from ai.intelligence.knowledge.entities import Attraction, City
 from ai.intelligence.knowledge.factory import build_knowledge_graph
 from ai.intelligence.knowledge.knowledge_graph import KnowledgeGraph
@@ -8,6 +10,7 @@ from ai.intelligence.knowledge.relationships import Relationship, RelationshipTy
 from ai.intelligence.knowledge.sql_knowledge_graph import SqlAlchemyKnowledgeGraph
 from ai.intelligence.ontology.travel_ontology import seed_graph
 from travelos.persistence.base import Base
+from travelos.persistence.knowledge_orm import KnowledgeEdgeRow, KnowledgeNodeRow
 from travelos.persistence.session import create_engine_from_url, create_session_factory
 
 
@@ -15,6 +18,11 @@ def _persistent_graph(tmp_path):
     engine = create_engine_from_url(
         f"sqlite+pysqlite:///{tmp_path / 'knowledge.db'}"
     )
+
+    @event.listens_for(engine, "connect")
+    def _enable_foreign_keys(dbapi_connection, _connection_record):
+        dbapi_connection.execute("PRAGMA foreign_keys=ON")
+
     Base.metadata.create_all(engine)
     factory = create_session_factory(engine)
     return engine, factory, SqlAlchemyKnowledgeGraph(factory)
@@ -55,6 +63,25 @@ def test_seed_persists_complete_graph_across_instances(tmp_path):
     assert reloaded.stats() == _baseline().stats()
     assert reloaded.find_node_by_name("City", "New York").id == "city_new_york"
     assert reloaded.get_node_type("city_new_york") == "City"
+    engine.dispose()
+
+
+def test_seed_flushes_nodes_before_foreign_key_edges(tmp_path):
+    engine, factory, graph = _persistent_graph(tmp_path)
+
+    graph.seed_from(_baseline())
+
+    with factory() as session:
+        assert session.scalar(
+            select(KnowledgeNodeRow.node_id).where(
+                KnowledgeNodeRow.node_id == "city_lagos"
+            )
+        ) == "city_lagos"
+        assert session.scalar(
+            select(KnowledgeEdgeRow.source_id).where(
+                KnowledgeEdgeRow.source_id == "city_lagos"
+            )
+        ) == "city_lagos"
     engine.dispose()
 
 
