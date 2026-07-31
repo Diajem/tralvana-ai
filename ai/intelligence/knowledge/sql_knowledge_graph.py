@@ -93,6 +93,11 @@ class SqlAlchemyKnowledgeGraph:
                     row.entity_type = entity_type
                     row.payload = payload
 
+            # The standard session factory disables autoflush. Persist every
+            # node before queuing edges so enforced foreign keys never see a
+            # relationship before its endpoints.
+            session.flush()
+
             existing_edges = set(
                 session.scalars(select(KnowledgeEdgeRow.edge_key)).all()
             )
