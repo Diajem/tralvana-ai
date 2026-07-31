@@ -257,6 +257,73 @@ class TestExecutiveSummary:
         itinerary_not_required = engine.assemble(unified_not_required, destination="Tokyo", duration_days=5)
         assert "no visa is required" in itinerary_not_required.executive_summary.lower()
 
+    def test_summary_does_not_claim_visa_free_when_status_is_unknown(self):
+        unknown = AgentResult(
+            agent_name="visa_intelligence",
+            status=AgentStatus.SUCCESS,
+            confidence=0.2,
+            data={
+                "visa_status": "CHECK_MANUALLY",
+                "visa_required": False,
+                "travel_authorisation_required": False,
+                "visa_type": "Unknown",
+            },
+        )
+        itinerary = engine.assemble(
+            _unified([unknown]), destination="Dublin", duration_days=14
+        )
+        assert "no visa is required" not in itinerary.executive_summary.lower()
+        assert "could not be determined" in itinerary.executive_summary.lower()
+
+    def test_conflicting_mock_budget_breakdown_is_not_presented_as_reconciled(self):
+        explanation = {
+            "recommendation_drivers": [
+                {
+                    "module": "budget_intelligence",
+                    "driver": "Flights USD 900, accommodation USD 472.",
+                }
+            ]
+        }
+        budget = AgentResult(
+            agent_name="budget_intelligence",
+            status=AgentStatus.SUCCESS,
+            confidence=0.7,
+            data={
+                "top_option": {
+                    "budget_style": "balanced",
+                    "currency": "USD",
+                    "flight_cost_usd": 900,
+                    "accommodation_usd": 472,
+                }
+            },
+        )
+        flight = _flight_result(
+            top={
+                "airline": "AeroLondon",
+                "estimated_price": 500,
+                "currency": "USD",
+            }
+        )
+        accommodation = _accommodation_result(
+            top={
+                "property_name": "Dublin Guesthouse",
+                "accommodation_type": "GUESTHOUSE",
+                "total_price": 350,
+                "currency": "USD",
+            }
+        )
+        itinerary = engine.assemble(
+            _unified(
+                [flight, accommodation, budget],
+                explanation=explanation,
+            ),
+            destination="Dublin",
+            duration_days=7,
+        )
+        budget_driver = itinerary.why_this_itinerary[0]["driver"]
+        assert "not a reconciled quote" in budget_driver
+        assert "Flights USD 900" not in budget_driver
+
     def test_summary_includes_confidence_percentage(self):
         unified = _unified([_flight_result()], confidence=0.82)
         itinerary = engine.assemble(unified, destination="Tokyo", duration_days=5)

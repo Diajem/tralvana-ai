@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 
 
@@ -27,6 +27,48 @@ class ClassifiedIntent:
     intent: Intent
     confidence: float
     entities: dict[str, str] = field(default_factory=dict)
+
+
+_NUMBER_WORDS = {
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+    "eleven": 11,
+    "twelve": 12,
+    "thirteen": 13,
+    "fourteen": 14,
+    "fifteen": 15,
+    "sixteen": 16,
+    "seventeen": 17,
+    "eighteen": 18,
+    "nineteen": 19,
+    "twenty": 20,
+}
+
+# A bare "I am <word>" must never turn an ordinary name into a passport
+# country.  This allow-list is intentionally limited to nationality words
+# the current visa rules can actually understand.
+_KNOWN_NATIONALITIES = {
+    "american",
+    "british",
+    "canadian",
+    "emirati",
+    "french",
+    "ghanaian",
+    "irish",
+    "jamaican",
+    "japanese",
+    "nigerian",
+    "south african",
+    "spanish",
+}
 
 
 # Priority-ordered: first match wins.
@@ -166,6 +208,15 @@ class IntentClassifier:
         if origin_match:
             entities["origin"] = origin_match.group(1).strip().title()
 
+        if "origin" not in entities:
+            simple_origin_match = re.search(
+                r"\bfrom\s+([a-z][a-z .'-]{1,40}?)"
+                r"(?=\s+(?:in|on|for|with)\b|,|[.!?]|$)",
+                text,
+            )
+            if simple_origin_match:
+                entities["origin"] = simple_origin_match.group(1).strip().title()
+
         flexible_origin_match = re.search(
             r"\b(?:do not mind|don't mind|can|could|happy to|willing to|flexible about)\s+"
             r"(?:fly(?:ing)?|depart(?:ing)?|leave|leaving)\s+from\s+"
@@ -186,18 +237,14 @@ class IntentClassifier:
                 # the traveller's home city is retained separately above.
                 entities["origin"] = options[0]
 
-        number_words = {
-            "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
-            "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
-        }
         adults_match = re.search(
-            r"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+adults?\b",
+            rf"\b(\d+|{'|'.join(_NUMBER_WORDS)})\s+adults?\b",
             text,
         )
         if adults_match:
             raw_adults = adults_match.group(1)
             entities["adults"] = str(
-                int(raw_adults) if raw_adults.isdigit() else number_words[raw_adults]
+                int(raw_adults) if raw_adults.isdigit() else _NUMBER_WORDS[raw_adults]
             )
         elif (
             "with my partner" in text
@@ -205,6 +252,31 @@ class IntentClassifier:
             or re.search(r"\bwe (?:are|'re) both\b", text)
         ):
             entities["adults"] = "2"
+
+        children_match = re.search(
+            rf"\b(\d+|{'|'.join(_NUMBER_WORDS)})\s+"
+            r"(?:children|child|kids?|young people)\b",
+            text,
+        )
+        if children_match:
+            raw_children = children_match.group(1)
+            entities["children"] = str(
+                int(raw_children)
+                if raw_children.isdigit()
+                else _NUMBER_WORDS[raw_children]
+            )
+
+        infants_match = re.search(
+            rf"\b(\d+|{'|'.join(_NUMBER_WORDS)})\s+(?:infants?|bab(?:y|ies))\b",
+            text,
+        )
+        if infants_match:
+            raw_infants = infants_match.group(1)
+            entities["infants"] = str(
+                int(raw_infants)
+                if raw_infants.isdigit()
+                else _NUMBER_WORDS[raw_infants]
+            )
 
         interests_match = re.search(
             r"\b(?:we|i)\s+(?:like|love|enjoy|are interested in|am interested in)\s+"
@@ -368,15 +440,13 @@ class IntentClassifier:
                         destination_found = True
                         break
 
-        for marker in ("i am ", "i'm "):
-            idx = text.find(marker)
-            if idx != -1:
-                words = text[idx + len(marker):].split()
-                if words:
-                    candidate = words[0].strip(".,?!")
-                    if candidate not in ("a", "an", "the", "going", "travelling", "planning", "not"):
-                        entities.setdefault("nationality", candidate.title())
-                        break
+        if "nationality" not in entities:
+            nationality_statement = re.search(
+                rf"\b(?:i am|i'm)\s+({'|'.join(sorted(_KNOWN_NATIONALITIES, key=len, reverse=True))})\b",
+                text,
+            )
+            if nationality_statement:
+                entities["nationality"] = nationality_statement.group(1).title()
 
         if "nationality" not in entities:
             idx = text.find(" passport")
@@ -392,9 +462,23 @@ class IntentClassifier:
             "july", "august", "september", "october", "november", "december",
         )
         month_pattern = "|".join(months)
-        duration_match = re.search(r"\b(\d{1,2})\s*(?:-\s*)?days?\b", text)
+        duration_match = re.search(
+            rf"\b(\d{{1,2}}|{'|'.join(_NUMBER_WORDS)})\s*(?:-\s*)?"
+            r"(days?|weeks?)\b",
+            text,
+        )
         if duration_match:
-            entities["duration_days"] = duration_match.group(1)
+            raw_duration, unit = duration_match.groups()
+            duration = (
+                int(raw_duration)
+                if raw_duration.isdigit()
+                else _NUMBER_WORDS[raw_duration]
+            )
+            if unit.startswith("week"):
+                duration *= 7
+            entities["duration_days"] = str(duration)
+        elif re.search(r"\b(?:a\s+)?fortnight\b", text):
+            entities["duration_days"] = "14"
 
         range_match = re.search(
             rf"\b(\d{{1,2}})(?:st|nd|rd|th)?\s+({month_pattern})(?:\s+(\d{{4}}))?"
@@ -420,6 +504,28 @@ class IntentClassifier:
                         entities["end_date"] = end.isoformat()
                         entities["duration_days"] = str((end - start).days)
                         entities["date_hint"] = range_match.group(0)
+                except ValueError:
+                    pass
+
+        # A single dated departure plus an explicit duration is also a
+        # complete date range: "on 17 August 2026 for two weeks".
+        if "start_date" not in entities:
+            single_date_match = re.search(
+                rf"\b(\d{{1,2}})(?:st|nd|rd|th)?\s+({month_pattern})\s+(\d{{4}})\b",
+                text,
+            )
+            if single_date_match:
+                try:
+                    start = datetime.strptime(
+                        " ".join(single_date_match.groups()), "%d %B %Y"
+                    ).date()
+                    entities["start_date"] = start.isoformat()
+                    entities["date_hint"] = single_date_match.group(0)
+                    if entities.get("duration_days"):
+                        end = start + timedelta(
+                            days=int(entities["duration_days"])
+                        )
+                        entities["end_date"] = end.isoformat()
                 except ValueError:
                     pass
 

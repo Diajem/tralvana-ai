@@ -23,18 +23,21 @@ _PASSPORT_TIER: dict[str, str] = {
 # country name — both need to resolve to the same canonical key.
 _ALIASES: dict[str, str] = {
     "GB": "UK", "UNITED KINGDOM": "UK", "GREAT BRITAIN": "UK", "BRITISH": "UK",
+    "LONDON": "UK", "MANCHESTER": "UK", "EDINBURGH": "UK",
     "IE": "IRELAND", "IRISH": "IRELAND",
+    "DUBLIN": "IRELAND", "CORK": "IRELAND", "GALWAY": "IRELAND",
     "US": "USA", "UNITED STATES": "USA", "UNITED STATES OF AMERICA": "USA", "AMERICAN": "USA",
     "NEW YORK": "USA", "NEW YORK CITY": "USA", "NYC": "USA",
     "CA": "CANADA", "CANADIAN": "CANADA",
-    "NG": "NIGERIA", "NIGERIAN": "NIGERIA",
-    "GH": "GHANA", "GHANAIAN": "GHANA",
+    "NG": "NIGERIA", "NIGERIAN": "NIGERIA", "LAGOS": "NIGERIA", "ABUJA": "NIGERIA",
+    "GH": "GHANA", "GHANAIAN": "GHANA", "ACCRA": "GHANA",
     "ZA": "SOUTH AFRICA", "RSA": "SOUTH AFRICA", "SOUTH AFRICAN": "SOUTH AFRICA",
-    "JM": "JAMAICA", "JAMAICAN": "JAMAICA",
-    "JP": "JAPAN", "JAPANESE": "JAPAN",
-    "FR": "FRANCE", "FRENCH": "FRANCE",
-    "ES": "SPAIN", "SPANISH": "SPAIN",
+    "JM": "JAMAICA", "JAMAICAN": "JAMAICA", "KINGSTON": "JAMAICA", "MONTEGO BAY": "JAMAICA",
+    "JP": "JAPAN", "JAPANESE": "JAPAN", "TOKYO": "JAPAN", "OSAKA": "JAPAN",
+    "FR": "FRANCE", "FRENCH": "FRANCE", "PARIS": "FRANCE",
+    "ES": "SPAIN", "SPANISH": "SPAIN", "BARCELONA": "SPAIN", "MADRID": "SPAIN",
     "AE": "UAE", "UNITED ARAB EMIRATES": "UAE", "EMIRATI": "UAE",
+    "DUBAI": "UAE", "ABU DHABI": "UAE",
 }
 
 _DESTINATIONS = {"JAPAN", "USA", "UK", "IRELAND", "FRANCE", "SPAIN", "NIGERIA", "UAE"}

@@ -182,3 +182,37 @@ def test_duplicate_relationships_do_not_duplicate_rotation_entries() -> None:
 
     assert days[1]["morning"] == "Explore Only Once"
     assert days[2]["morning"] == "Explore Only Once"
+
+
+def test_two_week_relaxation_plan_has_no_repeated_arrival_or_resort_beach_defaults() -> None:
+    builder, _ = _builder_with_city()
+    days = builder.build(
+        destination="Dublin",
+        duration_days=14,
+        goal_type="RELAXATION",
+        budget_style="balanced",
+    )
+
+    assert len(days) == 14
+    assert days[0]["theme"] == "Arrival & Orientation"
+    assert days[-1]["theme"] == "Departure Day"
+    assert len({day["theme"] for day in days}) == 14
+    plan_text = str(days).lower()
+    assert "resort orientation" not in plan_text
+    assert "beach relaxation" not in plan_text
+
+
+def test_two_week_family_plan_is_destination_neutral_and_non_repetitive() -> None:
+    builder, _ = _builder_with_city()
+    days = builder.build(
+        destination="Dublin",
+        duration_days=14,
+        goal_type="FAMILY_TRIP",
+        budget_style="balanced",
+    )
+
+    assert len({day["theme"] for day in days}) == 14
+    plan_text = str(days).lower()
+    assert "arrival & kids' first day" not in plan_text
+    assert "theme park day" not in plan_text
+    assert "leisure & beach day" not in plan_text
