@@ -13,6 +13,7 @@ Trip Brain's own output — no Discovery module logic is duplicated here.
 
 from __future__ import annotations
 
+import calendar
 from typing import Any
 
 from fastapi import APIRouter, Depends
@@ -105,6 +106,7 @@ def _assemble_itinerary(session: Any):
     budget_style = (trip or {}).get("travel_style") or "balanced"
     interests = (goal or {}).get("interests", [])
 
+    entities = dict(getattr(session, "planning_entities", {}) or {})
     return trip_assembly_engine.assemble(
         unified,
         destination=destination,
@@ -112,4 +114,79 @@ def _assemble_itinerary(session: Any):
         goal_type=goal_type,
         budget_style=budget_style,
         interests=interests,
+        trip_brief=_build_trip_brief(
+            entities=entities,
+            goal=goal,
+            trip=trip,
+            destination=destination,
+            duration_days=duration_days,
+            interests=interests,
+        ),
     )
+
+
+def _build_trip_brief(
+    *,
+    entities: dict[str, str],
+    goal: dict[str, Any] | None,
+    trip: dict[str, Any] | None,
+    destination: str,
+    duration_days: int,
+    interests: list[str],
+) -> dict[str, Any]:
+    goal = goal or {}
+    trip = trip or {}
+    timeframe = goal.get("timeframe", {})
+    travellers = trip.get("travellers") or goal.get("travellers") or {}
+    budget = goal.get("budget") or trip.get("budget") or {}
+    start_date = entities.get("start_date") or timeframe.get("earliest")
+    end_date = entities.get("end_date") or timeframe.get("latest")
+    month = entities.get("month") or timeframe.get("month")
+    year = entities.get("travel_year") or timeframe.get("year")
+    date_precision = (
+        "EXACT"
+        if start_date and end_date
+        else entities.get("date_precision")
+        or timeframe.get("precision")
+        or ("MONTH" if month else "UNSPECIFIED")
+    )
+    if start_date and end_date:
+        travel_period = f"{start_date} to {end_date}"
+    elif month:
+        month_name = calendar.month_name[int(month)]
+        travel_period = f"{month_name} {year}".strip() if year else month_name
+    else:
+        travel_period = timeframe.get("hint") or "Dates not supplied"
+
+    budget_amount = entities.get("budget_amount")
+    if budget_amount is not None:
+        numeric_amount = float(budget_amount)
+        budget = {
+            "amount": (
+                int(numeric_amount)
+                if numeric_amount.is_integer()
+                else numeric_amount
+            ),
+            "currency": entities.get("budget_currency", "USD"),
+            "source": "TRAVELLER_DECLARED",
+        }
+
+    return {
+        "origin": entities.get("origin") or trip.get("origin") or "",
+        "destination": destination or trip.get("destination") or "",
+        "duration_days": int(duration_days),
+        "start_date": start_date,
+        "end_date": end_date,
+        "month": int(month) if month else None,
+        "year": int(year) if year else None,
+        "date_precision": date_precision,
+        "travel_period": travel_period,
+        "travellers": {
+            "adults": int(travellers.get("adults") or 1),
+            "children": int(travellers.get("children") or 0),
+            "infants": int(travellers.get("infants") or 0),
+        },
+        "budget": budget,
+        "nationality": entities.get("nationality"),
+        "interests": list(interests),
+    }

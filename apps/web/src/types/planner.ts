@@ -5,6 +5,8 @@
 
 export interface TripItinerary {
   executive_summary: string;
+  trip_brief: TripBrief;
+  booking_readiness: BookingReadiness;
   destination_recommendation: Record<string, unknown> | null;
   flight_recommendation: Record<string, unknown> | null;
   accommodation_recommendation: Record<string, unknown> | null;
@@ -22,6 +24,38 @@ export interface TripItinerary {
   grounding_notices: GroundingNotice[];
   modules_used: string[];
   modules_unavailable: string[];
+}
+
+export interface TripBrief {
+  origin: string;
+  destination: string;
+  duration_days: number;
+  start_date: string | null;
+  end_date: string | null;
+  month: number | null;
+  year: number | null;
+  date_precision: string;
+  travel_period: string;
+  travellers: {
+    adults: number;
+    children: number;
+    infants: number;
+  };
+  budget: {
+    amount?: number | null;
+    currency?: string;
+    source?: string;
+  };
+  nationality: string | null;
+  interests: string[];
+}
+
+export interface BookingReadiness {
+  score: number;
+  status: string;
+  items_needed: string[];
+  budget_status: string;
+  explanation: string;
 }
 
 export interface EventRecommendation extends Record<string, unknown> {
@@ -59,7 +93,6 @@ export interface DailyOutlineEntry {
   afternoon: string;
   evening: string;
   accommodation: string;
-  estimated_daily_cost_usd: number;
   notes: string;
 }
 

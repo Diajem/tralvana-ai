@@ -13,8 +13,9 @@ def test_plan_trip_synthesizes_across_multiple_modules(client):
     body = res.json()
     assert body["intent"] == "PLAN_TRIP"
     # Real Discovery module sections, not Sprint-1 placeholder agent output.
-    assert "**Flights:**" in body["response"]
-    assert "**Accommodation:**" in body["response"]
+    # A month alone is not enough to perform a supplier search safely.
+    assert "**Flights:**" not in body["response"]
+    assert "**Accommodation:**" not in body["response"]
     assert "**Weather:**" in body["response"]
     assert "**Destinations:**" in body["response"]
     assert "Here's what I found for your Tokyo trip" in body["response"]

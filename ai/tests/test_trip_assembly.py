@@ -18,14 +18,14 @@ engine = TripAssemblyEngine()
 def _flight_result(top=None, status=AgentStatus.SUCCESS) -> AgentResult:
     return AgentResult(
         agent_name="flight_intelligence", status=status, confidence=0.82,
-        data={"top_option": top or {"airline": "AeroLondon", "estimated_price": 825, "currency": "USD", "match_score": 0.82, "data_source": "MOCK"}},
+        data={"top_option": top or {"airline": "AeroLondon", "estimated_price": 825, "currency": "GBP", "match_score": 0.82, "data_source": "LIVE_PROVIDER"}},
     )
 
 
 def _accommodation_result(top=None, status=AgentStatus.SUCCESS) -> AgentResult:
     return AgentResult(
         agent_name="accommodation_intelligence", status=status, confidence=0.75,
-        data={"top_option": top or {"property_name": "Tokyo Guesthouse", "accommodation_type": "GUESTHOUSE", "match_score": 0.75, "data_source": "MOCK"}},
+        data={"top_option": top or {"property_name": "Tokyo Hotel", "accommodation_type": "HOTEL", "match_score": 0.75, "data_source": "LIVE_PROVIDER"}},
     )
 
 
@@ -93,16 +93,40 @@ def _unified(results, explanation=None, confidence=0.7) -> UnifiedRecommendation
     )
 
 
+def _brief(**overrides):
+    value = {
+        "origin": "Manchester",
+        "destination": "Tokyo",
+        "duration_days": 5,
+        "start_date": "2026-10-10",
+        "end_date": "2026-10-15",
+        "month": 10,
+        "year": 2026,
+        "date_precision": "EXACT",
+        "travel_period": "2026-10-10 to 2026-10-15",
+        "travellers": {"adults": 2, "children": 0, "infants": 0},
+        "budget": {
+            "amount": 3000,
+            "currency": "GBP",
+            "source": "TRAVELLER_DECLARED",
+        },
+        "nationality": "British",
+        "interests": ["culture"],
+    }
+    value.update(overrides)
+    return value
+
+
 class TestTopOptionExtraction:
     def test_flight_recommendation_is_the_modules_own_top_option(self):
         unified = _unified([_flight_result()])
         itinerary = engine.assemble(unified, destination="Tokyo", duration_days=5)
-        assert itinerary.flight_recommendation == {"airline": "AeroLondon", "estimated_price": 825, "currency": "USD", "match_score": 0.82, "data_source": "MOCK"}
+        assert itinerary.flight_recommendation == {"airline": "AeroLondon", "estimated_price": 825, "currency": "GBP", "match_score": 0.82, "data_source": "LIVE_PROVIDER"}
 
     def test_accommodation_recommendation_is_the_modules_own_top_option(self):
         unified = _unified([_accommodation_result()])
         itinerary = engine.assemble(unified, destination="Tokyo", duration_days=5)
-        assert itinerary.accommodation_recommendation["property_name"] == "Tokyo Guesthouse"
+        assert itinerary.accommodation_recommendation["property_name"] == "Tokyo Hotel"
 
     def test_failed_module_yields_none_not_a_crash(self):
         unified = _unified([_flight_result(status=AgentStatus.FAILED)])
@@ -145,45 +169,61 @@ class TestSingleAssessmentExtraction:
         assert itinerary.event_recommendations[0]["event_option_id"] == "event-1"
 
 
-class TestExplainabilityPassthrough:
-    """Risks/assumptions/why/confidence_explanation/alternatives must
-    come from Trip Brain's own `explanation` dict (produced by the
-    Explainability Engine) — never recomputed here."""
+class TestCoherentPlannerEvidence:
+    def test_independent_explanation_cannot_restore_a_mock_supplier_claim(self):
+        explanation = {"risks": ["Mock fare is low risk."]}
+        mock = {
+            "airline": "AeroLondon",
+            "estimated_price": 825,
+            "currency": "USD",
+            "data_source": "MOCK",
+        }
+        itinerary = engine.assemble(
+            _unified([_flight_result(top=mock)], explanation=explanation),
+            destination="Tokyo",
+            duration_days=5,
+            trip_brief=_brief(),
+        )
+        assert itinerary.flight_recommendation is None
+        assert all("Mock fare" not in risk for risk in itinerary.risks)
 
-    def test_risks_read_directly_from_explanation(self):
-        explanation = {"risks": ["Non-refundable fare.", "Tight connection."]}
-        unified = _unified([_flight_result()], explanation=explanation)
-        itinerary = engine.assemble(unified, destination="Tokyo", duration_days=5)
-        assert itinerary.risks == ["Non-refundable fare.", "Tight connection."]
+    def test_readiness_caps_confidence(self):
+        incomplete = _brief(
+            date_precision="MONTH",
+            start_date=None,
+            end_date=None,
+            nationality=None,
+        )
+        itinerary = engine.assemble(
+            _unified([_flight_result()], confidence=0.91),
+            destination="Tokyo",
+            duration_days=5,
+            trip_brief=incomplete,
+        )
+        assert itinerary.confidence <= itinerary.booking_readiness["score"] / 100
 
-    def test_assumptions_read_directly_from_explanation(self):
-        explanation = {"assumptions": ["No traveller profile linked."]}
-        unified = _unified([_flight_result()], explanation=explanation)
-        itinerary = engine.assemble(unified, destination="Tokyo", duration_days=5)
-        assert itinerary.assumptions == ["No traveller profile linked."]
+    def test_mock_alternatives_are_not_presented(self):
+        explanation = {
+            "alternatives_considered": [
+                {"module": "flight_intelligence", "alternative": "Continental Express"}
+            ]
+        }
+        itinerary = engine.assemble(
+            _unified([_flight_result()], explanation=explanation),
+            destination="Tokyo",
+            duration_days=5,
+            trip_brief=_brief(),
+        )
+        assert itinerary.alternative_options == []
 
-    def test_why_this_itinerary_reads_recommendation_drivers(self):
-        explanation = {"recommendation_drivers": [{"module": "flight_intelligence", "driver": "Direct flight, no layover risk."}]}
-        unified = _unified([_flight_result()], explanation=explanation)
-        itinerary = engine.assemble(unified, destination="Tokyo", duration_days=5)
-        assert itinerary.why_this_itinerary == [{"module": "flight_intelligence", "driver": "Direct flight, no layover risk."}]
-
-    def test_confidence_explanation_read_directly(self):
-        explanation = {"confidence_explanation": "High confidence — every module succeeded."}
-        unified = _unified([_flight_result()], explanation=explanation)
-        itinerary = engine.assemble(unified, destination="Tokyo", duration_days=5)
-        assert itinerary.confidence_explanation == "High confidence — every module succeeded."
-
-    def test_alternative_options_read_directly(self):
-        explanation = {"alternatives_considered": [{"module": "flight_intelligence", "alternative": "Continental Express"}]}
-        unified = _unified([_flight_result()], explanation=explanation)
-        itinerary = engine.assemble(unified, destination="Tokyo", duration_days=5)
-        assert itinerary.alternative_options == [{"module": "flight_intelligence", "alternative": "Continental Express"}]
-
-    def test_confidence_is_unified_overall_confidence_not_recomputed(self):
-        unified = _unified([_flight_result()], confidence=0.91)
-        itinerary = engine.assemble(unified, destination="Tokyo", duration_days=5)
-        assert itinerary.confidence == 0.91
+    def test_drivers_begin_with_the_canonical_trip_brief(self):
+        itinerary = engine.assemble(
+            _unified([_flight_result()]),
+            destination="Tokyo",
+            duration_days=5,
+            trip_brief=_brief(),
+        )
+        assert itinerary.why_this_itinerary[0]["module"] == "canonical_trip_brief"
 
 
 class TestDailyOutline:
@@ -215,16 +255,23 @@ class TestExecutiveSummary:
         unified = _unified([_flight_result(), _accommodation_result()])
         itinerary = engine.assemble(unified, destination="Tokyo", duration_days=5)
         assert "AeroLondon" in itinerary.executive_summary
-        assert "Tokyo Guesthouse" in itinerary.executive_summary
+        assert "Tokyo Hotel" in itinerary.executive_summary
         assert "Tokyo" in itinerary.executive_summary
 
     def test_mock_price_is_described_as_an_estimate_not_a_confirmed_fare(self):
+        mock = {
+            "airline": "AeroLondon",
+            "estimated_price": 825,
+            "currency": "USD",
+            "data_source": "MOCK",
+        }
         itinerary = engine.assemble(
-            _unified([_flight_result()]), destination="Tokyo", duration_days=5
+            _unified([_flight_result(top=mock)]),
+            destination="Tokyo",
+            duration_days=5,
         )
-        assert "planning estimate" in itinerary.executive_summary
-        assert "check a live provider" in itinerary.executive_summary
-        assert "You'll fly" not in itinerary.executive_summary
+        assert itinerary.flight_recommendation is None
+        assert "AeroLondon" not in itinerary.executive_summary
 
     def test_sandbox_price_is_described_as_test_data(self):
         sandbox = {
@@ -239,8 +286,8 @@ class TestExecutiveSummary:
             destination="Tokyo",
             duration_days=5,
         )
-        assert "sandbox test data" in itinerary.executive_summary
-        assert "not a purchasable fare" in itinerary.executive_summary
+        assert itinerary.flight_recommendation is None
+        assert "Duffel Test Air" not in itinerary.executive_summary
 
     def test_summary_never_fabricates_a_module_that_did_not_run(self):
         unified = _unified([_flight_result()])
@@ -276,14 +323,7 @@ class TestExecutiveSummary:
         assert "could not be determined" in itinerary.executive_summary.lower()
 
     def test_conflicting_mock_budget_breakdown_is_not_presented_as_reconciled(self):
-        explanation = {
-            "recommendation_drivers": [
-                {
-                    "module": "budget_intelligence",
-                    "driver": "Flights USD 900, accommodation USD 472.",
-                }
-            ]
-        }
+        explanation = {"recommendation_drivers": [{"module": "budget_intelligence", "driver": "Flights USD 900, accommodation USD 472."}]}
         budget = AgentResult(
             agent_name="budget_intelligence",
             status=AgentStatus.SUCCESS,
@@ -319,15 +359,29 @@ class TestExecutiveSummary:
             ),
             destination="Dublin",
             duration_days=7,
+            trip_brief=_brief(
+                destination="Dublin",
+                duration_days=7,
+                budget={
+                    "amount": 3000,
+                    "currency": "GBP",
+                    "source": "TRAVELLER_DECLARED",
+                },
+            ),
         )
-        budget_driver = itinerary.why_this_itinerary[0]["driver"]
-        assert "not a reconciled quote" in budget_driver
-        assert "Flights USD 900" not in budget_driver
+        assert itinerary.budget_summary["currency"] == "GBP"
+        assert itinerary.budget_summary["assessment_status"] == "NOT_YET_ASSESSED"
+        assert "Flights USD 900" not in str(itinerary.why_this_itinerary)
 
     def test_summary_includes_confidence_percentage(self):
         unified = _unified([_flight_result()], confidence=0.82)
-        itinerary = engine.assemble(unified, destination="Tokyo", duration_days=5)
-        assert "82%" in itinerary.executive_summary
+        itinerary = engine.assemble(
+            unified,
+            destination="Tokyo",
+            duration_days=5,
+            trip_brief=_brief(),
+        )
+        assert "90%" in itinerary.executive_summary
 
 
 class TestModulesUsedAndUnavailable:
@@ -346,9 +400,9 @@ class TestGroundingNotices:
             duration_days=5,
         )
         by_domain = {n.domain: n for n in itinerary.grounding_notices}
-        assert by_domain["flight"].level == "ESTIMATE"
-        assert by_domain["flight"].is_current is False
-        assert by_domain["accommodation"].level == "ESTIMATE"
+        assert by_domain["flight"].level == "LIVE"
+        assert by_domain["flight"].is_current is True
+        assert by_domain["accommodation"].level == "LIVE"
         assert all(n.requires_confirmation for n in itinerary.grounding_notices)
 
     def test_duffel_sandbox_is_never_labelled_live(self):
@@ -364,8 +418,8 @@ class TestGroundingNotices:
             destination="Tokyo",
             duration_days=5,
         )
-        notice = itinerary.grounding_notices[0]
-        assert notice.level == "SANDBOX"
+        notice = next(n for n in itinerary.grounding_notices if n.domain == "flight")
+        assert notice.level == "GUIDANCE"
         assert notice.is_current is False
 
     def test_unknown_provider_label_is_not_promoted_to_live(self):
@@ -381,8 +435,8 @@ class TestGroundingNotices:
             destination="Tokyo",
             duration_days=5,
         )
-        notice = itinerary.grounding_notices[0]
-        assert notice.level == "ESTIMATE"
+        notice = next(n for n in itinerary.grounding_notices if n.domain == "flight")
+        assert notice.level == "GUIDANCE"
         assert notice.is_current is False
 
     def test_static_domains_are_labelled_by_their_real_grounding(self):
@@ -399,12 +453,12 @@ class TestGroundingNotices:
             duration_days=5,
         )
         levels = {n.domain: n.level for n in itinerary.grounding_notices}
-        assert levels == {
-            "destination": "CURATED",
-            "budget": "ESTIMATE",
-            "visa": "GUIDANCE",
-            "weather": "CLIMATE_PROFILE",
-        }
+        assert levels["destination"] == "CURATED"
+        assert levels["flight"] == "GUIDANCE"
+        assert levels["accommodation"] == "GUIDANCE"
+        assert levels["budget"] == "GUIDANCE"
+        assert levels["visa"] == "GUIDANCE"
+        assert levels["weather"] == "CLIMATE_PROFILE"
 
     def test_event_interests_without_a_result_add_an_idea_notice(self):
         itinerary = engine.assemble(

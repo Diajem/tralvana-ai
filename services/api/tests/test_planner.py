@@ -22,7 +22,8 @@ def test_full_plan_trip_message_returns_an_assembled_itinerary(client):
         "accommodation_recommendation", "budget_summary", "visa_summary",
         "weather_expectations", "event_recommendations", "risks", "assumptions", "daily_outline",
         "why_this_itinerary", "confidence", "confidence_explanation",
-        "alternative_options", "grounding_notices",
+        "alternative_options", "grounding_notices", "trip_brief",
+        "booking_readiness",
     ):
         assert key in itinerary
 
@@ -99,11 +100,13 @@ def test_plan_trip_accumulates_details_and_completes_across_turns(client):
     assert "When are you planning to travel?" not in second_body["missing_information"]
     assert "Jamaica" in second_body["itinerary"]["executive_summary"]
     itinerary = second_body["itinerary"]
-    assert itinerary["flight_recommendation"]["origin"] == "Leeds"
-    assert itinerary["flight_recommendation"]["departure_date"] == "2026-08-10"
-    assert itinerary["flight_recommendation"]["return_date"] == "2026-08-17"
-    assert itinerary["budget_summary"]["adults"] == 2
-    assert itinerary["budget_summary"]["duration_days"] == 7
+    assert itinerary["trip_brief"]["origin"] == "Leeds"
+    assert itinerary["trip_brief"]["start_date"] == "2026-08-10"
+    assert itinerary["trip_brief"]["end_date"] == "2026-08-17"
+    assert itinerary["trip_brief"]["travellers"]["adults"] == 2
+    assert itinerary["trip_brief"]["duration_days"] == 7
+    assert itinerary["flight_recommendation"] is None
+    assert itinerary["accommodation_recommendation"] is None
     assert itinerary["visa_summary"]["nationality"] == "British"
 
 
@@ -114,7 +117,8 @@ def test_daily_outline_length_matches_trip_duration(client):
     body = res.json()
     assert body["itinerary"] is not None
     assert len(body["itinerary"]["daily_outline"]) == 4
-    assert body["itinerary"]["budget_summary"]["duration_days"] == 4
+    assert body["itinerary"]["trip_brief"]["duration_days"] == 4
+    assert body["itinerary"]["budget_summary"] is None
 
 
 def test_two_week_dublin_plan_preserves_dates_party_weather_and_country(client):
@@ -128,15 +132,14 @@ def test_two_week_dublin_plan_preserves_dates_party_weather_and_country(client):
     itinerary = res.json()["itinerary"]
     assert itinerary is not None
     assert len(itinerary["daily_outline"]) == 14
-    assert itinerary["flight_recommendation"]["origin"] == "Bradford"
-    assert itinerary["flight_recommendation"]["departure_date"] == "2026-08-17"
-    assert itinerary["flight_recommendation"]["return_date"] == "2026-08-31"
-    assert itinerary["accommodation_recommendation"]["total_price"] == (
-        itinerary["accommodation_recommendation"]["nightly_price"] * 14
-    )
-    assert itinerary["budget_summary"]["duration_days"] == 14
-    assert itinerary["budget_summary"]["adults"] == 2
-    assert itinerary["budget_summary"]["children"] == 2
+    assert itinerary["trip_brief"]["origin"] == "Bradford"
+    assert itinerary["trip_brief"]["start_date"] == "2026-08-17"
+    assert itinerary["trip_brief"]["end_date"] == "2026-08-31"
+    assert itinerary["trip_brief"]["duration_days"] == 14
+    assert itinerary["trip_brief"]["travellers"]["adults"] == 2
+    assert itinerary["trip_brief"]["travellers"]["children"] == 2
+    assert itinerary["flight_recommendation"] is None
+    assert itinerary["accommodation_recommendation"] is None
     assert itinerary["weather_expectations"]["destination"] == "Ireland"
     assert itinerary["weather_expectations"]["month_of_travel"] == 8
     assert itinerary["weather_expectations"]["season"] == "SUMMER"
@@ -161,15 +164,14 @@ def test_complete_new_york_holiday_honours_every_supplied_detail(client):
     assert itinerary is not None
     assert len(itinerary["daily_outline"]) == 15
 
-    assert itinerary["flight_recommendation"]["origin"] == "Manchester"
-    assert itinerary["flight_recommendation"]["departure_date"] == "2026-08-07"
-    assert itinerary["flight_recommendation"]["return_date"] == "2026-08-22"
-    assert itinerary["budget_summary"]["adults"] == 2
-    assert itinerary["budget_summary"]["duration_days"] == 15
-
-    accommodation = itinerary["accommodation_recommendation"]
-    assert accommodation["accommodation_type"] == "HOTEL"
-    assert "hotel" in accommodation["property_name"].lower()
+    assert itinerary["trip_brief"]["origin"] == "Manchester"
+    assert itinerary["trip_brief"]["start_date"] == "2026-08-07"
+    assert itinerary["trip_brief"]["end_date"] == "2026-08-22"
+    assert itinerary["trip_brief"]["travellers"]["adults"] == 2
+    assert itinerary["trip_brief"]["duration_days"] == 15
+    assert itinerary["flight_recommendation"] is None
+    assert itinerary["accommodation_recommendation"] is None
+    assert itinerary["budget_summary"] is None
 
     visa = itinerary["visa_summary"]
     assert visa["destination_country"] == "United States"
@@ -189,10 +191,10 @@ def test_complete_new_york_holiday_honours_every_supplied_detail(client):
         assert interest in outline_text
 
     notices = {notice["domain"]: notice for notice in itinerary["grounding_notices"]}
-    assert notices["flight"]["level"] == "ESTIMATE"
+    assert notices["flight"]["level"] == "GUIDANCE"
     assert notices["flight"]["is_current"] is False
-    assert notices["accommodation"]["level"] == "ESTIMATE"
-    assert notices["budget"]["level"] == "ESTIMATE"
+    assert notices["accommodation"]["level"] == "GUIDANCE"
+    assert notices["budget"]["level"] == "GUIDANCE"
     assert notices["visa"]["level"] == "GUIDANCE"
     assert notices["weather"]["level"] == "CLIMATE_PROFILE"
     assert notices["events"]["level"] == "CURATED"
@@ -209,9 +211,60 @@ def test_complete_new_york_holiday_honours_every_supplied_detail(client):
         for option in itinerary["event_recommendations"]
     )
     assert all(notice["requires_confirmation"] for notice in notices.values())
-    assert "planning estimate" in itinerary["executive_summary"]
-    assert "check a live provider" in itinerary["executive_summary"]
+    assert "booking confirmation" in itinerary["executive_summary"]
+    assert "Guesthouse" not in itinerary["executive_summary"]
     assert "You'll fly" not in itinerary["executive_summary"]
+
+
+def test_tokyo_month_only_plan_is_coherent_and_preserves_gbp_budget(client):
+    res = client.post("/planner/plan", json={
+        "message": (
+            "Plan a 10-day holiday to Tokyo from Manchester in October 2026 "
+            "for 2 adults. Our total budget is £3,000 and we are interested "
+            "in football and culture."
+        ),
+    })
+    assert res.status_code == 200
+    itinerary = res.json()["itinerary"]
+    assert itinerary is not None
+    brief = itinerary["trip_brief"]
+    assert brief["origin"] == "Manchester"
+    assert brief["destination"] == "Tokyo"
+    assert brief["duration_days"] == 10
+    assert brief["travel_period"] == "October 2026"
+    assert brief["date_precision"] == "MONTH"
+    assert brief["travellers"]["adults"] == 2
+
+    budget = itinerary["budget_summary"]
+    assert budget["declared_budget"] == 3000
+    assert budget["currency"] == "GBP"
+    assert budget["assessment_status"] == "NOT_YET_ASSESSED"
+    assert "price estimates" in budget["allocation_basis"]
+
+    assert itinerary["flight_recommendation"] is None
+    assert itinerary["accommodation_recommendation"] is None
+    assert itinerary["booking_readiness"]["score"] == 55
+    assert len(itinerary["booking_readiness"]["items_needed"]) == 4
+    assert itinerary["weather_expectations"]["month_of_travel"] == 10
+    assert itinerary["weather_expectations"]["weather_status"] == "CHALLENGING"
+    assert itinerary["weather_expectations"]["natural_hazard_risk"] == "SEVERE"
+
+    assert len(itinerary["daily_outline"]) == 10
+    assert all(
+        "estimated_daily_cost_usd" not in day
+        for day in itinerary["daily_outline"]
+    )
+    outline = str(itinerary["daily_outline"])
+    assert outline.count("Senso-ji") == 1
+    assert "Osaka" not in outline
+    assert outline.lower().count("fixture calendar") == 1
+    assert {event["category"] for event in itinerary["event_recommendations"]} == {
+        "CULTURE",
+        "SPORT",
+    }
+    assert "Japan Guesthouse" not in res.text
+    assert "AeroLondon" not in res.text
+    assert "$150" not in res.text
 
 
 def test_holiday_goal_persists_dates_party_and_interests(client):

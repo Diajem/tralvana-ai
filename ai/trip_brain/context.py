@@ -42,6 +42,27 @@ class TripBrainContext:
         return bool((self.trip or {}).get("duration_days"))
 
     @property
+    def has_exact_dates(self) -> bool:
+        if self.entities.get("start_date") and self.entities.get("end_date"):
+            return True
+        timeframe = (self.goal or {}).get("timeframe", {})
+        return bool(timeframe.get("earliest") and timeframe.get("latest"))
+
+    @property
+    def declared_budget(self) -> dict[str, Any] | None:
+        amount = self.entities.get("budget_amount")
+        currency = self.entities.get("budget_currency")
+        if amount:
+            return {"amount": float(amount), "currency": currency or "USD"}
+        budget = (self.goal or {}).get("budget", {})
+        if budget.get("amount") is not None:
+            return {
+                "amount": budget["amount"],
+                "currency": budget.get("currency", "USD"),
+            }
+        return None
+
+    @property
     def nationality(self) -> str | None:
         if self.entities.get("nationality"):
             return self.entities["nationality"]
@@ -65,7 +86,11 @@ class TripBrainContext:
     def goal_has_budget_cap(self) -> bool:
         if not self.goal:
             return False
-        return self.goal.get("budget", {}).get("max_usd") is not None
+        budget = self.goal.get("budget", {})
+        return (
+            budget.get("max_usd") is not None
+            or budget.get("amount") is not None
+        )
 
     @property
     def party_size_known(self) -> bool:

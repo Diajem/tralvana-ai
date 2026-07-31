@@ -50,7 +50,14 @@ class TestModuleSelector:
         assert set(weights.keys()) == {"destination", "weather", "visa"}
 
     def test_destination_and_dates_adds_flight_and_accommodation(self, selector):
-        context = _context(entities={"destination": "Tokyo", "date_hint": "in october", "nationality": "Tokyo"})
+        context = _context(
+            entities={
+                "destination": "Tokyo",
+                "start_date": "2026-10-05",
+                "end_date": "2026-10-15",
+                "nationality": "Tokyo",
+            }
+        )
         weights = selector.select(context)
         assert set(weights.keys()) == {"destination", "weather", "flight", "accommodation"}
 
@@ -94,7 +101,11 @@ class TestModuleSelector:
 
     def test_full_trip_shape_selects_all_six_as_core(self, selector):
         context = _context(
-            entities={"destination": "Tokyo", "date_hint": "in october"},
+            entities={
+                "destination": "Tokyo",
+                "start_date": "2026-10-05",
+                "end_date": "2026-10-15",
+            },
             goal={"budget": {"max_usd": 3000}, "travellers": {"adults": 2}},
             profile={"identity": {"nationality": "GB"}},
         )
@@ -107,7 +118,12 @@ class TestModuleSelector:
         # "full trip shape" as its own row selecting all six, independent
         # of whether the Budget/Visa-specific triggers separately fire.
         context = _context(
-            entities={"destination": "Tokyo", "date_hint": "in october", "nationality": "Tokyo"},
+            entities={
+                "destination": "Tokyo",
+                "start_date": "2026-10-05",
+                "end_date": "2026-10-15",
+                "nationality": "Tokyo",
+            },
             goal={"budget": {"max_usd": None}, "travellers": {"adults": 1}},
         )
         weights = selector.select(context)
@@ -115,7 +131,12 @@ class TestModuleSelector:
 
     def test_party_size_unknown_does_not_force_full_shape(self, selector):
         context = _context(
-            entities={"destination": "Tokyo", "date_hint": "in october", "nationality": "Tokyo"},
+            entities={
+                "destination": "Tokyo",
+                "start_date": "2026-10-05",
+                "end_date": "2026-10-15",
+                "nationality": "Tokyo",
+            },
             goal={"budget": {"max_usd": 3000}, "travellers": {}},
         )
         weights = selector.select(context)

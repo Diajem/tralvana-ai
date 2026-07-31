@@ -109,7 +109,10 @@ class WeatherIntelligence:
         packing_recommendations = weather_reasoner.packing_advice(option)
         risk_result = weather_risk_assessor.assess(option)
 
-        weather_status = self._status(score_result["weather_suitability_score"])
+        weather_status = self._risk_adjusted_status(
+            self._status(score_result["weather_suitability_score"]),
+            risk_result,
+        )
         recommendation = _RECOMMENDATION[weather_status]
         if alternative_months and weather_status not in ("EXCELLENT", "GOOD"):
             recommendation += f" {alternative_months[0]['month_name']} is a stronger option if your dates are flexible."
@@ -187,6 +190,31 @@ class WeatherIntelligence:
             if score >= threshold:
                 return status
         return _DEFAULT_STATUS
+
+    def _risk_adjusted_status(
+        self, score_status: str, risk_result: dict[str, Any]
+    ) -> str:
+        """A severe seasonal hazard cannot be presented as a good period."""
+        levels = {
+            risk_result["transport_disruption_risk"],
+            risk_result["natural_hazard_risk"],
+            risk_result["health_risk"],
+        }
+        order = [
+            "NOT_RECOMMENDED",
+            "CHALLENGING",
+            "ACCEPTABLE",
+            "GOOD",
+            "EXCELLENT",
+        ]
+        cap = (
+            "CHALLENGING"
+            if "SEVERE" in levels
+            else "ACCEPTABLE"
+            if "HIGH" in levels
+            else score_status
+        )
+        return order[min(order.index(score_status), order.index(cap))]
 
     def _weather_summary(self, option: dict[str, Any]) -> str:
         if not option["matched"]:

@@ -21,7 +21,7 @@ def test_recommend_events_returns_provider_neutral_curated_results(client):
     assert body["data_source"] == "TRALVANA_CURATED_EVENT_IDEAS"
     assert body["provider_status"] == "AVAILABLE"
     assert body["retrieved_at"]
-    assert len(body["event_options"]) == 4
+    assert len(body["event_options"]) == 2
     assert all(
         option["date_status"] == "UNVERIFIED"
         and option["availability_status"] == "UNKNOWN"
@@ -31,8 +31,9 @@ def test_recommend_events_returns_provider_neutral_curated_results(client):
     assert body["filter_summary"] == {
         "provider_result_count": 4,
         "excluded_outside_travel_dates": 0,
-        "excluded_as_irrelevant": 0,
-        "returned_event_count": 4,
+        "excluded_outside_destination": 0,
+        "excluded_as_irrelevant": 2,
+        "returned_event_count": 2,
     }
 
 

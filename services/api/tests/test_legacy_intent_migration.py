@@ -50,7 +50,10 @@ def test_modify_trip_reuses_active_trip_and_reruns_trip_brain(client):
 
     assert modified["intent"] == "MODIFY_TRIP"
     assert modified["trip_id"] == original["trip_id"]
-    assert "**Flights:**" in modified["response"]
+    # A single changed departure date is not an exact travel window, so the
+    # planner must not fabricate a supplier recommendation.
+    assert "**Flights:**" not in modified["response"]
+    assert "**Weather:**" in modified["response"]
     assert "Sprint 4" not in modified["response"]
     assert modified["recommended_agents"] == ["trip_brain"]
 

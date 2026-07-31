@@ -186,6 +186,50 @@ def run_destination_intelligence(context: TripBrainContext) -> AgentResult:
 
 
 def run_budget_intelligence(context: TripBrainContext) -> AgentResult:
+    declared = context.declared_budget
+    if declared:
+        amount = declared["amount"]
+        if isinstance(amount, float) and amount.is_integer():
+            amount = int(amount)
+        return AgentResult(
+            agent_name="budget_intelligence",
+            status=AgentStatus.NEEDS_INFORMATION,
+            confidence=0.55,
+            data={
+                "declared_budget": {
+                    "amount": amount,
+                    "currency": declared["currency"],
+                    "source": "TRAVELLER_DECLARED",
+                }
+            },
+            assumptions=[
+                "The traveller's stated budget is preserved in its original currency."
+            ],
+            risks=[
+                "Affordability is not assessed until current flight and accommodation prices are available."
+            ],
+            next_actions=[
+                "Run live flight and accommodation searches before deciding whether the trip fits the budget."
+            ],
+        )
+
+    return AgentResult(
+        agent_name="budget_intelligence",
+        status=AgentStatus.NEEDS_INFORMATION,
+        confidence=0.35,
+        data={},
+        missing_information=["What total budget and currency should the plan use?"],
+        risks=["No traveller budget has been supplied, so affordability is not assessed."],
+        next_actions=["Add a total trip budget in your preferred currency."],
+    )
+
+
+def _legacy_run_budget_intelligence(context: TripBrainContext) -> AgentResult:
+    """Retained for the standalone deterministic budget engine.
+
+    The coordinated planner no longer presents its independent USD model as
+    though it were reconciled with supplier prices.
+    """
     try:
         output = get_planning_port().recommend_budget(
             traveller_id=context.traveller_id,
