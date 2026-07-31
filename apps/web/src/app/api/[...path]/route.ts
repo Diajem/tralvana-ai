@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,16 +36,39 @@ function upstreamBaseUrl(): string {
   ).replace(/\/+$/, "");
 }
 
+async function upstreamHeaders(request: NextRequest): Promise<Headers> {
+  const headers = new Headers(request.headers);
+  for (const header of REQUEST_HEADERS_TO_REMOVE) {
+    headers.delete(header);
+  }
+
+  /*
+   * In production, authenticate the same-origin browser request at the
+   * Next.js boundary and forward a fresh Clerk session token to FastAPI.
+   * This avoids a separate browser-side getToken() request and prevents a
+   * caller from supplying an arbitrary Authorization header.
+   *
+   * Local development without Clerk keeps the existing header-forwarding
+   * behaviour so the API remains usable in its disabled-auth mode.
+   */
+  if (process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+    const session = await auth();
+    const token = await session.getToken();
+    if (token) {
+      headers.set("authorization", `Bearer ${token}`);
+    } else {
+      headers.delete("authorization");
+    }
+  }
+
+  return headers;
+}
+
 async function relay(request: NextRequest, context: RouteContext): Promise<Response> {
   const { path } = await context.params;
   const upstreamBase = upstreamBaseUrl();
   const upstreamUrl = new URL(`${upstreamBase}/${path.join("/")}`);
   upstreamUrl.search = request.nextUrl.search;
-
-  const headers = new Headers(request.headers);
-  for (const header of REQUEST_HEADERS_TO_REMOVE) {
-    headers.delete(header);
-  }
 
   const method = request.method.toUpperCase();
   const body =
@@ -53,6 +77,7 @@ async function relay(request: NextRequest, context: RouteContext): Promise<Respo
       : await request.arrayBuffer();
 
   try {
+    const headers = await upstreamHeaders(request);
     const upstreamResponse = await fetch(upstreamUrl, {
       method,
       headers,
@@ -82,11 +107,15 @@ async function relay(request: NextRequest, context: RouteContext): Promise<Respo
       statusText: upstreamResponse.statusText,
       headers: responseHeaders,
     });
-  } catch {
+  } catch (error: unknown) {
+    console.error(
+      "Tralvana API relay failed:",
+      error instanceof Error ? error.message : "unknown error"
+    );
     return Response.json(
       {
         detail:
-          "Tralvana could not reach the trip-planning service. Please try again shortly.",
+          "Tralvana could not authenticate or reach the trip-planning service. Please try again shortly.",
       },
       { status: 502 }
     );

@@ -51,12 +51,28 @@ async function apiFetch(
   init: RequestInit = {},
   explicitToken?: string
 ): Promise<Response> {
-  const token = explicitToken ?? (authTokenProvider ? await authTokenProvider() : null);
+  /*
+   * Same-origin browser requests are authenticated by the Next.js relay from
+   * the Clerk session cookie.  Do not call Clerk getToken() in the browser:
+   * that extra network step can fail before the planner request is sent.
+   * Server-side/direct API calls still use the supplied token provider.
+   */
+  const usesBrowserRelay =
+    typeof window !== "undefined" &&
+    typeof input === "string" &&
+    (input === "/api" || input.startsWith("/api/"));
+  const token = usesBrowserRelay
+    ? null
+    : explicitToken ?? (authTokenProvider ? await authTokenProvider() : null);
   const headers = new Headers(init.headers);
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
-  return fetch(input, { ...init, headers });
+  return fetch(input, {
+    ...init,
+    headers,
+    credentials: init.credentials ?? "same-origin",
+  });
 }
 
 export async function getAffiliateProgrammes(): Promise<AffiliateProgramme[]> {
@@ -488,7 +504,10 @@ export async function planTrip(data: PlanTripRequest): Promise<PlanTripResponse>
     body: JSON.stringify(data),
   });
   if (!res.ok) {
-    throw new Error(`Failed to plan trip: ${res.status}`);
+    const payload = await res.json().catch(() => null);
+    const detail =
+      payload && typeof payload.detail === "string" ? payload.detail : null;
+    throw new Error(detail ?? `Failed to plan trip: ${res.status}`);
   }
   return res.json();
 }
