@@ -20,7 +20,23 @@ export default function RootLayout({
 }) {
   const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   const content = publishableKey ? (
-    <ClerkProvider publishableKey={publishableKey}>
+    <ClerkProvider
+      publishableKey={publishableKey}
+      localization={{
+        signIn: {
+          start: {
+            title: "Sign in to Tralvana",
+            titleCombined: "Sign in to Tralvana",
+          },
+        },
+        signUp: {
+          start: {
+            title: "Create your Tralvana account",
+            titleCombined: "Create your Tralvana account",
+          },
+        },
+      }}
+    >
       <ClerkAuthBridge>
         <AccountMenu />
         <AuthenticationGate>{children}</AuthenticationGate>
