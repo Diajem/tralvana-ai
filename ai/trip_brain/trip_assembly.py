@@ -77,6 +77,8 @@ class GroundingNotice:
 @dataclass
 class TripItinerary:
     executive_summary: str
+    trip_brief: dict[str, Any]
+    booking_readiness: dict[str, Any]
     destination_recommendation: dict[str, Any] | None
     flight_recommendation: dict[str, Any] | None
     accommodation_recommendation: dict[str, Any] | None
@@ -98,6 +100,8 @@ class TripItinerary:
     def to_dict(self) -> dict[str, Any]:
         return {
             "executive_summary": self.executive_summary,
+            "trip_brief": self.trip_brief,
+            "booking_readiness": self.booking_readiness,
             "destination_recommendation": self.destination_recommendation,
             "flight_recommendation": self.flight_recommendation,
             "accommodation_recommendation": self.accommodation_recommendation,
@@ -129,13 +133,24 @@ class TripAssemblyEngine:
         goal_type: str = "GENERAL_TRAVEL",
         budget_style: str = "balanced",
         interests: list[str] | None = None,
+        trip_brief: dict[str, Any] | None = None,
     ) -> TripItinerary:
         by_module = {r.agent_name: r for r in unified.results}
 
         destination_rec = self._top_option(by_module.get("destination_intelligence"))
-        flight_rec = self._top_option(by_module.get("flight_intelligence"))
-        accommodation_rec = self._top_option(by_module.get("accommodation_intelligence"))
-        budget_rec = self._top_option(by_module.get("budget_intelligence"))
+        raw_flight_rec = self._top_option(by_module.get("flight_intelligence"))
+        raw_accommodation_rec = self._top_option(
+            by_module.get("accommodation_intelligence")
+        )
+        flight_rec = self._current_provider_option(raw_flight_rec)
+        accommodation_rec = self._current_provider_option(raw_accommodation_rec)
+        brief = self._normalise_trip_brief(
+            trip_brief,
+            destination=destination,
+            duration_days=duration_days,
+            interests=interests or [],
+        )
+        budget_rec = self._declared_budget_summary(brief)
         visa_rec = self._assessment(by_module.get("visa_intelligence"))
         weather_rec = self._assessment(by_module.get("weather_intelligence"))
         event_result = by_module.get("event_intelligence")
@@ -155,10 +170,15 @@ class TripAssemblyEngine:
             interests=interests,
         )
 
-        explanation = unified.explanation or {}
+        booking_readiness = self._booking_readiness(
+            brief=brief,
+            flight=flight_rec,
+            accommodation=accommodation_rec,
+            events=event_recs,
+        )
 
         executive_summary = self._executive_summary(
-            destination=destination,
+            brief=brief,
             flight=flight_rec,
             accommodation=accommodation_rec,
             budget=budget_rec,
@@ -167,6 +187,7 @@ class TripAssemblyEngine:
             events=event_recs,
             confidence=unified.overall_confidence,
             modules_succeeded=unified.modules_succeeded,
+            readiness=booking_readiness,
         )
         grounding_notices = self._grounding_notices(
             destination=destination_rec,
@@ -178,10 +199,13 @@ class TripAssemblyEngine:
             events=event_recs,
             event_evidence=event_evidence,
             interests=interests or [],
+            brief=brief,
         )
 
         return TripItinerary(
             executive_summary=executive_summary,
+            trip_brief=brief,
+            booking_readiness=booking_readiness,
             destination_recommendation=destination_rec,
             flight_recommendation=flight_rec,
             accommodation_recommendation=accommodation_rec,
@@ -189,18 +213,31 @@ class TripAssemblyEngine:
             visa_summary=visa_rec,
             weather_expectations=weather_rec,
             event_recommendations=event_recs,
-            risks=list(explanation.get("risks", [])),
-            assumptions=list(explanation.get("assumptions", [])),
-            daily_outline=daily_outline,
-            why_this_itinerary=self._presentation_drivers(
-                explanation,
+            risks=self._coherent_risks(
+                brief=brief,
+                visa=visa_rec,
+                weather=weather_rec,
+                events=event_recs,
                 flight=flight_rec,
                 accommodation=accommodation_rec,
-                budget=budget_rec,
             ),
-            confidence=unified.overall_confidence,
-            confidence_explanation=explanation.get("confidence_explanation", ""),
-            alternative_options=list(explanation.get("alternatives_considered", [])),
+            assumptions=self._coherent_assumptions(
+                brief=brief,
+                flight=flight_rec,
+                accommodation=accommodation_rec,
+            ),
+            daily_outline=daily_outline,
+            why_this_itinerary=self._coherent_drivers(
+                brief=brief,
+                weather=weather_rec,
+                events=event_recs,
+            ),
+            confidence=min(
+                unified.overall_confidence,
+                booking_readiness["score"] / 100,
+            ),
+            confidence_explanation=booking_readiness["explanation"],
+            alternative_options=[],
             grounding_notices=grounding_notices,
             modules_used=list(unified.modules_succeeded),
             modules_unavailable=list(unified.modules_failed),
@@ -275,6 +312,256 @@ class TripAssemblyEngine:
         top = result.data.get("top_option")
         return top or None
 
+    def _current_provider_option(
+        self, option: dict[str, Any] | None
+    ) -> dict[str, Any] | None:
+        if not option:
+            return None
+        source = str(option.get("data_source", "")).upper()
+        return option if self._is_live_source(source) else None
+
+    def _normalise_trip_brief(
+        self,
+        brief: dict[str, Any] | None,
+        *,
+        destination: str,
+        duration_days: int,
+        interests: list[str],
+    ) -> dict[str, Any]:
+        value = dict(brief or {})
+        value.setdefault("origin", "")
+        value.setdefault("destination", destination)
+        value.setdefault("duration_days", max(int(duration_days or 1), 1))
+        value.setdefault("start_date", None)
+        value.setdefault("end_date", None)
+        value.setdefault("month", None)
+        value.setdefault("year", None)
+        value.setdefault(
+            "date_precision",
+            "EXACT"
+            if value.get("start_date") and value.get("end_date")
+            else "UNSPECIFIED",
+        )
+        value.setdefault("travel_period", "Dates not supplied")
+        value.setdefault(
+            "travellers", {"adults": 1, "children": 0, "infants": 0}
+        )
+        value.setdefault("budget", {})
+        value.setdefault("nationality", None)
+        value.setdefault("interests", list(interests))
+        return value
+
+    def _declared_budget_summary(
+        self, brief: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        budget = brief.get("budget") or {}
+        amount = budget.get("amount")
+        if amount is None:
+            return None
+        currency = str(budget.get("currency") or "USD").upper()
+        allocations = {
+            "transport_allocation": 0.35,
+            "accommodation_allocation": 0.35,
+            "food_allocation": 0.15,
+            "activities_allocation": 0.10,
+            "contingency_allocation": 0.05,
+        }
+        return {
+            "declared_budget": amount,
+            "currency": currency,
+            "duration_days": brief["duration_days"],
+            "adults": brief["travellers"].get("adults", 1),
+            "children": brief["travellers"].get("children", 0),
+            "assessment_status": "NOT_YET_ASSESSED",
+            "affordability_status": "UNKNOWN_UNTIL_LIVE_PRICES",
+            **{
+                key: round(float(amount) * share)
+                for key, share in allocations.items()
+            },
+            "allocation_basis": (
+                "Suggested allocation of the traveller's stated budget; "
+                "these values are not price estimates."
+            ),
+            "data_source": "TRAVELLER_DECLARED_BUDGET",
+        }
+
+    def _booking_readiness(
+        self,
+        *,
+        brief: dict[str, Any],
+        flight: dict[str, Any] | None,
+        accommodation: dict[str, Any] | None,
+        events: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        score = 0
+        score += 10 if brief.get("destination") else 0
+        score += 10 if brief.get("origin") else 0
+        score += 10 if brief.get("duration_days") else 0
+        score += 10 if brief.get("travellers", {}).get("adults") else 0
+        score += 5 if brief.get("travel_period") != "Dates not supplied" else 0
+        score += 5 if (brief.get("budget") or {}).get("amount") is not None else 0
+        score += 5 if brief.get("interests") else 0
+        score += 15 if brief.get("date_precision") == "EXACT" else 0
+        score += 10 if brief.get("nationality") else 0
+        score += 10 if flight else 0
+        score += 10 if accommodation else 0
+        score = min(score, 100)
+
+        needed: list[str] = []
+        if brief.get("date_precision") != "EXACT":
+            needed.append("Choose exact departure and return dates.")
+        if not brief.get("nationality"):
+            needed.append(
+                "Add each traveller's passport nationality for official entry checks."
+            )
+        if not flight or not accommodation:
+            needed.append(
+                "Run current flight and accommodation searches, then reconcile the prices."
+            )
+        if self._has_event_interest(brief.get("interests", [])) and not any(
+            event.get("data_source") == "TICKETMASTER_DISCOVERY_API"
+            for event in events
+        ):
+            needed.append(
+                "Confirm any football match or event on an official dated calendar."
+            )
+
+        label = (
+            "BOOKING_READY"
+            if score == 100 and not needed
+            else "PLANNING_IN_PROGRESS"
+        )
+        return {
+            "score": score,
+            "status": label,
+            "items_needed": needed,
+            "budget_status": (
+                "NOT_YET_ASSESSED"
+                if (brief.get("budget") or {}).get("amount") is not None
+                else "BUDGET_NOT_PROVIDED"
+            ),
+            "explanation": (
+                f"{score}% planning readiness. "
+                + (
+                    "The itinerary is ready for final booking checks."
+                    if not needed
+                    else "Complete the listed checks before treating this as a bookable trip."
+                )
+            ),
+        }
+
+    def _coherent_risks(
+        self,
+        *,
+        brief: dict[str, Any],
+        visa: dict[str, Any] | None,
+        weather: dict[str, Any] | None,
+        events: list[dict[str, Any]],
+        flight: dict[str, Any] | None,
+        accommodation: dict[str, Any] | None,
+    ) -> list[str]:
+        risks: list[str] = []
+        if brief.get("date_precision") != "EXACT":
+            risks.append(
+                "Exact travel dates are not set, so availability and bookable prices cannot be checked."
+            )
+        if not flight or not accommodation:
+            risks.append(
+                "No reconciled current flight and accommodation prices are included."
+            )
+        if (brief.get("budget") or {}).get("amount") is not None:
+            risks.append(
+                "The stated budget has not yet been tested against current supplier prices."
+            )
+        else:
+            risks.append("No total trip budget has been supplied.")
+
+        if weather:
+            risks.extend(str(item) for item in weather.get("risks", []))
+        if visa:
+            risks.extend(str(item) for item in visa.get("risks", []))
+        if self._has_event_interest(brief.get("interests", [])) and not any(
+            event.get("data_source") == "TICKETMASTER_DISCOVERY_API"
+            for event in events
+        ):
+            risks.append(
+                "Football fixtures and other events are ideas until an official dated listing is confirmed."
+            )
+        return list(dict.fromkeys(item for item in risks if item))
+
+    def _coherent_assumptions(
+        self,
+        *,
+        brief: dict[str, Any],
+        flight: dict[str, Any] | None,
+        accommodation: dict[str, Any] | None,
+    ) -> list[str]:
+        assumptions = [
+            "Daily activities are a curated planning outline; opening hours and availability still require checking."
+        ]
+        if brief.get("date_precision") == "MONTH":
+            assumptions.append(
+                f"{brief.get('travel_period')} is treated as a broad travel window, not an exact booking date."
+            )
+        if not flight:
+            assumptions.append(
+                f"The departure point remains {brief.get('origin') or 'to be confirmed'}; no substitute airport was selected."
+            )
+        if not accommodation:
+            assumptions.append(
+                "Accommodation remains unselected until a current provider search is completed."
+            )
+        return assumptions
+
+    def _coherent_drivers(
+        self,
+        *,
+        brief: dict[str, Any],
+        weather: dict[str, Any] | None,
+        events: list[dict[str, Any]],
+    ) -> list[dict[str, str]]:
+        drivers = [
+            {
+                "module": "canonical_trip_brief",
+                "driver": (
+                    f"The outline preserves {brief.get('duration_days')} days, "
+                    f"{brief.get('origin') or 'the stated origin'}, "
+                    f"{brief.get('travel_period')}, and the supplied party size."
+                ),
+            }
+        ]
+        if brief.get("interests"):
+            drivers.append(
+                {
+                    "module": "traveller_interests",
+                    "driver": (
+                        "Activities are shaped around "
+                        + ", ".join(str(item) for item in brief["interests"])
+                        + " without inventing confirmed fixtures or tickets."
+                    ),
+                }
+            )
+        if weather:
+            drivers.append(
+                {
+                    "module": "weather_intelligence",
+                    "driver": (
+                        f"The seasonal profile reports {weather.get('season', 'the selected season')} "
+                        f"with a {str(weather.get('weather_status', 'unknown')).lower()} suitability status."
+                    ),
+                }
+            )
+        if events:
+            drivers.append(
+                {
+                    "module": "event_intelligence",
+                    "driver": (
+                        "Only event results matching the destination and requested interests are retained."
+                    ),
+                }
+            )
+        return drivers
+
     def _assessment(self, result: AgentResult | None) -> dict[str, Any] | None:
         """Visa/Weather Intelligence's single-assessment shape (not a
         ranked list) — the whole `data` dict, unchanged."""
@@ -290,7 +577,7 @@ class TripAssemblyEngine:
 
     def _executive_summary(
         self,
-        destination: str,
+        brief: dict[str, Any],
         flight: dict[str, Any] | None,
         accommodation: dict[str, Any] | None,
         budget: dict[str, Any] | None,
@@ -299,6 +586,7 @@ class TripAssemblyEngine:
         events: list[dict[str, Any]],
         confidence: float,
         modules_succeeded: list[str],
+        readiness: dict[str, Any],
     ) -> str:
         """A natural-language paragraph over facts already decided by
         each module — every clause only appears if the fact it quotes
@@ -306,8 +594,20 @@ class TripAssemblyEngine:
         if not modules_succeeded:
             return "I wasn't able to put together a recommendation yet — let's gather a bit more detail first."
 
-        where = destination or "this trip"
-        parts = [f"Here's the plan I've put together for {where}."]
+        destination = brief.get("destination") or "this trip"
+        origin = brief.get("origin")
+        travellers = brief.get("travellers", {})
+        party = travellers.get("adults", 1)
+        children = travellers.get("children", 0)
+        party_text = f"{party} adult{'s' if party != 1 else ''}"
+        if children:
+            party_text += f" and {children} child{'ren' if children != 1 else ''}"
+        parts = [
+            f"This is a {brief.get('duration_days')}-day planning outline for "
+            f"{destination}"
+            + (f" from {origin}" if origin else "")
+            + f" during {brief.get('travel_period')} for {party_text}."
+        ]
 
         if flight:
             airline = flight.get("airline")
@@ -354,9 +654,11 @@ class TripAssemblyEngine:
                     )
 
         if budget:
-            style = budget.get("budget_style")
-            if style:
-                parts.append(f"Overall spending sits at a {style} level.")
+            parts.append(
+                f"The stated {budget['currency']} {budget['declared_budget']:,} "
+                "budget is preserved, but affordability has not been assessed "
+                "against current prices."
+            )
 
         if visa and visa.get("visa_status"):
             visa_status = str(visa.get("visa_status", "")).upper()
@@ -399,7 +701,11 @@ class TripAssemblyEngine:
                     + "; confirm exact dates and availability with official live sources."
                 )
 
-        parts.append(f"Overall confidence in this plan is {confidence:.0%}.")
+        del confidence
+        parts.append(
+            f"Planning readiness is {readiness['score']}%; this is not a "
+            "booking confirmation."
+        )
         return " ".join(parts)
 
     # ------------------------------------------------------------------
@@ -415,6 +721,7 @@ class TripAssemblyEngine:
         events: list[dict[str, Any]],
         event_evidence: dict[str, Any],
         interests: list[str],
+        brief: dict[str, Any],
     ) -> list[GroundingNotice]:
         notices: list[GroundingNotice] = []
 
@@ -436,21 +743,69 @@ class TripAssemblyEngine:
 
         if flight:
             notices.append(self._provider_notice("flight", flight))
+        else:
+            notices.append(
+                GroundingNotice(
+                    domain="flight",
+                    level="GUIDANCE",
+                    title="Current flight search pending",
+                    message=(
+                        "No airline, flight number, or fare is shown because a current "
+                        "bookable provider result is not available."
+                    ),
+                    data_source="NO_CURRENT_BOOKABLE_RESULT",
+                    is_current=False,
+                    requires_confirmation=True,
+                )
+            )
 
         if accommodation:
             notices.append(self._provider_notice("accommodation", accommodation))
+        else:
+            notices.append(
+                GroundingNotice(
+                    domain="accommodation",
+                    level="GUIDANCE",
+                    title="Current accommodation search pending",
+                    message=(
+                        "No property or price is shown because a current bookable "
+                        "provider result is not available."
+                    ),
+                    data_source="NO_CURRENT_BOOKABLE_RESULT",
+                    is_current=False,
+                    requires_confirmation=True,
+                )
+            )
 
         if budget:
             notices.append(
                 GroundingNotice(
                     domain="budget",
                     level="ESTIMATE",
-                    title="Indicative budget",
+                    title="Traveller budget allocation",
                     message=(
-                        "Budget figures use static regional planning rates. They are not a "
-                        "quote and should be recalculated from confirmed live prices."
+                        f"The {budget['currency']} figures divide the traveller's own "
+                        "stated budget into planning envelopes. They are not supplier "
+                        "prices and affordability remains unassessed."
                     ),
-                    data_source=str(budget.get("data_source", "STATIC_REGIONAL_RATES")),
+                    data_source=str(
+                        budget.get("data_source", "TRAVELLER_DECLARED_BUDGET")
+                    ),
+                    is_current=False,
+                    requires_confirmation=True,
+                )
+            )
+        elif not (brief.get("budget") or {}).get("amount"):
+            notices.append(
+                GroundingNotice(
+                    domain="budget",
+                    level="GUIDANCE",
+                    title="Budget required",
+                    message=(
+                        "No total budget was supplied, so the plan does not claim "
+                        "that the trip is affordable."
+                    ),
+                    data_source="NO_TRAVELLER_BUDGET",
                     is_current=False,
                     requires_confirmation=True,
                 )

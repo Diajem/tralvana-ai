@@ -125,6 +125,14 @@ class GoalService:
         )
         adults = int(entities.get("adults", "1"))
         title = f"Trip to {destination}" if destination else "New Travel Goal"
+        budget_amount = (
+            float(entities["budget_amount"])
+            if entities.get("budget_amount")
+            else None
+        )
+        if budget_amount is not None and budget_amount.is_integer():
+            budget_amount = int(budget_amount)
+        budget_currency = entities.get("budget_currency", "USD")
 
         now = datetime.now(timezone.utc).isoformat()
         goal = Goal(
@@ -133,13 +141,28 @@ class GoalService:
             title=title,
             goal_type=goal_type,
             priority=3,
-            budget={"min_usd": None, "max_usd": None, "currency": "USD"},
+            budget={
+                "min_usd": None,
+                "max_usd": None,
+                "amount": budget_amount,
+                "currency": budget_currency,
+                "source": "TRAVELLER_DECLARED" if budget_amount else "NOT_PROVIDED",
+            },
             timeframe={
                 "earliest": entities.get("start_date"),
                 "latest": entities.get("end_date"),
                 "duration_days": duration_days,
                 "flexible": not bool(entities.get("start_date")),
                 "hint": date_hint or None,
+                "month": (
+                    int(entities["month"]) if entities.get("month") else None
+                ),
+                "year": (
+                    int(entities["travel_year"])
+                    if entities.get("travel_year")
+                    else None
+                ),
+                "precision": entities.get("date_precision"),
             },
             travellers={
                 "adults": adults,

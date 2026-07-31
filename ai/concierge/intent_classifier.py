@@ -555,4 +555,54 @@ class IntentClassifier:
                 entities.setdefault("date_hint", name)
                 break
 
+        month_year_match = re.search(
+            rf"\b({month_pattern})\s+(20\d{{2}})\b",
+            text,
+        )
+        if month_year_match and "start_date" not in entities:
+            entities["month"] = str(months.index(month_year_match.group(1)) + 1)
+            entities["travel_year"] = month_year_match.group(2)
+            entities["date_hint"] = month_year_match.group(0)
+            entities["date_precision"] = "MONTH"
+        elif entities.get("start_date") and entities.get("end_date"):
+            entities["date_precision"] = "EXACT"
+        elif entities.get("month"):
+            entities["date_precision"] = "MONTH"
+
+        budget_patterns = (
+            (r"£\s*([\d,]+(?:\.\d{1,2})?)", "GBP"),
+            (r"€\s*([\d,]+(?:\.\d{1,2})?)", "EUR"),
+            (r"\$\s*([\d,]+(?:\.\d{1,2})?)", "USD"),
+            (
+                r"\b([\d,]+(?:\.\d{1,2})?)\s*"
+                r"(?:pounds?|gbp)\b",
+                "GBP",
+            ),
+            (
+                r"\b([\d,]+(?:\.\d{1,2})?)\s*"
+                r"(?:euros?|eur)\b",
+                "EUR",
+            ),
+            (
+                r"\b([\d,]+(?:\.\d{1,2})?)\s*"
+                r"(?:dollars?|usd)\b",
+                "USD",
+            ),
+        )
+        for pattern, currency in budget_patterns:
+            match = re.search(pattern, text)
+            if not match:
+                continue
+            amount = match.group(1).replace(",", "")
+            try:
+                parsed = float(amount)
+            except ValueError:
+                continue
+            if parsed > 0:
+                entities["budget_amount"] = (
+                    str(int(parsed)) if parsed.is_integer() else str(parsed)
+                )
+                entities["budget_currency"] = currency
+                break
+
         return entities

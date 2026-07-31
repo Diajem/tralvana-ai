@@ -272,6 +272,7 @@ def test_live_results_are_strictly_filtered_to_inclusive_local_travel_dates(
     assert output["filter_summary"] == {
         "provider_result_count": 5,
         "excluded_outside_travel_dates": 3,
+        "excluded_outside_destination": 0,
         "excluded_as_irrelevant": 0,
         "returned_event_count": 2,
     }

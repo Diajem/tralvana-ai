@@ -39,7 +39,10 @@ def test_new_york_fashion_and_soccer_are_ranked_as_curated_ideas():
     )
     assert output["data_source"] == "TRALVANA_CURATED_EVENT_IDEAS"
     assert output["provider_status"] == "AVAILABLE"
-    assert len(output["event_options"]) == 4
+    assert len(output["event_options"]) == 2
+    assert {
+        option["category"] for option in output["event_options"]
+    } == {"FASHION", "SPORT"}
     top_two = output["event_options"][:2]
     assert {option["category"] for option in top_two} == {"FASHION", "SPORT"}
     assert all(option["date_status"] == "UNVERIFIED" for option in top_two)

@@ -42,7 +42,12 @@ FULL_SHAPE_CONTEXT = TripBrainContext(
     traveller_id="t-1",
     trip_id=None,
     goal_id="g-1",
-    entities={"destination": "Tokyo", "date_hint": "in october", "nationality": "Nigerian"},
+    entities={
+        "destination": "Tokyo",
+        "start_date": "2026-10-05",
+        "end_date": "2026-10-15",
+        "nationality": "Nigerian",
+    },
     profile=None,
     goal={"budget": {"max_usd": 3000}, "travellers": {"adults": 2}},
     trip=None,

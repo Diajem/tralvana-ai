@@ -105,6 +105,6 @@ class TestNoPublicAPIRegression:
         })
         body = res.json()
         assert body["intent"] == "PLAN_TRIP"
-        assert "**Flights:**" in body["response"]
-        assert "**Accommodation:**" in body["response"]
+        assert "**Flights:**" not in body["response"]
+        assert "**Accommodation:**" not in body["response"]
         assert "**Weather:**" in body["response"]

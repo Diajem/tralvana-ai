@@ -181,7 +181,7 @@ def test_duplicate_relationships_do_not_duplicate_rotation_entries() -> None:
     )
 
     assert days[1]["morning"] == "Explore Only Once"
-    assert days[2]["morning"] == "Explore Only Once"
+    assert days[2]["morning"] != "Explore Only Once"
 
 
 def test_two_week_relaxation_plan_has_no_repeated_arrival_or_resort_beach_defaults() -> None:

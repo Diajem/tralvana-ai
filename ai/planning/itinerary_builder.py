@@ -89,25 +89,36 @@ _TEMPLATES: dict[str, list[tuple[str, str, str, str]]] = {
         ("City Orientation", "Guided walking tour of the city centre", "Key landmarks and photo stops", "Welcome dinner at a celebrated local restaurant"),
         ("Culture & History", "Major museum or historical site", "Old town or heritage district walk", "Traditional local cuisine dinner"),
         ("Local Life", "Neighbourhood markets and cafes", "Day trip to a nearby attraction", "Local food street or night market dinner"),
-        ("Leisure Day", "Relaxed morning, brunch, and local shops", "Park, viewpoint, or waterfront walk", "Farewell dinner at a rooftop restaurant"),
+        ("Art & Design", "Visit a major gallery or design district", "Explore independent studios and local architecture", "Dinner in a creative neighbourhood"),
+        ("Green City", "Walk through a major park or garden", "Visit a waterfront, river, or scenic viewpoint where locally suitable", "Relaxed neighbourhood dinner"),
+        ("Food & Markets", "Browse a local produce or craft market", "Join a food-focused walk or tasting", "Try a regional speciality"),
+        ("Neighbourhood Day", "Explore a residential district beyond the main tourist centre", "Independent shops, cafés, and community spaces", "Dinner where local residents eat"),
+        ("Day Excursion", "Take a short train or coach trip to a nearby place", "Explore its main cultural and scenic highlights", "Return for a simple dinner near the accommodation"),
+        ("Modern City", "Visit a technology, transport, or contemporary culture attraction", "Explore a modern commercial district", "Evening skyline or city-lights walk"),
+        ("Flexible Priority Day", "Visit one remaining priority attraction", "Leave time for shopping, rest, or a booked activity", "Special dinner chosen by the traveller"),
+        ("Final Full Day", "Return to a favourite district or visit a final museum", "Souvenir shopping and an unhurried lunch", "Farewell dinner"),
     ],
 }
 
-_ARRIVAL_DAY = ("Arrival & Orientation", "Fly to destination and hotel check-in", "Rest and explore the local area", "Welcome dinner at a nearby restaurant")
+_TOKYO_TEMPLATES = [
+    ("Asakusa & Old Tokyo", "Explore Senso-ji and Nakamise-dori", "Walk beside the Sumida River and visit nearby traditional streets", "Dinner in Asakusa"),
+    ("Ueno Museums & Park", "Walk through Ueno Park", "Choose a museum in the Ueno cultural district", "Explore Ameya-Yokocho and dine nearby"),
+    ("Meiji, Harajuku & Omotesando", "Visit Meiji Shrine", "Explore Harajuku and Omotesando", "Dinner around Aoyama or Shibuya"),
+    ("Shibuya", "Explore Shibuya Crossing and surrounding streets", "Visit shops, galleries, or a city viewpoint", "Dinner and an evening walk in Shibuya"),
+    ("Tsukiji & Ginza", "Breakfast or food exploration at Tsukiji Outer Market", "Explore Ginza's architecture, shops, and galleries", "Dinner in central Tokyo"),
+    ("Shinjuku", "Visit Shinjuku Gyoen or a nearby cultural attraction", "Explore the west-side skyline and department stores", "Evening in Shinjuku"),
+    ("Odaiba & Tokyo Bay", "Travel to the Tokyo Bay area", "Explore Odaiba's museums, waterfront, or digital-art attractions", "Return for dinner near the accommodation"),
+    ("Kamakura Day Excursion", "Travel to Kamakura", "Explore temples, historic streets, and the coast", "Return to Tokyo for dinner"),
+    ("Yanaka & Nezu", "Walk through Yanaka's traditional streets", "Explore Nezu, small galleries, and local cafés", "Quiet neighbourhood dinner"),
+    ("Independent Tokyo Day", "Choose a priority attraction not yet visited", "Allow time for shopping or a pre-booked experience", "Special final-evening meal"),
+    ("Mount Takao or Western Tokyo", "Take a day trip to Mount Takao or another western Tokyo area", "Enjoy a scenic walk suited to current conditions", "Return for a relaxed dinner"),
+    ("Contemporary Tokyo", "Explore a contemporary art or architecture district", "Visit independent shops and design spaces", "Evening city-lights walk"),
+]
+
+_DESTINATION_TEMPLATES = {"tokyo": _TOKYO_TEMPLATES}
+
+_ARRIVAL_DAY = ("Arrival & Orientation", "Arrive, transfer, and check in to the selected accommodation", "Rest and explore the local area", "Welcome dinner at a nearby restaurant")
 _DEPARTURE_DAY = ("Departure Day", "Leisurely final breakfast and packing", "Last sightseeing or souvenir shopping", "Transfer to airport")
-
-_ACCOMMODATION_TIERS: dict[str, str] = {
-    "backpacker": "hostel / budget guesthouse",
-    "budget": "budget hotel (2-star)",
-    "balanced": "mid-range hotel (3-4 star)",
-    "comfort": "4-star hotel or boutique property",
-    "luxury": "5-star hotel or luxury resort",
-}
-
-_DAILY_COSTS: dict[str, int] = {
-    "backpacker": 40, "budget": 65, "balanced": 150,
-    "comfort": 300, "luxury": 650,
-}
 
 class ItineraryBuilder:
     """
@@ -136,11 +147,12 @@ class ItineraryBuilder:
         budget_style: str,
         interests: list[str] | None = None,
     ) -> list[dict[str, Any]]:
-        templates = _TEMPLATES.get(goal_type, _TEMPLATES["GENERAL_TRAVEL"])
+        templates = (
+            _DESTINATION_TEMPLATES.get(destination.strip().casefold())
+            if goal_type == "GENERAL_TRAVEL"
+            else None
+        ) or _TEMPLATES.get(goal_type, _TEMPLATES["GENERAL_TRAVEL"])
         enrich = self._destination_enrichment(destination)
-        accommodation = _ACCOMMODATION_TIERS.get(budget_style, _ACCOMMODATION_TIERS["balanced"])
-        daily_cost = _DAILY_COSTS.get(budget_style, _DAILY_COSTS["balanced"])
-
         itinerary: list[dict[str, Any]] = []
 
         for day_num in range(1, duration_days + 1):
@@ -149,9 +161,14 @@ class ItineraryBuilder:
             elif day_num == duration_days and duration_days > 1:
                 theme = _DEPARTURE_DAY
             else:
-                # Cycle through goal templates
-                idx = (day_num - 2) % len(templates)
-                theme = templates[idx]
+                idx = day_num - 2
+                theme = (
+                    templates[idx]
+                    if idx < len(templates)
+                    else _TEMPLATES["GENERAL_TRAVEL"][
+                        idx % len(_TEMPLATES["GENERAL_TRAVEL"])
+                    ]
+                )
 
             title, morning, afternoon, evening = theme
 
@@ -179,8 +196,7 @@ class ItineraryBuilder:
                 "morning": morning,
                 "afternoon": afternoon,
                 "evening": evening,
-                "accommodation": f"{accommodation.title()}, {destination}",
-                "estimated_daily_cost_usd": daily_cost,
+                "accommodation": f"Accommodation to be confirmed in {destination}",
                 "notes": notes,
             })
 
@@ -231,7 +247,10 @@ class ItineraryBuilder:
         connected: it schedules a relevant activity and tells the traveller
         to confirm date-specific fixtures/events rather than inventing one.
         """
-        interest = interests[(day - 2) % len(interests)].lower()
+        interest_index = day - 2
+        if interest_index >= len(interests):
+            return morning, afternoon, evening
+        interest = interests[interest_index].lower()
         if any(term in interest for term in ("fashion", "style")):
             afternoon = (
                 "Explore the fashion district or a fashion exhibition; "
@@ -266,16 +285,19 @@ class ItineraryBuilder:
         restaurants = enrich.get("restaurants", [])
 
         # Pick a landmark or museum for the day (rotate by day index)
-        if museums and (goal_type in ("GENERAL_TRAVEL", "FAMILY_TRIP", "RELAXATION", "PHOTOGRAPHY")):
-            pick = museums[(day - 2) % len(museums)]
+        enrichment_index = day - 2
+        if museums and enrichment_index < len(museums) and (
+            goal_type in ("GENERAL_TRAVEL", "FAMILY_TRIP", "RELAXATION", "PHOTOGRAPHY")
+        ):
+            pick = museums[enrichment_index]
             afternoon = f"Visit {pick}"
 
-        if landmarks:
-            pick = landmarks[(day - 2) % len(landmarks)]
+        if landmarks and enrichment_index < len(landmarks):
+            pick = landmarks[enrichment_index]
             morning = f"Explore {pick}"
 
-        if restaurants:
-            pick = restaurants[(day - 2) % len(restaurants)]
+        if restaurants and enrichment_index < len(restaurants):
+            pick = restaurants[enrichment_index]
             evening = f"Dinner at {pick}"
 
         return morning, afternoon, evening

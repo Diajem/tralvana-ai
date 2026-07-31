@@ -40,7 +40,7 @@ class ModuleSelector:
         if destination:
             weights["destination"] = CORE_WEIGHT
             weights["weather"] = CORE_WEIGHT
-            if context.has_dates:
+            if context.has_exact_dates:
                 weights["flight"] = CORE_WEIGHT
                 weights["accommodation"] = CORE_WEIGHT
 
@@ -50,7 +50,7 @@ class ModuleSelector:
         if context.nationality_check_needed:
             weights.setdefault("visa", SUPPORTING_WEIGHT)
 
-        if destination and context.has_dates and context.party_size_known:
+        if destination and context.has_exact_dates and context.party_size_known:
             # Full PLAN_TRIP shape — orchestrate all six as core signals.
             for name in BASE_MODULES:
                 weights[name] = CORE_WEIGHT

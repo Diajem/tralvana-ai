@@ -38,10 +38,16 @@ class EventIntelligence:
 
         options: list[dict[str, Any]] = []
         excluded_outside_dates = 0
+        excluded_outside_destination = 0
         excluded_irrelevant = 0
         for record in raw:
             event = event_normalizer.normalize(record)
             is_live = event.get("_evidence_level") == "LIVE"
+            if is_live and not _matches_requested_destination(
+                event, destination
+            ):
+                excluded_outside_destination += 1
+                continue
             if is_live and not _inside_requested_dates(
                 event,
                 start_date=start_date,
@@ -51,7 +57,7 @@ class EventIntelligence:
                 excluded_outside_dates += 1
                 continue
             score = event_scorer.score(event, interests)
-            if is_live and interests and not score["is_relevant"]:
+            if interests and not score["is_relevant"]:
                 excluded_irrelevant += 1
                 continue
             options.append(
@@ -117,7 +123,8 @@ class EventIntelligence:
             if excluded_outside_dates or excluded_irrelevant:
                 summary += (
                     f" Excluded {excluded_outside_dates} listing(s) outside the "
-                    f"travel dates and {excluded_irrelevant} unrelated listing(s)."
+                    f"travel dates, {excluded_outside_destination} listing(s) outside "
+                    f"{destination}, and {excluded_irrelevant} unrelated listing(s)."
                 )
         elif used_fallback:
             assumptions = [
@@ -161,6 +168,7 @@ class EventIntelligence:
             "filter_summary": {
                 "provider_result_count": len(raw),
                 "excluded_outside_travel_dates": excluded_outside_dates,
+                "excluded_outside_destination": excluded_outside_destination,
                 "excluded_as_irrelevant": excluded_irrelevant,
                 "returned_event_count": len(ranked),
             },
@@ -168,6 +176,26 @@ class EventIntelligence:
 
 
 event_intelligence = EventIntelligence()
+
+
+_COUNTRY_REQUESTS = {
+    "france", "ghana", "ireland", "jamaica", "japan", "nigeria", "spain",
+    "uae", "united arab emirates", "uk", "united kingdom", "usa",
+    "united states", "united states of america",
+}
+
+
+def _matches_requested_destination(
+    event: dict[str, Any], requested_destination: str
+) -> bool:
+    requested = " ".join(requested_destination.casefold().split())
+    if not requested or requested in _COUNTRY_REQUESTS:
+        return True
+    event_destination = " ".join(
+        str(event.get("destination", "")).casefold().split()
+    )
+    venue = " ".join(str(event.get("venue_area", "")).casefold().split())
+    return requested == event_destination or requested in venue
 
 
 def _inside_requested_dates(

@@ -9,7 +9,7 @@ function ConfidenceBadge({ confidence }: { confidence: number }) {
   const colour = pct >= 70 ? "bg-green-100 text-green-800" : pct >= 45 ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-800";
   return (
     <span className={`px-3 py-1 rounded-full text-sm font-semibold ${colour}`}>
-      {pct}% confidence
+      {pct}% planning readiness
     </span>
   );
 }
@@ -31,6 +31,8 @@ const MONEY_FIELDS = new Set([
   "estimated_price", "nightly_price", "total_price", "total_cost_usd",
   "cost_per_day_usd", "cost_per_person_usd", "flight_cost_usd",
   "accommodation_usd", "food_usd", "activities_usd", "misc_usd",
+  "declared_budget", "transport_allocation", "accommodation_allocation",
+  "food_allocation", "activities_allocation", "contingency_allocation",
 ]);
 
 function fmtValue(key: string, value: unknown, data: Record<string, unknown>): string {
@@ -61,11 +63,16 @@ function RecommendationFacts({ data }: { data: Record<string, unknown> }) {
     "category", "venue_area", "date_status", "availability_status", "team_level",
     "estimated_price", "nightly_price", "total_price", "currency",
     "duration_days", "adults", "children", "total_cost_usd", "cost_per_day_usd",
+    "declared_budget", "assessment_status", "affordability_status",
+    "transport_allocation", "accommodation_allocation", "food_allocation",
+    "activities_allocation", "contingency_allocation", "allocation_basis",
     "flight_cost_usd", "accommodation_usd", "food_usd", "activities_usd", "misc_usd",
     "star_rating", "review_score", "match_score", "recommendation_type",
     "cabin_class", "accommodation_type", "stops", "total_duration",
     "cancellation_policy", "breakfast_included", "visa_status", "visa_required",
-    "visa_type", "processing_time", "season", "weather_summary", "recommendation",
+    "visa_type", "processing_time", "month_of_travel", "season", "weather_status",
+    "weather_summary", "safety_summary", "natural_hazard_risk",
+    "transport_disruption_risk", "recommendation",
   ];
   const entries = preferredOrder
     .filter((k) => k in data && data[k] !== null && data[k] !== undefined && data[k] !== "")
@@ -82,6 +89,58 @@ function RecommendationFacts({ data }: { data: Record<string, unknown> }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+function TripBriefCard({ itinerary }: { itinerary: TripItinerary }) {
+  const brief = itinerary.trip_brief;
+  const travellers = [
+    `${brief.travellers.adults} adult${brief.travellers.adults === 1 ? "" : "s"}`,
+    brief.travellers.children
+      ? `${brief.travellers.children} child${brief.travellers.children === 1 ? "" : "ren"}`
+      : "",
+    brief.travellers.infants
+      ? `${brief.travellers.infants} infant${brief.travellers.infants === 1 ? "" : "s"}`
+      : "",
+  ].filter(Boolean).join(", ");
+
+  return (
+    <SectionCard title="Trip Details We Are Using">
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-3">
+        {[
+          ["From", brief.origin || "Not supplied"],
+          ["To", brief.destination],
+          ["Duration", `${brief.duration_days} days`],
+          ["Travel period", brief.travel_period],
+          ["Travellers", travellers],
+          ["Interests", brief.interests.length ? brief.interests.join(", ") : "Not supplied"],
+        ].map(([label, value]) => (
+          <div key={label}>
+            <dt className="text-xs text-gray-400">{label}</dt>
+            <dd className="font-medium text-gray-900">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </SectionCard>
+  );
+}
+
+function ReadinessCard({ itinerary }: { itinerary: TripItinerary }) {
+  const readiness = itinerary.booking_readiness;
+  return (
+    <SectionCard title="What Is Still Needed">
+      {readiness.items_needed.length ? (
+        <ul className="space-y-2">
+          {readiness.items_needed.map((item) => (
+            <li key={item} className="text-sm text-gray-700">• {item}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-green-700">
+          The planning inputs are complete. Recheck all live prices and availability before paying.
+        </p>
+      )}
+    </SectionCard>
   );
 }
 
@@ -140,6 +199,11 @@ function ItineraryView({ itinerary }: { itinerary: TripItinerary }) {
         <p className="text-indigo-50 leading-relaxed">{itinerary.executive_summary}</p>
       </div>
 
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+        <TripBriefCard itinerary={itinerary} />
+        <ReadinessCard itinerary={itinerary} />
+      </div>
+
       {itinerary.grounding_notices.length > 0 && (
         <div>
           <h2 className="text-lg font-semibold text-gray-900 mb-1">What Has Been Checked</h2>
@@ -171,7 +235,7 @@ function ItineraryView({ itinerary }: { itinerary: TripItinerary }) {
           </SectionCard>
         )}
         {itinerary.budget_summary && (
-          <SectionCard title={`Indicative Budget (${String(itinerary.budget_summary.currency ?? "USD")})`}>
+          <SectionCard title={`Your Budget Allocation (${String(itinerary.budget_summary.currency ?? "")})`}>
             <RecommendationFacts data={itinerary.budget_summary} />
           </SectionCard>
         )}

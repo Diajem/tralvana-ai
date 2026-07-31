@@ -167,7 +167,9 @@ class TestDestinationAdapter:
 
 
 class TestBudgetAdapter:
-    def test_exception_is_isolated_as_failed(self, monkeypatch):
+    def test_missing_budget_requests_information_without_running_estimator(
+        self, monkeypatch
+    ):
         from app.domains.budget.service import budget_intelligence_service
 
         def _raise(**kwargs):
@@ -175,8 +177,9 @@ class TestBudgetAdapter:
 
         monkeypatch.setattr(budget_intelligence_service, "recommend_from_conversation", _raise)
         result = run_budget_intelligence(_context())
-        assert result.status == AgentStatus.FAILED
+        assert result.status == AgentStatus.NEEDS_INFORMATION
         assert result.agent_name == "budget_intelligence"
+        assert "budget" in result.next_actions[0].lower()
 
 
 class TestVisaAdapter:
