@@ -30,6 +30,13 @@ class TestMockWeatherProvider:
         assert result["matched"] is True
         assert result["season"] == "SUMMER"
 
+    def test_dublin_uses_ireland_august_profile(self):
+        provider = MockWeatherProvider()
+        result = provider.month("Dublin", 8)
+        assert result["destination"] == "Ireland"
+        assert result["matched"] is True
+        assert result["avg_temp_c"] == 17
+
     def test_case_insensitive_lookup(self):
         provider = MockWeatherProvider()
         lower = provider.month("japan", 7)

@@ -192,7 +192,12 @@ class TripAssemblyEngine:
             risks=list(explanation.get("risks", [])),
             assumptions=list(explanation.get("assumptions", [])),
             daily_outline=daily_outline,
-            why_this_itinerary=list(explanation.get("recommendation_drivers", [])),
+            why_this_itinerary=self._presentation_drivers(
+                explanation,
+                flight=flight_rec,
+                accommodation=accommodation_rec,
+                budget=budget_rec,
+            ),
             confidence=unified.overall_confidence,
             confidence_explanation=explanation.get("confidence_explanation", ""),
             alternative_options=list(explanation.get("alternatives_considered", [])),
@@ -202,6 +207,64 @@ class TripAssemblyEngine:
         )
 
     # ------------------------------------------------------------------
+
+    def _presentation_drivers(
+        self,
+        explanation: dict[str, Any],
+        *,
+        flight: dict[str, Any] | None,
+        accommodation: dict[str, Any] | None,
+        budget: dict[str, Any] | None,
+    ) -> list[dict[str, str]]:
+        """Prevent an independent regional budget baseline from reading as
+        though it reconciles to separately generated mock supplier options.
+
+        Until live provider prices and FX conversion are connected, the
+        regional model and selected mock options are different evidence
+        sources.  Keep every non-budget driver unchanged; replace only a
+        conflicting budget breakdown with an explicit provenance statement.
+        """
+        drivers = [
+            dict(driver)
+            for driver in explanation.get("recommendation_drivers", [])
+        ]
+        if not budget:
+            return drivers
+
+        currency = budget.get("currency")
+        flight_conflicts = (
+            flight is not None
+            and currency == flight.get("currency")
+            and budget.get("flight_cost_usd") is not None
+            and flight.get("estimated_price") is not None
+            and budget["flight_cost_usd"] != flight["estimated_price"]
+        )
+        accommodation_conflicts = (
+            accommodation is not None
+            and currency == accommodation.get("currency")
+            and budget.get("accommodation_usd") is not None
+            and accommodation.get("total_price") is not None
+            and budget["accommodation_usd"] != accommodation["total_price"]
+        )
+        if not (flight_conflicts or accommodation_conflicts):
+            return drivers
+
+        replacement = {
+            "module": "budget_intelligence",
+            "driver": (
+                f"The {str(budget.get('budget_style', 'selected')).title()} budget "
+                f"is a static regional planning baseline in {currency or 'USD'}. "
+                "It is not a reconciled quote; recalculate it with live flight, "
+                "accommodation, and exchange-rate data before booking."
+            ),
+        }
+        for index, driver in enumerate(drivers):
+            if driver.get("module") == "budget_intelligence":
+                drivers[index] = replacement
+                break
+        else:
+            drivers.append(replacement)
+        return drivers
 
     def _top_option(self, result: AgentResult | None) -> dict[str, Any] | None:
         """The module's own already-labelled BEST_OVERALL pick
@@ -296,7 +359,13 @@ class TripAssemblyEngine:
                 parts.append(f"Overall spending sits at a {style} level.")
 
         if visa and visa.get("visa_status"):
-            if visa.get("travel_authorisation_required"):
+            visa_status = str(visa.get("visa_status", "")).upper()
+            if visa_status == "CHECK_MANUALLY":
+                parts.append(
+                    "Entry requirements could not be determined from the available "
+                    "guidance; check the official authority before travel."
+                )
+            elif visa.get("travel_authorisation_required"):
                 authorisation = visa.get("visa_type", "travel authorisation")
                 parts.append(
                     f"Planning guidance indicates {authorisation} travel authorisation is "
@@ -308,7 +377,7 @@ class TripAssemblyEngine:
                     f"({visa.get('visa_type', 'see visa summary')}); verify this with "
                     "the official authority."
                 )
-            else:
+            elif visa_status in {"VISA_NOT_REQUIRED", "NOT_REQUIRED"}:
                 parts.append(
                     "Planning guidance indicates no visa is required for this trip; "
                     "verify this with the official authority."

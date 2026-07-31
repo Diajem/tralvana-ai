@@ -261,6 +261,37 @@ class TestEntityExtraction:
             set(result.entities["interests"].split(","))
         )
 
+    def test_extracts_two_week_dublin_trip_without_treating_name_as_nationality(
+        self, classifier
+    ):
+        result = classifier.classify(
+            "I am Desmond. Plan a relaxing holiday to Dublin from Bradford "
+            "on 17 August 2026 for two weeks with 2 adults and 2 children."
+        )
+        assert result.entities["destination"] == "Dublin"
+        assert result.entities["origin"] == "Bradford"
+        assert result.entities["duration_days"] == "14"
+        assert result.entities["start_date"] == "2026-08-17"
+        assert result.entities["end_date"] == "2026-08-31"
+        assert result.entities["adults"] == "2"
+        assert result.entities["children"] == "2"
+        assert "nationality" not in result.entities
+
+    @pytest.mark.parametrize(
+        ("phrase", "expected_days"),
+        [
+            ("four days", "4"),
+            ("14 days", "14"),
+            ("two weeks", "14"),
+            ("a fortnight", "14"),
+        ],
+    )
+    def test_extracts_duration_variants(self, classifier, phrase, expected_days):
+        result = classifier.classify(
+            f"Plan a trip to Dublin in August for {phrase}"
+        )
+        assert result.entities["duration_days"] == expected_days
+
     def test_no_destination_when_not_present(self, classifier):
         # "Hello there" has no location markers
         result = classifier.classify("Hello there")

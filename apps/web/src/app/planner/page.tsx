@@ -27,6 +27,32 @@ function fmtKey(key: string): string {
   return key.replace(/_/g, " ");
 }
 
+const MONEY_FIELDS = new Set([
+  "estimated_price", "nightly_price", "total_price", "total_cost_usd",
+  "cost_per_day_usd", "cost_per_person_usd", "flight_cost_usd",
+  "accommodation_usd", "food_usd", "activities_usd", "misc_usd",
+]);
+
+function fmtValue(key: string, value: unknown, data: Record<string, unknown>): string {
+  if (MONEY_FIELDS.has(key) && typeof value === "number") {
+    const currency = typeof data.currency === "string" ? data.currency : "USD";
+    try {
+      return new Intl.NumberFormat("en-GB", {
+        style: "currency",
+        currency,
+        maximumFractionDigits: 0,
+      }).format(value);
+    } catch {
+      return `${currency} ${value.toLocaleString()}`;
+    }
+  }
+  if (key === "match_score" && typeof value === "number") {
+    return `${Math.round(value * 100)}%`;
+  }
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  return String(value).replace(/_/g, " ");
+}
+
 function RecommendationFacts({ data }: { data: Record<string, unknown> }) {
   // Show a curated, readable subset rather than dumping every raw
   // field — but never invent a value that isn't already in `data`.
@@ -34,6 +60,8 @@ function RecommendationFacts({ data }: { data: Record<string, unknown> }) {
     "airline", "flight_number", "property_name", "name", "city", "budget_style",
     "category", "venue_area", "date_status", "availability_status", "team_level",
     "estimated_price", "nightly_price", "total_price", "currency",
+    "duration_days", "adults", "children", "total_cost_usd", "cost_per_day_usd",
+    "flight_cost_usd", "accommodation_usd", "food_usd", "activities_usd", "misc_usd",
     "star_rating", "review_score", "match_score", "recommendation_type",
     "cabin_class", "accommodation_type", "stops", "total_duration",
     "cancellation_policy", "breakfast_included", "visa_status", "visa_required",
@@ -50,7 +78,7 @@ function RecommendationFacts({ data }: { data: Record<string, unknown> }) {
       {entries.map(([key, value]) => (
         <div key={key}>
           <dt className="text-gray-400 text-xs capitalize">{fmtKey(key)}</dt>
-          <dd className="font-medium text-gray-900">{String(value)}</dd>
+          <dd className="font-medium text-gray-900">{fmtValue(key, value, data)}</dd>
         </div>
       ))}
     </dl>
@@ -66,9 +94,8 @@ function DailyOutlineCard({ entry }: { entry: DailyOutlineEntry }) {
         <p><span className="text-gray-400">Afternoon:</span> {entry.afternoon}</p>
         <p><span className="text-gray-400">Evening:</span> {entry.evening}</p>
       </div>
-      <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+      <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500">
         <span>{entry.accommodation}</span>
-        <span>~${entry.estimated_daily_cost_usd}/day</span>
       </div>
       {entry.notes && <p className="mt-2 text-xs text-amber-700">{entry.notes}</p>}
     </div>
@@ -144,7 +171,7 @@ function ItineraryView({ itinerary }: { itinerary: TripItinerary }) {
           </SectionCard>
         )}
         {itinerary.budget_summary && (
-          <SectionCard title="Budget">
+          <SectionCard title={`Indicative Budget (${String(itinerary.budget_summary.currency ?? "USD")})`}>
             <RecommendationFacts data={itinerary.budget_summary} />
           </SectionCard>
         )}
