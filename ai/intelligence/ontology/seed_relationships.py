@@ -121,7 +121,7 @@ def _relationships(g) -> None:
         ("club_roma", "city_rome", "venue_olimpico"),
         ("club_juve", "city_rome", "venue_olimpico"),
         ("club_inter", "city_rome", "venue_san_siro"),
-        ("club_gamba", "city_tokyo", "venue_panasonic"),
+        ("club_fc_tokyo", "city_tokyo", "venue_ajinomoto"),
     ]:
         _e(g, fc, "FootballClub", PI, cty, "City")
         _e(g, fc, "FootballClub", PA, venue, "SportsVenue")
@@ -135,7 +135,7 @@ def _relationships(g) -> None:
         ("venue_camp_nou", "city_barcelona"),
         ("venue_olimpico", "city_rome"),
         ("venue_san_siro", "city_rome"),
-        ("venue_panasonic", "city_tokyo"),
+        ("venue_ajinomoto", "city_tokyo"),
     ]:
         _e(g, cty, "City", HO, v, "SportsVenue")
 

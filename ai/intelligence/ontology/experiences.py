@@ -60,11 +60,11 @@ def _sports_venues(g) -> None:
             "venue_san_siro", "San Siro", "city_rome", "stadium", 80018, "football"
         ),
         SportsVenue(
-            "venue_panasonic",
-            "Panasonic Stadium",
+            "venue_ajinomoto",
+            "Ajinomoto Stadium",
             "city_tokyo",
             "stadium",
-            39694,
+            47851,
             "football",
         ),
     ]:
@@ -115,12 +115,12 @@ def _football_clubs(g) -> None:
             "club_inter", "Inter Milan", "city_rome", "Serie A", "venue_san_siro", 1908
         ),
         FootballClub(
-            "club_gamba",
-            "Gamba Osaka",
+            "club_fc_tokyo",
+            "FC Tokyo",
             "city_tokyo",
             "J1 League",
-            "venue_panasonic",
-            1980,
+            "venue_ajinomoto",
+            1999,
         ),
     ]:
         _n(g, c, "FootballClub")
