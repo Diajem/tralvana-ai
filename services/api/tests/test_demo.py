@@ -70,6 +70,15 @@ def test_demo_conversation_never_names_mock_suppliers(client):
     assert "Match Day Experience" not in response
 
 
+def test_demo_conversation_uses_the_weather_month_name(client):
+    response = client.post("/demo/japan-football-food").json()["conversation"][
+        "response"
+    ]
+
+    assert "Japan in October" in response
+    assert "Japan in 10" not in response
+
+
 def test_demo_pipeline_completes_7_stages(client):
     body = client.post("/demo/japan-football-food").json()
     assert body["pipeline_summary"]["stages_completed"] == 7

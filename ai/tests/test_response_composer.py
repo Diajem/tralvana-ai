@@ -101,6 +101,30 @@ class TestEventSection:
         assert "availability was confirmed" in text
 
 
+class TestWeatherSection:
+    def test_weather_section_uses_month_name_not_numeric_month(
+        self, composer, ready_decision
+    ):
+        result = AgentResult(
+            agent_name="weather_intelligence",
+            status=AgentStatus.SUCCESS,
+            confidence=0.8,
+            data={
+                "destination": "Japan",
+                "month_of_travel": 10,
+                "weather_status": "CHALLENGING",
+                "weather_suitability_score": 0.53,
+                "confidence": 0.8,
+                "recommendation": "Review seasonal risks before booking.",
+            },
+        )
+
+        text = composer.compose(Intent.WEATHER_ANALYSIS, ready_decision, [result])
+
+        assert "Japan in October" in text
+        assert "Japan in 10" not in text
+
+
 class TestCoordinatedPlanEvidence:
     def test_mock_suppliers_are_not_named_in_plan_answer(
         self, composer, ready_decision
