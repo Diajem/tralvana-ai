@@ -65,8 +65,9 @@ class ResponseComposer:
         preamble = synthesis_note or self._PREAMBLES.get(intent, "I'm here to help.")
         parts: list[str] = [f"{prefix}{name_prefix}{preamble}"]
 
+        coordinated_plan = intent in {Intent.PLAN_TRIP, Intent.MODIFY_TRIP}
         for result in results:
-            section = self._section_for(result)
+            section = self._section_for(result, coordinated_plan=coordinated_plan)
             if section:
                 parts.append(section)
 
@@ -105,7 +106,9 @@ class ResponseComposer:
         items = "\n".join(f"- {q}" for q in questions)
         return f"{intro}\n{items}"
 
-    def _section_for(self, result: AgentResult) -> str:
+    def _section_for(
+        self, result: AgentResult, *, coordinated_plan: bool = False
+    ) -> str:
         if result.status == AgentStatus.FAILED:
             return ""
 
@@ -115,6 +118,11 @@ class ResponseComposer:
             top = d.get("top_option", {})
             if not top:
                 return "**Flights:** No flight options could be generated for this route."
+            if coordinated_plan and not self._is_current_supplier_result(top):
+                return (
+                    "**Flights:** No current bookable flight result is included. "
+                    "Run a live supplier search for the exact dates before comparing fares."
+                )
             return (
                 f"**Flights:** {d.get('count', 0)} option(s) ranked for "
                 f"{d.get('origin', 'origin')} → {d.get('destination', 'destination')}. "
@@ -129,6 +137,11 @@ class ResponseComposer:
             top = d.get("top_option", {})
             if not top:
                 return "**Accommodation:** No accommodation options could be generated for this destination."
+            if coordinated_plan and not self._is_current_supplier_result(top):
+                return (
+                    "**Accommodation:** No current bookable property result is included. "
+                    "Run a live supplier search for the exact area and dates before choosing a stay."
+                )
             return (
                 f"**Accommodation:** {d.get('count', 0)} option(s) ranked for "
                 f"{d.get('destination', 'destination')}. "
@@ -151,6 +164,13 @@ class ResponseComposer:
             )
 
         if result.agent_name == "budget_intelligence":
+            if coordinated_plan and d.get("declared_budget"):
+                budget = d["declared_budget"]
+                return (
+                    f"**Budget:** Your stated {budget.get('currency', 'USD')} "
+                    f"{budget.get('amount')} budget is preserved, but affordability has "
+                    "not been assessed against current supplier prices."
+                )
             top = d.get("top_option", {})
             if not top:
                 return "**Budget:** No budget options could be generated for this trip."
@@ -163,9 +183,16 @@ class ResponseComposer:
             )
 
         if result.agent_name == "visa_intelligence":
+            nationality = d.get("nationality") or "Passport nationality not supplied"
+            visa_type = str(d.get("visa_type") or "")
+            status = str(d.get("visa_status") or "")
+            if status == "ETA_REQUIRED" and visa_type.upper() == "ESTA":
+                status_label = "ESTA Required"
+            else:
+                status_label = status.replace("_", " ").title()
             return (
-                f"**Visa:** {d.get('nationality')} passport holder entering {d.get('destination_country')} — "
-                f"{d.get('visa_status', '').replace('_', ' ').title()} (confidence {d.get('confidence')}). "
+                f"**Visa:** {nationality} passport holder entering {d.get('destination_country')} — "
+                f"{status_label} (confidence {d.get('confidence')}). "
                 f"{d.get('recommendation', '')}"
             )
 
@@ -189,3 +216,10 @@ class ResponseComposer:
             )
 
         return ""
+
+    @staticmethod
+    def _is_current_supplier_result(option: dict) -> bool:
+        source = str(option.get("data_source", "")).upper()
+        return source in {
+            "LIVE", "LIVE_PROVIDER", "PRODUCTION", "PRODUCTION_PROVIDER",
+        }

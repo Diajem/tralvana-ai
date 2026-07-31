@@ -78,7 +78,7 @@ def test_conversation_id_is_reused_across_turns(client):
 def test_plan_trip_accumulates_details_and_completes_across_turns(client):
     first = client.post("/planner/plan", json={
         "message": (
-            "I want to go to Jamaica with my partner. We are travelling from Leeds, "
+            "I want to go to Montego Bay with my partner. We are travelling from Leeds, "
             "we are British and Nigerian, and we like beaches, culture, food and music."
         ),
     })
@@ -98,7 +98,7 @@ def test_plan_trip_accumulates_details_and_completes_across_turns(client):
     assert second_body["intent"] == "PLAN_TRIP"
     assert second_body["itinerary"] is not None
     assert "When are you planning to travel?" not in second_body["missing_information"]
-    assert "Jamaica" in second_body["itinerary"]["executive_summary"]
+    assert "Montego Bay" in second_body["itinerary"]["executive_summary"]
     itinerary = second_body["itinerary"]
     assert itinerary["trip_brief"]["origin"] == "Leeds"
     assert itinerary["trip_brief"]["start_date"] == "2026-08-10"
@@ -119,6 +119,23 @@ def test_daily_outline_length_matches_trip_duration(client):
     assert len(body["itinerary"]["daily_outline"]) == 4
     assert body["itinerary"]["trip_brief"]["duration_days"] == 4
     assert body["itinerary"]["budget_summary"] is None
+
+
+def test_country_only_jamaica_request_asks_for_an_area(client):
+    body = client.post(
+        "/planner/plan",
+        json={
+            "message": (
+                "Plan a 7 day trip to Jamaica from Leeds in September 2026 "
+                "for 2 adults with a £2500 budget."
+            )
+        },
+    ).json()
+
+    assert body["itinerary"] is None
+    assert body["missing_information"] == [
+        "Which city, town, or resort area in Jamaica would you like to stay in?"
+    ]
 
 
 def test_two_week_dublin_plan_preserves_dates_party_weather_and_country(client):
@@ -183,8 +200,9 @@ def test_complete_new_york_holiday_honours_every_supplied_detail(client):
     assert any("two years" in item for item in visa["entry_requirements"])
 
     weather = itinerary["weather_expectations"]
-    assert weather["destination"] == "United States"
+    assert weather["destination"] == "New York City"
     assert weather["month_of_travel"] == 8
+    assert "Hurricane season" not in str(weather)
 
     outline_text = str(itinerary["daily_outline"]).lower()
     for interest in ("dine out", "fashion", "soccer", "significance"):
@@ -214,6 +232,11 @@ def test_complete_new_york_holiday_honours_every_supplied_detail(client):
     assert "booking confirmation" in itinerary["executive_summary"]
     assert "Guesthouse" not in itinerary["executive_summary"]
     assert "You'll fly" not in itinerary["executive_summary"]
+    assert "AeroLondon" not in body["response"]
+    assert "Guesthouse" not in body["response"]
+    assert "ESTA Required" in body["response"]
+    assert "ETA Required" not in body["response"]
+    assert "Match Day Experience" not in str(itinerary["daily_outline"])
 
 
 def test_tokyo_month_only_plan_is_coherent_and_preserves_gbp_budget(client):

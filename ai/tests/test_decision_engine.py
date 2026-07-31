@@ -29,6 +29,18 @@ class TestDecisionEngine:
         assert decision.has_enough_information
         assert len(decision.follow_up_questions) == 0
 
+    def test_country_only_trip_asks_for_a_precise_stay_area(self, engine):
+        decision = engine.decide(
+            Intent.PLAN_TRIP,
+            {"destination": "Jamaica", "date_hint": "September 2026"},
+            None,
+        )
+
+        assert not decision.has_enough_information
+        assert decision.follow_up_questions == [
+            "Which city, town, or resort area in Jamaica would you like to stay in?"
+        ]
+
     def test_plan_trip_dispatches_agents(self, engine):
         decision = engine.decide(
             Intent.PLAN_TRIP,

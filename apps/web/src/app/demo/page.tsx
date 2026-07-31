@@ -217,13 +217,13 @@ export default function DemoPage() {
               <p className="text-sm text-gray-600 mb-4">{data.goal.goal_summary}</p>
               <div className="mb-3">
                 <div className="flex justify-between text-xs text-gray-500 mb-1">
-                  <span>Goal Readiness</span>
-                  <span>{Math.round(data.goal.planning_readiness_score * 100)}%</span>
+                  <span>Goal completeness</span>
+                  <span>{Math.round(data.goal.goal_completeness_score * 100)}%</span>
                 </div>
                 <div className="h-2 w-full rounded-full bg-gray-200">
                   <div
                     className="h-full rounded-full bg-green-500"
-                    style={{ width: `${Math.round(data.goal.planning_readiness_score * 100)}%` }}
+                    style={{ width: `${Math.round(data.goal.goal_completeness_score * 100)}%` }}
                   />
                 </div>
               </div>

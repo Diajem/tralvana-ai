@@ -238,7 +238,9 @@ class IntentClassifier:
                 entities["origin"] = options[0]
 
         adults_match = re.search(
-            rf"\b(\d+|{'|'.join(_NUMBER_WORDS)})\s+adults?\b",
+            rf"\b(\d+|{'|'.join(_NUMBER_WORDS)})\s+"
+            rf"(?:(?:{'|'.join(sorted(_KNOWN_NATIONALITIES, key=len, reverse=True))})\s+)?"
+            r"adults?\b",
             text,
         )
         if adults_match:
@@ -352,6 +354,18 @@ class IntentClassifier:
                 ]
                 entities["nationality"] = nationalities[0]
                 entities["nationalities"] = ",".join(nationalities)
+
+        if "nationality" not in entities:
+            described_adults = re.search(
+                rf"\b(?:\d+|{'|'.join(_NUMBER_WORDS)})\s+"
+                rf"({'|'.join(sorted(_KNOWN_NATIONALITIES, key=len, reverse=True))})\s+"
+                r"adults?\b",
+                text,
+            )
+            if described_adults:
+                nationality = described_adults.group(1).title()
+                entities["nationality"] = nationality
+                entities["nationalities"] = nationality
 
         if re.search(r"\b(?:average|mid[- ]range|moderate)\s+hotel\b", text):
             entities["accommodation_type"] = "HOTEL"

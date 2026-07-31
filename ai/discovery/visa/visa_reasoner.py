@@ -26,6 +26,8 @@ class VisaReasoner:
         parts: list[str] = []
 
         status_label = _STATUS_LABELS.get(o["visa_status"], o["visa_status"])
+        if o["visa_status"] == "ETA_REQUIRED" and str(o.get("visa_type")).upper() == "ESTA":
+            status_label = "an Electronic System for Travel Authorization (ESTA) is required"
         purpose = o["travel_purpose"].replace("_", " ").lower()
         parts.append(
             f"As a {o['nationality']} passport holder travelling to {o['destination_country'].title()} "

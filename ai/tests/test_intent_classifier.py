@@ -261,6 +261,15 @@ class TestEntityExtraction:
             set(result.entities["interests"].split(","))
         )
 
+    def test_extracts_count_and_nationality_from_described_adults(self, classifier):
+        result = classifier.classify(
+            "Plan a 15 day trip to New York from Manchester on 7 August 2026 "
+            "for 2 British adults."
+        )
+
+        assert result.entities["adults"] == "2"
+        assert result.entities["nationality"] == "British"
+
     def test_extracts_two_week_dublin_trip_without_treating_name_as_nationality(
         self, classifier
     ):
