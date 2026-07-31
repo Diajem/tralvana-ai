@@ -31,13 +31,19 @@ function SectionCard({
   );
 }
 
-function ConfidenceBadge({ value }: { value: number }) {
+function ConfidenceBadge({
+  value,
+  label = "confidence",
+}: {
+  value: number;
+  label?: string;
+}) {
   const pct = Math.round(value * 100);
   const colour =
     pct >= 75 ? "bg-green-100 text-green-800" : pct >= 50 ? "bg-amber-100 text-amber-800" : "bg-gray-100 text-gray-700";
   return (
     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${colour}`}>
-      {pct}% confidence
+      {pct}% {label}
     </span>
   );
 }
@@ -146,7 +152,10 @@ export default function DemoPage() {
             {/* Pipeline summary */}
             <SectionCard title="Pipeline Summary" badge={`${data.pipeline_summary.stages_completed} stages`}>
               <div className="flex items-center gap-3 mb-4">
-                <ConfidenceBadge value={data.pipeline_summary.overall_confidence} />
+                <ConfidenceBadge
+                  value={data.pipeline_summary.overall_confidence}
+                  label="planning readiness"
+                />
                 <span className="text-xs text-gray-400">Generated {new Date(data.generated_at).toLocaleTimeString()}</span>
               </div>
               <div className="flex flex-wrap gap-2 mb-4">
@@ -337,18 +346,22 @@ export default function DemoPage() {
             <SectionCard title="10-Day Draft Itinerary" badge="Stage 6">
               <p className="text-sm text-gray-500 mb-4">{data.trip_plan.trip_summary}</p>
               <div className="flex gap-2 mb-5">
-                <ConfidenceBadge value={data.trip_plan.confidence} />
+                <ConfidenceBadge
+                  value={data.trip_plan.confidence}
+                  label="planning readiness"
+                />
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                   data.trip_plan.status === "READY" ? "bg-green-100 text-green-800" :
-                  data.trip_plan.status === "DRAFT" ? "bg-yellow-100 text-yellow-800" : "bg-gray-100 text-gray-700"
-                }`}>{data.trip_plan.status}</span>
+                  data.trip_plan.status === "DRAFT" ? "bg-yellow-100 text-yellow-800" :
+                  data.trip_plan.status === "PLANNING_IN_PROGRESS" ? "bg-amber-100 text-amber-800" :
+                  "bg-gray-100 text-gray-700"
+                }`}>{String(data.trip_plan.status).replace(/_/g, " ")}</span>
               </div>
               <div className="space-y-3">
-                {(data.trip_plan.draft_itinerary as {day: number; title: string; theme: string; morning: string; afternoon: string; evening: string; accommodation: string; estimated_daily_cost_usd: number; notes: string}[]).map((day) => (
+                {(data.trip_plan.draft_itinerary as {day: number; title: string; theme: string; morning: string; afternoon: string; evening: string; accommodation: string; notes: string}[]).map((day) => (
                   <div key={day.day} className="border border-gray-200 rounded-xl p-4">
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="mb-2">
                       <h3 className="font-semibold text-gray-900 text-sm">{day.title}</h3>
-                      <span className="text-xs text-gray-400">~${day.estimated_daily_cost_usd}/day</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2 text-xs text-gray-600">
                       <div><span className="text-gray-400 font-medium block">Morning</span>{day.morning}</div>
@@ -364,36 +377,27 @@ export default function DemoPage() {
             </SectionCard>
 
             {/* Budget */}
-            <SectionCard title="Budget Breakdown" badge="Stage 6">
+            <SectionCard title="Declared Budget" badge="Stage 6">
               {(() => {
-                const b = data.trip_plan.estimated_budget_breakdown;
-                const rows = [
-                  { label: "Flights", value: b.flights_usd },
-                  { label: "Accommodation", value: b.accommodation_usd },
-                  { label: "Food", value: b.food_usd },
-                  { label: "Activities", value: b.activities_usd },
-                  { label: "Miscellaneous", value: b.miscellaneous_usd },
-                ];
+                const b = data.trip_plan.declared_budget;
+                const currency = new Intl.NumberFormat("en-GB", {
+                  style: "currency",
+                  currency: b.currency,
+                  maximumFractionDigits: 0,
+                });
                 return (
-                  <div>
-                    <table className="w-full text-sm mb-4">
-                      <tbody>
-                        {rows.map((r) => (
-                          <tr key={r.label} className="border-b border-gray-100 last:border-0">
-                            <td className="py-2 text-gray-600">{r.label}</td>
-                            <td className="py-2 text-right font-medium">${(r.value as number).toLocaleString()}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                      <tfoot>
-                        <tr>
-                          <td className="pt-3 font-bold text-gray-900">Total (2 adults)</td>
-                          <td className="pt-3 text-right font-bold text-blue-700">${(b.total_estimate_usd as number).toLocaleString()}</td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                    <p className="text-xs text-gray-400">{b.basis as string}</p>
-                    <p className="text-xs text-gray-400">Range: ${(b.total_range_usd as {low: number; high: number}).low.toLocaleString()} – ${(b.total_range_usd as {low: number; high: number}).high.toLocaleString()}</p>
+                  <div className="space-y-2">
+                    <p className="text-xl font-bold text-gray-900">
+                      {currency.format(b.minimum)}–{currency.format(b.maximum)}
+                    </p>
+                    <p className="text-sm text-amber-800">
+                      Not yet assessed against current flight, accommodation,
+                      activity, or food prices.
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      Source: traveller-declared budget. No currency conversion
+                      or supplier price is implied.
+                    </p>
                   </div>
                 );
               })()}

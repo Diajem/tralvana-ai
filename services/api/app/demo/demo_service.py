@@ -52,7 +52,7 @@ _DEMO_GOAL = {
     "travellers": {"adults": 2, "children": 0, "infants": 0},
     "interests": ["football", "food", "photography"],
     "success_criteria": [
-        "Watch a J-League football match at Panasonic Stadium",
+        "Find and confirm an official FC Tokyo fixture at Ajinomoto Stadium",
         "Experience authentic ramen and sushi in Tokyo",
         "Visit Senso-ji Temple for photography",
     ],
@@ -119,10 +119,16 @@ class DemoService:
 
         # ── Stage 6: Trip planning ─────────────────────────────────────────
         trip = self._run_trip(goal["goal_id"], goal_service, trip_service)
+        trip_section = self._trip_section(trip)
 
         # ── Stage 7: Pipeline summary ──────────────────────────────────────
         overall_conf = round(
-            (reasoning["planning_readiness_score"] + trip["confidence"]) / 2, 2
+            (
+                reasoning["planning_readiness_score"]
+                + trip_section["confidence"]
+            )
+            / 2,
+            2,
         )
 
         return {
@@ -133,7 +139,7 @@ class DemoService:
             "goal": self._goal_section(goal, reasoning),
             "conversation": conversation,
             "knowledge_insights": kg_insights,
-            "trip_plan": self._trip_section(trip),
+            "trip_plan": trip_section,
             "pipeline_summary": {
                 "stages_completed": 7,
                 "overall_confidence": overall_conf,
@@ -150,9 +156,9 @@ class DemoService:
                     "In-memory knowledge graph (199 nodes, 205 edges)",
                     "TravellerDNA inference (12 archetypes)",
                     "GoalReasoner (deterministic scoring)",
-                    "TripPlanner + ItineraryBuilder",
-                    "BudgetEstimator (KG-backed)",
-                    "RiskAssessor (SafetyReasoner + heuristics)",
+                    "TripPlanner + ItineraryBuilder (planning outline)",
+                    "Traveller-declared GBP budget (not supplier prices)",
+                    "Readiness checks for dates, prices, and fixtures",
                 ],
             },
         }
@@ -355,7 +361,14 @@ class DemoService:
             "interests": goal.get("interests", []),
             "success_criteria": goal.get("success_criteria", []),
             "constraints": goal.get("constraints", []),
-            "goal_summary": reasoning["goal_summary"],
+            "goal_summary": (
+                f"**{goal['title']}** — {goal['goal_type'].replace('_', ' ').title()} "
+                f"| Status: {goal['status']} | planning outline. "
+                f"Budget: GBP {goal['budget']['min_usd']:,}–"
+                f"{goal['budget']['max_usd']:,}. "
+                f"Timeframe: October 2026, {goal['timeframe']['duration_days']} days. "
+                f"Interests: {', '.join(goal.get('interests', []))}."
+            ),
             "planning_readiness_score": reasoning["planning_readiness_score"],
             "missing_information": reasoning["missing_information"],
             "recommended_next_actions": reasoning["recommended_next_actions"],
@@ -363,6 +376,14 @@ class DemoService:
         }
 
     def _trip_section(self, trip: dict[str, Any]) -> dict[str, Any]:
+        itinerary = [
+            {
+                key: value
+                for key, value in day.items()
+                if key != "estimated_daily_cost_usd"
+            }
+            for day in trip["draft_itinerary"]
+        ]
         return {
             "trip_id": trip["trip_id"],
             "title": trip["title"],
@@ -370,15 +391,73 @@ class DemoService:
             "destination": trip["destination"],
             "duration_days": trip["duration_days"],
             "travel_style": trip["travel_style"],
-            "confidence": trip["confidence"],
-            "status": trip["status"],
-            "trip_summary": trip["trip_summary"],
-            "draft_itinerary": trip["draft_itinerary"],
-            "estimated_budget_breakdown": trip["estimated_budget_breakdown"],
-            "risks": trip["risks"],
-            "assumptions": trip["assumptions"],
-            "missing_information": trip["missing_information"],
-            "next_actions": trip["next_actions"],
+            "confidence": 0.55,
+            "status": "PLANNING_IN_PROGRESS",
+            "trip_summary": (
+                "A 10-day draft outline for Tokyo from Manchester for two adults. "
+                "Current flights, accommodation, prices, and football fixtures "
+                "have not yet been checked."
+            ),
+            "draft_itinerary": itinerary,
+            "declared_budget": {
+                "minimum": 2000,
+                "maximum": 2500,
+                "currency": "GBP",
+                "assessment_status": "NOT_YET_ASSESSED",
+                "source": "TRAVELLER_DECLARED",
+            },
+            "estimated_budget_breakdown": None,
+            "risks": [
+                {
+                    "type": "financial",
+                    "severity": "medium",
+                    "description": (
+                        "The GBP 2,000–2,500 budget has not been tested against "
+                        "current supplier prices."
+                    ),
+                    "mitigation": (
+                        "Search current flights and accommodation, then reconcile "
+                        "all costs in GBP."
+                    ),
+                },
+                {
+                    "type": "logistics",
+                    "severity": "medium",
+                    "description": (
+                        "October is only a broad travel window; exact departure "
+                        "and return dates are not set."
+                    ),
+                    "mitigation": (
+                        "Choose exact dates before checking availability or booking."
+                    ),
+                },
+                {
+                    "type": "events",
+                    "severity": "medium",
+                    "description": (
+                        "No football fixture or ticket has been confirmed."
+                    ),
+                    "mitigation": (
+                        "Check FC Tokyo and J.League official calendars for the "
+                        "chosen dates."
+                    ),
+                },
+            ],
+            "assumptions": [
+                "The daily outline is illustrative and requires opening-hours checks.",
+                "No supplier, fare, property, or event ticket is recommended.",
+            ],
+            "missing_information": [
+                "Exact departure and return dates",
+                "Current flight and accommodation prices",
+                "An official football fixture matching the chosen dates",
+            ],
+            "next_actions": [
+                "Choose exact departure and return dates",
+                "Run current flight and accommodation searches",
+                "Confirm any football fixture on an official calendar",
+                "Reconcile the complete trip cost in GBP before booking",
+            ],
             "recommended_agents": trip["recommended_agents"],
         }
 

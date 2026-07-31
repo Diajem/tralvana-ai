@@ -29,6 +29,26 @@ def test_demo_dna_has_primary_type(client):
 def test_demo_trip_plan_has_itinerary(client):
     body = client.post("/demo/japan-football-food").json()
     assert len(body["trip_plan"]["draft_itinerary"]) == 10
+    assert all(
+        "estimated_daily_cost_usd" not in day
+        for day in body["trip_plan"]["draft_itinerary"]
+    )
+
+
+def test_demo_does_not_present_legacy_prices_as_booking_evidence(client):
+    trip = client.post("/demo/japan-football-food").json()["trip_plan"]
+
+    assert trip["status"] == "PLANNING_IN_PROGRESS"
+    assert trip["confidence"] == 0.55
+    assert trip["estimated_budget_breakdown"] is None
+    assert trip["declared_budget"] == {
+        "minimum": 2000,
+        "maximum": 2500,
+        "currency": "GBP",
+        "assessment_status": "NOT_YET_ASSESSED",
+        "source": "TRAVELLER_DECLARED",
+    }
+    assert "current supplier prices" in trip["risks"][0]["description"]
 
 
 def test_demo_pipeline_completes_7_stages(client):
@@ -39,6 +59,12 @@ def test_demo_pipeline_completes_7_stages(client):
 def test_demo_knowledge_insights_includes_tokyo(client):
     body = client.post("/demo/japan-football-food").json()
     assert body["knowledge_insights"]["destination_city"] == "Tokyo"
+    clubs = {
+        club["name"]
+        for club in body["knowledge_insights"]["football_clubs"]
+    }
+    assert clubs == {"FC Tokyo"}
+    assert "Gamba Osaka" not in str(body["knowledge_insights"])
 
 
 def test_demo_does_not_write_shared_goal_trip_or_conversation_state(client):

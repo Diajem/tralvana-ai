@@ -62,9 +62,8 @@ function DayCard({ day }: { day: DayPlan }) {
           <span>{day.evening}</span>
         </div>
       </div>
-      <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+      <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500">
         <span>{day.accommodation}</span>
-        <span className="font-medium text-gray-700">~${day.estimated_daily_cost_usd}/day</span>
       </div>
       {day.notes && (
         <p className="mt-2 text-xs text-amber-700 bg-amber-50 rounded px-2 py-1">{day.notes}</p>

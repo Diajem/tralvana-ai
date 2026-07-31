@@ -20,7 +20,6 @@ export interface DayPlan {
   afternoon: string;
   evening: string;
   accommodation: string;
-  estimated_daily_cost_usd: number;
   notes: string;
 }
 
