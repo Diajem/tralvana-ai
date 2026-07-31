@@ -21,6 +21,13 @@ class TestMockVisaProvider:
         assert result["status"] == "ETA_REQUIRED"
         assert result["visa_type"] == "ESTA"
 
+    def test_dublin_resolves_to_ireland_common_travel_area_policy(self):
+        provider = MockVisaProvider()
+        result = provider.lookup("British", "Dublin")
+        assert result["destination_country"] == "Ireland"
+        assert result["matched_type"] == "override"
+        assert result["status"] == "VISA_NOT_REQUIRED"
+
     def test_unknown_destination_returns_check_manually(self):
         provider = MockVisaProvider()
         result = provider.lookup("UK", "Atlantis")

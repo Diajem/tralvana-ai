@@ -110,8 +110,17 @@ _DISPLAY_NAME: dict[str, str] = {
 # ai/discovery/visa/mock_visa_provider.py's _ALIASES.
 _ALIASES: dict[str, str] = {
     "UNITED KINGDOM": "UK", "GREAT BRITAIN": "UK",
+    "LONDON": "UK", "MANCHESTER": "UK", "EDINBURGH": "UK",
+    "DUBLIN": "IRELAND", "CORK": "IRELAND", "GALWAY": "IRELAND",
     "UNITED STATES": "USA", "UNITED STATES OF AMERICA": "USA",
     "NEW YORK": "USA", "NEW YORK CITY": "USA", "NYC": "USA",
+    "PARIS": "FRANCE",
+    "BARCELONA": "SPAIN", "MADRID": "SPAIN",
+    "TOKYO": "JAPAN", "OSAKA": "JAPAN",
+    "LAGOS": "NIGERIA", "ABUJA": "NIGERIA",
+    "ACCRA": "GHANA",
+    "KINGSTON": "JAMAICA", "MONTEGO BAY": "JAMAICA",
+    "DUBAI": "UAE", "ABU DHABI": "UAE",
     "UNITED ARAB EMIRATES": "UAE",
 }
 

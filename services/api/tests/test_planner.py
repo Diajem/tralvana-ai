@@ -112,8 +112,36 @@ def test_daily_outline_length_matches_trip_duration(client):
         "message": "Plan a 4 day trip to Tokyo in September for 2 adults, balanced budget, from Nigeria",
     })
     body = res.json()
-    if body["itinerary"] is not None:
-        assert len(body["itinerary"]["daily_outline"]) >= 1
+    assert body["itinerary"] is not None
+    assert len(body["itinerary"]["daily_outline"]) == 4
+    assert body["itinerary"]["budget_summary"]["duration_days"] == 4
+
+
+def test_two_week_dublin_plan_preserves_dates_party_weather_and_country(client):
+    res = client.post("/planner/plan", json={
+        "message": (
+            "I am Desmond. Plan a relaxing holiday to Dublin from Bradford "
+            "on 17 August 2026 for two weeks with 2 adults and 2 children."
+        ),
+    })
+    assert res.status_code == 200
+    itinerary = res.json()["itinerary"]
+    assert itinerary is not None
+    assert len(itinerary["daily_outline"]) == 14
+    assert itinerary["flight_recommendation"]["origin"] == "Bradford"
+    assert itinerary["flight_recommendation"]["departure_date"] == "2026-08-17"
+    assert itinerary["flight_recommendation"]["return_date"] == "2026-08-31"
+    assert itinerary["accommodation_recommendation"]["total_price"] == (
+        itinerary["accommodation_recommendation"]["nightly_price"] * 14
+    )
+    assert itinerary["budget_summary"]["duration_days"] == 14
+    assert itinerary["budget_summary"]["adults"] == 2
+    assert itinerary["budget_summary"]["children"] == 2
+    assert itinerary["weather_expectations"]["destination"] == "Ireland"
+    assert itinerary["weather_expectations"]["month_of_travel"] == 8
+    assert itinerary["weather_expectations"]["season"] == "SUMMER"
+    assert itinerary["visa_summary"]["destination_country"] == "Ireland"
+    assert itinerary["visa_summary"]["nationality"] != "Desmond"
 
 
 def test_complete_new_york_holiday_honours_every_supplied_detail(client):
