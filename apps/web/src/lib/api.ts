@@ -24,8 +24,20 @@ import type { Explanation, ExplainRequest } from "@/types/explain";
 import type { PlanTripRequest, PlanTripResponse } from "@/types/planner";
 import type { AffiliateProgramme, OutboundLink } from "@/types/commercial";
 
+/*
+ * Browser requests stay on the Tralvana web origin and are relayed by the
+ * Next.js API proxy.  This avoids making every traveller's browser establish a
+ * separate cross-origin connection to the Render API service (which can be
+ * blocked by browser/network policy even while both services are healthy).
+ *
+ * Server components can call the API service directly.
+ */
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  typeof window === "undefined"
+    ? process.env.TRALVANA_API_URL ??
+      process.env.NEXT_PUBLIC_API_URL ??
+      "http://localhost:8000"
+    : "/api";
 
 type AuthTokenProvider = () => Promise<string | null>;
 let authTokenProvider: AuthTokenProvider | null = null;
