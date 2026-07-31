@@ -1,4 +1,6 @@
 
+import calendar
+
 from ai.concierge.decision_engine import Decision
 from ai.concierge.intent_classifier import Intent
 from ai.shared.agent_result import AgentResult
@@ -197,8 +199,9 @@ class ResponseComposer:
             )
 
         if result.agent_name == "weather_intelligence":
+            month_label = self._weather_month_label(d)
             return (
-                f"**Weather:** {d.get('destination')} in {d.get('month_of_travel')} — "
+                f"**Weather:** {d.get('destination')} in {month_label} — "
                 f"{d.get('weather_status', '').replace('_', ' ').title()} "
                 f"(suitability {d.get('weather_suitability_score')}, confidence {d.get('confidence')}). "
                 f"{d.get('recommendation', '')}"
@@ -216,6 +219,16 @@ class ResponseComposer:
             )
 
         return ""
+
+    @staticmethod
+    def _weather_month_label(data: dict) -> str:
+        if data.get("month_name"):
+            return str(data["month_name"])
+
+        month_number = data.get("month_of_travel")
+        if isinstance(month_number, int) and 1 <= month_number <= 12:
+            return calendar.month_name[month_number]
+        return str(month_number or "the selected month")
 
     @staticmethod
     def _is_current_supplier_result(option: dict) -> bool:
