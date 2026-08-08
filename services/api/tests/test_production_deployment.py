@@ -35,11 +35,12 @@ def test_managed_postgres_urls_are_normalized_for_migrations_and_runtime():
     assert "return normalize_database_url(url)" in migration_environment
 
 
-def test_render_blueprint_preserves_current_site_and_uses_safe_provider_modes():
+def test_render_blueprint_uses_dedicated_app_domain_and_safe_provider_modes():
     blueprint = yaml.safe_load((ROOT / "render.yaml").read_text(encoding="utf-8"))
     services = {service["name"]: service for service in blueprint["services"]}
 
-    assert all("domains" not in service for service in services.values())
+    assert "domains" not in services["tralvana-api"]
+    assert services["tralvana-web"]["domains"] == ["app.tralvana.com"]
 
     api_environment = {
         item["key"]: item.get("value")
@@ -50,8 +51,10 @@ def test_render_blueprint_preserves_current_site_and_uses_safe_provider_modes():
     assert api_environment["TRALVANA_FLIGHT_PROVIDER_MODE"] == "MOCK"
     assert api_environment["TRALVANA_ACCOMMODATION_PROVIDER_MODE"] == "MOCK"
     assert api_environment["TRALVANA_AUTH_MODE"] == "CLERK"
-    assert api_environment["CLERK_AUTHORIZED_PARTIES"] == "https://tralvana-web.onrender.com"
-    assert api_environment["CORS_ORIGINS"] == "https://tralvana-web.onrender.com"
+    assert api_environment["CLERK_AUTHORIZED_PARTIES"] == "https://app.tralvana.com"
+    assert api_environment["CORS_ORIGINS"] == (
+        "https://app.tralvana.com,https://tralvana-web.onrender.com"
+    )
     assert services["tralvana-api"]["healthCheckPath"] == "/health/ready"
 
     web_environment = {
@@ -80,14 +83,14 @@ def test_render_blueprint_preserves_current_site_and_uses_safe_provider_modes():
     }
 
 
-def test_render_beta_uses_free_private_database_and_no_secret_is_committed():
+def test_render_production_uses_paid_instances_private_database_and_no_secret_is_committed():
     blueprint_text = (ROOT / "render.yaml").read_text(encoding="utf-8")
     blueprint = yaml.safe_load(blueprint_text)
     database = blueprint["databases"][0]
 
-    assert database["plan"] == "free"
+    assert database["plan"] == "basic-256mb"
     assert database["ipAllowList"] == []
-    assert all(service["plan"] == "free" for service in blueprint["services"])
+    assert all(service["plan"] == "starter" for service in blueprint["services"])
     assert "DUFFEL_API_TOKEN" not in blueprint_text
     assert "OPENAI_API_KEY" not in blueprint_text
     assert "pk_test_" not in blueprint_text

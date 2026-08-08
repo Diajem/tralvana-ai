@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 from ai.discovery.events.event_intelligence import EventIntelligence
 from travelos.intelligence_gateway.discovery_adapters import GatewayEventProvider
 from travelos.intelligence_gateway.gateway import IntelligenceGateway
@@ -257,6 +259,7 @@ def test_live_results_are_strictly_filtered_to_inclusive_local_travel_dates(
             status_code=200,
             body=_event_body(*events),
         ),
+        today=date(2026, 8, 1),
     )
     output = engine.recommend(
         destination="New York",

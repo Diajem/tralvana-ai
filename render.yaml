@@ -2,7 +2,7 @@ services:
   - type: web
     name: tralvana-api
     runtime: docker
-    plan: free
+    plan: starter
     region: frankfurt
     dockerfilePath: ./services/api/Dockerfile
     dockerContext: .
@@ -18,11 +18,11 @@ services:
       - key: APP_ENV
         value: production
       - key: CORS_ORIGINS
-        value: https://tralvana-web.onrender.com
+        value: https://app.tralvana.com,https://tralvana-web.onrender.com
       - key: TRALVANA_AUTH_MODE
         value: CLERK
       - key: CLERK_AUTHORIZED_PARTIES
-        value: https://tralvana-web.onrender.com
+        value: https://app.tralvana.com
       - key: CLERK_JWT_KEY
         sync: false
       - key: TRALVANA_PROVIDER_ENVIRONMENT
@@ -35,8 +35,10 @@ services:
   - type: web
     name: tralvana-web
     runtime: docker
-    plan: free
+    plan: starter
     region: frankfurt
+    domains:
+      - app.tralvana.com
     dockerfilePath: ./apps/web/Dockerfile
     dockerContext: ./apps/web
     healthCheckPath: /
@@ -55,7 +57,7 @@ services:
 
 databases:
   - name: tralvana-production
-    plan: free
+    plan: basic-256mb
     region: frankfurt
     postgresMajorVersion: "17"
     databaseName: tralvana
