@@ -28,7 +28,9 @@ export interface TripItinerary {
 
 export interface TripBrief {
   origin: string;
+  departure_options: string[];
   destination: string;
+  local_areas: string[];
   duration_days: number;
   start_date: string | null;
   end_date: string | null;
@@ -48,6 +50,28 @@ export interface TripBrief {
   };
   nationality: string | null;
   interests: string[];
+  stay_plan: StayPlanSegment[];
+  special_occasion: {
+    type: string;
+    date: string | null;
+    notes: string | null;
+  } | null;
+  companion_plan: {
+    relationship: string | null;
+    origin: string | null;
+    arrival_date: string | null;
+    departure_date: string | null;
+    meeting_destination: string | null;
+  } | null;
+}
+
+export interface StayPlanSegment {
+  start_date: string | null;
+  end_date: string | null;
+  area: string | null;
+  property_name: string | null;
+  style: string | null;
+  status: "REQUESTED_NOT_BOOKED";
 }
 
 export interface BookingReadiness {
