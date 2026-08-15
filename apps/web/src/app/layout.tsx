@@ -23,6 +23,10 @@ export default function RootLayout({
   const content = publishableKey ? (
     <ClerkProvider
       publishableKey={publishableKey}
+      signInUrl="/sign-in"
+      signUpUrl="/sign-up"
+      signInFallbackRedirectUrl="/planner"
+      signUpFallbackRedirectUrl="/planner"
       localization={{
         signIn: {
           start: {
