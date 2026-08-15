@@ -59,7 +59,8 @@ def test_event_intelligence_exposes_live_provenance(monkeypatch):
         environment=ProviderEnvironment.PRODUCTION,
     )
     engine = EventIntelligence(
-        provider=GatewayEventProvider(gateway=gateway)
+        provider=GatewayEventProvider(gateway=gateway),
+        today_provider=lambda: date(2026, 8, 1),
     )
     output = engine.recommend(
         destination="New York",
@@ -145,7 +146,7 @@ def _event_body(*events: dict) -> dict:
     }
 
 
-def _live_engine(monkeypatch, responder, *, today=None):
+def _live_engine(monkeypatch, responder, *, today=date(2026, 8, 1)):
     monkeypatch.setenv("TICKETMASTER_API_KEY", "consumer-key-for-test")
     transport = FakeTransport(responder=responder)
     registry = ProviderRegistry()
@@ -155,9 +156,10 @@ def _live_engine(monkeypatch, responder, *, today=None):
         environment=ProviderEnvironment.PRODUCTION,
     )
     provider = GatewayEventProvider(gateway=gateway)
-    engine_kwargs = {"provider": provider}
-    if today is not None:
-        engine_kwargs["today_provider"] = lambda: today
+    engine_kwargs = {
+        "provider": provider,
+        "today_provider": lambda: today,
+    }
     return EventIntelligence(**engine_kwargs), provider, transport
 
 
