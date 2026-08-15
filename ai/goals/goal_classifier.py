@@ -20,7 +20,10 @@ _TEXT_PATTERNS: list[tuple[str, list[str]]] = [
     ("ADVENTURE",       ["adventure", "hiking", "trekking", "safari", "extreme", "bungee", "skydive", "rafting", "climbing", "kayak", "scuba", "dive"]),
     ("FOOD_TOUR",       ["food", "cuisine", "restaurant", "culinary", "wine", "gastronomy", "michelin", "street food", "eat", "tasting"]),
     ("PHOTOGRAPHY",     ["photography", "photo", "camera", "shoot", "landscape", "wildlife photography", "portrait"]),
-    ("BUSINESS_TRAVEL", ["business", "conference", "meeting", "networking", "summit", "trade show", "work trip", "client visit"]),
+    # A social phrase such as "meeting my girlfriend" is not business travel.
+    # Require a business/work/client qualifier instead of the bare word
+    # "meeting".
+    ("BUSINESS_TRAVEL", ["business", "conference", "business meeting", "work meeting", "client meeting", "networking", "summit", "trade show", "work trip", "client visit"]),
     ("RELAXATION",      ["relax", "spa", "wellness", "beach", "rest", "chill", "unwind", "retreat", "yoga", "meditation", "resort"]),
 ]
 
