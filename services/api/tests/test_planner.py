@@ -32,6 +32,23 @@ def test_full_plan_trip_message_returns_an_assembled_itinerary(client):
     assert 0.0 <= itinerary["confidence"] <= 1.0
 
 
+def test_full_plan_with_weather_information_returns_itinerary_not_weather_only(client):
+    res = client.post("/planner/plan", json={
+        "message": (
+            "Plan a 7-day trip to New York for 2 adults, travelling from Manchester "
+            "from 15 September 2026 to 22 September 2026. Both travellers are Irish "
+            "citizens. We want a balanced budget, a central hotel, major attractions, "
+            "restaurants, shopping, a sporting event, ESTA guidance, weather information "
+            "and eSIM options."
+        ),
+    })
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["intent"] == "PLAN_TRIP"
+    assert body["itinerary"] is not None
+
+
 def test_vague_message_returns_no_itinerary_but_a_helpful_reply(client):
     res = client.post("/planner/plan", json={"message": "hi there"})
     assert res.status_code == 200

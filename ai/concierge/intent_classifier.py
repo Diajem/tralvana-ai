@@ -173,6 +173,24 @@ class IntentClassifier:
     def classify(self, message: str) -> ClassifiedIntent:
         text = message.lower().strip()
 
+        # An explicit request to plan a trip must win over specialist details
+        # mentioned inside the same brief.  For example, "Plan a 7-day trip ...
+        # with weather information" previously matched WEATHER_ANALYSIS first
+        # because "weather in" is a prefix of "weather information".  The
+        # planner then returned only a weather card instead of assembling the
+        # requested itinerary.
+        explicit_plan = re.search(
+            r"\bplan\s+(?:me\s+)?(?:a|an|my|our|the)\s+"
+            r"(?:[a-z0-9-]+\s+){0,2}(?:trip|holiday)\b",
+            text,
+        )
+        if explicit_plan:
+            return ClassifiedIntent(
+                intent=Intent.PLAN_TRIP,
+                confidence=0.95,
+                entities=self._extract_entities(text),
+            )
+
         for intent, patterns in _PATTERNS:
             for pattern in patterns:
                 if pattern in text:

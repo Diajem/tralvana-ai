@@ -24,6 +24,18 @@ class TestIntentClassification:
         assert result.entities["destination"] == "New York"
         assert result.entities["duration_days"] == "15"
 
+    def test_full_planner_brief_with_weather_information_stays_plan_trip(self, classifier):
+        result = classifier.classify(
+            "Plan a 7-day trip to New York for 2 adults, travelling from Manchester "
+            "from 15 September 2026 to 22 September 2026. Both travellers are Irish "
+            "citizens. We want weather information and eSIM options."
+        )
+
+        assert result.intent == Intent.PLAN_TRIP
+        assert result.entities["destination"] == "New York"
+        assert result.entities["start_date"] == "2026-09-15"
+        assert result.entities["end_date"] == "2026-09-22"
+
     def test_modify_trip_intent(self, classifier):
         result = classifier.classify("I need to change my trip")
         assert result.intent == Intent.MODIFY_TRIP
