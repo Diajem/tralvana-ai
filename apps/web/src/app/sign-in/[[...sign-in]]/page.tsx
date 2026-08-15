@@ -13,7 +13,12 @@ export default function SignInPage() {
   }
   return (
     <main className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
-      <SignIn />
+      <SignIn
+        withSignUp
+        signUpUrl="/sign-up"
+        fallbackRedirectUrl="/planner"
+        signUpFallbackRedirectUrl="/planner"
+      />
     </main>
   );
 }
