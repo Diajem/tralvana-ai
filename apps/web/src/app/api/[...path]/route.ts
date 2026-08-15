@@ -43,21 +43,19 @@ async function upstreamHeaders(request: NextRequest): Promise<Headers> {
   }
 
   /*
-   * In production, authenticate the same-origin browser request at the
-   * Next.js boundary and forward a fresh Clerk session token to FastAPI.
-   * This avoids a separate browser-side getToken() request and prevents a
-   * caller from supplying an arbitrary Authorization header.
-   *
-   * Local development without Clerk keeps the existing header-forwarding
-   * behaviour so the API remains usable in its disabled-auth mode.
+   * Prefer the signed Clerk token supplied by the frontend SDK.  FastAPI
+   * verifies its signature, token type, and authorized party, so forwarding
+   * the header does not bypass the API's trust boundary.  Keep a server-side
+   * cookie fallback for callers that did not attach the token themselves.
    */
-  if (process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+  if (
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
+    !headers.has("authorization")
+  ) {
     const session = await auth();
     const token = await session.getToken();
     if (token) {
       headers.set("authorization", `Bearer ${token}`);
-    } else {
-      headers.delete("authorization");
     }
   }
 
