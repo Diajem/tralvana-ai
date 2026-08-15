@@ -105,7 +105,8 @@ _PATTERNS: list[tuple[Intent, list[str]]] = [
     ]),
     (Intent.WEATHER_ANALYSIS, [
         "good time to visit", "when should i visit", "when should i go",
-        "will it rain", "weather in", "climate in", "hurricane season",
+        "will it rain", "weather in", "weather like in", "what is the weather",
+        "what's the weather", "climate in", "hurricane season",
         "typhoon season", "rainy season", "best time to visit", "best time to go",
         "avoid hurricane", "avoid typhoon", "weather forecast for",
     ]),
