@@ -171,9 +171,50 @@ def _build_trip_brief(
             "source": "TRAVELLER_DECLARED",
         }
 
+    departure_options = [
+        value for value in entities.get("departure_options", "").split(",") if value
+    ]
+    local_areas = [
+        value for value in entities.get("local_areas", "").split(",") if value
+    ]
+    stay_plan: list[dict[str, Any]] = []
+    for index in (1, 2):
+        property_name = entities.get(f"stay_{index}_property")
+        style = entities.get(f"stay_{index}_style")
+        if not property_name and not style:
+            continue
+        stay_plan.append({
+            "start_date": entities.get(f"stay_{index}_start_date"),
+            "end_date": entities.get(f"stay_{index}_end_date"),
+            "area": entities.get(f"stay_{index}_area"),
+            "property_name": property_name,
+            "style": style,
+            "status": "REQUESTED_NOT_BOOKED",
+        })
+
+    special_occasion = None
+    if entities.get("special_occasion"):
+        special_occasion = {
+            "type": entities["special_occasion"],
+            "date": entities.get("special_occasion_date"),
+            "notes": entities.get("special_occasion_notes"),
+        }
+
+    companion_plan = None
+    if entities.get("companion_relationship") or entities.get("companion_origin"):
+        companion_plan = {
+            "relationship": entities.get("companion_relationship"),
+            "origin": entities.get("companion_origin"),
+            "arrival_date": entities.get("companion_arrival_date"),
+            "departure_date": entities.get("companion_departure_date"),
+            "meeting_destination": destination,
+        }
+
     return {
         "origin": entities.get("origin") or trip.get("origin") or "",
+        "departure_options": departure_options,
         "destination": destination or trip.get("destination") or "",
+        "local_areas": local_areas,
         "duration_days": int(duration_days),
         "start_date": start_date,
         "end_date": end_date,
@@ -189,4 +230,7 @@ def _build_trip_brief(
         "budget": budget,
         "nationality": entities.get("nationality"),
         "interests": list(interests),
+        "stay_plan": stay_plan,
+        "special_occasion": special_occasion,
+        "companion_plan": companion_plan,
     }

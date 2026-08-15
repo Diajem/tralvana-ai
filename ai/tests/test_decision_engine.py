@@ -41,6 +41,20 @@ class TestDecisionEngine:
             "Which city, town, or resort area in Jamaica would you like to stay in?"
         ]
 
+    def test_country_trip_with_named_local_areas_is_ready(self, engine):
+        decision = engine.decide(
+            Intent.PLAN_TRIP,
+            {
+                "destination": "Jamaica",
+                "local_areas": "St Mary Parish,Ocho Rios",
+                "date_hint": "10 October 2026 to 22 October 2026",
+            },
+            None,
+        )
+
+        assert decision.has_enough_information
+        assert decision.follow_up_questions == []
+
     def test_plan_trip_dispatches_agents(self, engine):
         decision = engine.decide(
             Intent.PLAN_TRIP,

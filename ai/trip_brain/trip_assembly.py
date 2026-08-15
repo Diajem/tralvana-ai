@@ -33,6 +33,7 @@ site).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date, timedelta
 from typing import Any
 
 from ai.planning.itinerary_builder import itinerary_builder
@@ -169,6 +170,7 @@ class TripAssemblyEngine:
             budget_style=budget_style or "balanced",
             interests=interests,
         )
+        daily_outline = self._apply_trip_specific_details(daily_outline, brief)
 
         booking_readiness = self._booking_readiness(
             brief=brief,
@@ -330,7 +332,9 @@ class TripAssemblyEngine:
     ) -> dict[str, Any]:
         value = dict(brief or {})
         value.setdefault("origin", "")
+        value.setdefault("departure_options", [])
         value.setdefault("destination", destination)
+        value.setdefault("local_areas", [])
         value.setdefault("duration_days", max(int(duration_days or 1), 1))
         value.setdefault("start_date", None)
         value.setdefault("end_date", None)
@@ -349,7 +353,56 @@ class TripAssemblyEngine:
         value.setdefault("budget", {})
         value.setdefault("nationality", None)
         value.setdefault("interests", list(interests))
+        value.setdefault("stay_plan", [])
+        value.setdefault("special_occasion", None)
+        value.setdefault("companion_plan", None)
         return value
+
+    def _apply_trip_specific_details(
+        self,
+        outline: list[dict[str, Any]],
+        brief: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """Carry traveller-declared stay changes and dated occasions into
+        the daily outline without implying that any property is booked."""
+        try:
+            trip_start = date.fromisoformat(str(brief.get("start_date")))
+        except (TypeError, ValueError):
+            trip_start = None
+
+        occasion = brief.get("special_occasion") or {}
+        occasion_date = occasion.get("date")
+        for entry in outline:
+            day_date = (
+                trip_start + timedelta(days=int(entry["day"]) - 1)
+                if trip_start
+                else None
+            )
+            for stay in brief.get("stay_plan") or []:
+                try:
+                    stay_start = date.fromisoformat(str(stay.get("start_date")))
+                    stay_end = date.fromisoformat(str(stay.get("end_date")))
+                except (TypeError, ValueError):
+                    continue
+                if day_date and stay_start <= day_date < stay_end:
+                    description = stay.get("property_name") or stay.get("style")
+                    area = stay.get("area")
+                    if description:
+                        entry["accommodation"] = (
+                            f"{description}{f' in {area}' if area else ''} — requested, not booked"
+                        )
+                    break
+
+            if day_date and occasion_date == day_date.isoformat():
+                occasion_type = occasion.get("type") or "Special occasion"
+                notes = occasion.get("notes")
+                entry["title"] = f"Day {entry['day']}: {occasion_type} celebration"
+                if notes:
+                    entry["evening"] = notes
+                entry["notes"] = (
+                    f"{entry.get('notes', '')} Confirm the celebration venue and reservations."
+                ).strip()
+        return outline
 
     def _declared_budget_summary(
         self, brief: dict[str, Any]
@@ -417,6 +470,14 @@ class TripAssemblyEngine:
         if not flight or not accommodation:
             needed.append(
                 "Run current flight and accommodation searches, then reconcile the prices."
+            )
+        companion = brief.get("companion_plan") or {}
+        if companion and (
+            not companion.get("arrival_date") or not companion.get("departure_date")
+        ):
+            needed.append(
+                f"Add your companion's {brief.get('destination') or 'destination'} "
+                "arrival and departure dates before booking shared accommodation."
             )
         if self._has_event_interest(brief.get("interests", [])) and not any(
             event.get("data_source") == "TICKETMASTER_DISCOVERY_API"
@@ -507,7 +568,11 @@ class TripAssemblyEngine:
             assumptions.append(
                 f"The departure point remains {brief.get('origin') or 'to be confirmed'}; no substitute airport was selected."
             )
-        if not accommodation:
+        if not accommodation and brief.get("stay_plan"):
+            assumptions.append(
+                "The requested two-stage stay is preserved, but neither property nor rate is confirmed."
+            )
+        elif not accommodation:
             assumptions.append(
                 "Accommodation remains unselected until a current provider search is completed."
             )
@@ -608,6 +673,52 @@ class TripAssemblyEngine:
             + (f" from {origin}" if origin else "")
             + f" during {brief.get('travel_period')} for {party_text}."
         ]
+
+        departure_options = brief.get("departure_options") or []
+        if len(departure_options) > 1:
+            parts.append(
+                "The outbound flight search should compare "
+                + " and ".join(str(value) for value in departure_options)
+                + "."
+            )
+
+        stay_plan = brief.get("stay_plan") or []
+        if stay_plan:
+            stays: list[str] = []
+            for stay in stay_plan:
+                description = stay.get("property_name") or stay.get("style")
+                if not description:
+                    continue
+                area = stay.get("area")
+                dates = (
+                    f"{stay.get('start_date')} to {stay.get('end_date')}"
+                    if stay.get("start_date") and stay.get("end_date")
+                    else "dates to be confirmed"
+                )
+                stays.append(
+                    f"{description}{f' in {area}' if area else ''} ({dates})"
+                )
+            if stays:
+                parts.append(
+                    "The requested stay sequence is "
+                    + ", followed by ".join(stays)
+                    + "; live availability and prices still need checking."
+                )
+
+        occasion = brief.get("special_occasion") or {}
+        if occasion.get("type"):
+            parts.append(
+                f"The {occasion['type'].lower()} on {occasion.get('date') or 'the stated date'} "
+                "is included in the daily plan."
+            )
+
+        companion = brief.get("companion_plan") or {}
+        if companion.get("origin"):
+            relationship = str(companion.get("relationship") or "companion").lower()
+            parts.append(
+                f"Your {relationship}'s separate journey from {companion['origin']} is kept separate "
+                "from your flight; their exact dates are still needed for shared bookings."
+            )
 
         if flight:
             airline = flight.get("airline")

@@ -219,13 +219,45 @@ class IntentClassifier:
     def _extract_entities(self, text: str) -> dict[str, str]:
         entities: dict[str, str] = {}
 
-        origin_match = re.search(
-            r"\b(?:travelling|traveling|flying|departing|leaving)\s+from\s+"
-            r"([a-z][a-z .'-]{1,40}?)(?=,|[.!?]|\s+(?:and|but|with|on|for|from|we|i)\b|$)",
+        # Preserve a traveller's explicitly flexible departure choice before
+        # looking for generic "travelling from" phrases.  A later phrase such
+        # as "my girlfriend is travelling from the US" describes a companion,
+        # not the main traveller's origin.
+        either_origin_match = re.search(
+            r"\bfrom\s+either\s+([a-z][a-z .'-]{1,40}?)\s+or\s+"
+            r"([a-z][a-z .'-]{1,40}?)(?=\s+on\b|,|[.!?]|$)",
             text,
         )
-        if origin_match:
-            entities["origin"] = origin_match.group(1).strip().title()
+        if either_origin_match:
+            options = [value.strip().title() for value in either_origin_match.groups()]
+            entities["departure_options"] = ",".join(options)
+            entities["origin"] = options[0]
+
+        companion_match = re.search(
+            r"\b(?:my\s+)?(girlfriend|boyfriend|partner|wife|husband|friend)"
+            r"(?:,?\s+who\s+is|\s+is)?\s+"
+            r"(?:travelling|traveling|flying)\s+from\s+(?:the\s+)?"
+            r"([a-z][a-z .'-]{1,35}?)(?=\s+to\b|,|[.!?]|$)",
+            text,
+        )
+        if companion_match:
+            relationship, companion_origin = companion_match.groups()
+            entities["companion_relationship"] = relationship.title()
+            companion_origin = companion_origin.strip()
+            entities["companion_origin"] = (
+                "United States"
+                if companion_origin in {"us", "u.s.", "usa", "u.s.a."}
+                else companion_origin.title()
+            )
+
+        if "origin" not in entities:
+            origin_match = re.search(
+                r"\b(?:travelling|traveling|flying|departing|leaving)\s+from\s+"
+                r"([a-z][a-z .'-]{1,40}?)(?=,|[.!?]|\s+(?:and|but|with|on|for|from|we|i)\b|$)",
+                text,
+            )
+            if origin_match:
+                entities["origin"] = origin_match.group(1).strip().title()
 
         if "origin" not in entities:
             simple_origin_match = re.search(
@@ -347,6 +379,8 @@ class IntentClassifier:
                 and not already_represented
             ):
                 interests.append(canonical)
+        if "places of interest" in text and "local attractions" not in interests:
+            interests.append("local attractions")
         if interests:
             entities["interests"] = ",".join(interests)
 
@@ -398,6 +432,9 @@ class IntentClassifier:
         if re.search(r"\b(?:average|mid[- ]range|moderate)\s+hotel\b", text):
             entities["accommodation_type"] = "HOTEL"
             entities["budget_style"] = "balanced"
+        elif re.search(r"\bbudget[- ]friendly\s+hotel\b", text):
+            entities["accommodation_type"] = "HOTEL"
+            entities["budget_style"] = "budget"
 
         # Padded so every marker search requires a leading word boundary —
         # without this, "in " matches inside "rain " (rendering "Will it
@@ -491,6 +528,14 @@ class IntentClassifier:
             if visa_destination:
                 entities["destination"] = visa_destination.group(1).title()
 
+        local_areas: list[str] = []
+        if re.search(r"\bst\.?\s+mary(?:'s)?\s+parish\b", text):
+            local_areas.append("St Mary Parish")
+        if re.search(r"\b(?:ocho\s+rios|ochi\s+rios|oshi\s+rius)\b", text):
+            local_areas.append("Ocho Rios")
+        if local_areas:
+            entities["local_areas"] = ",".join(local_areas)
+
         if "nationality" not in entities:
             nationality_statement = re.search(
                 rf"\b(?:i am|i'm)\s+({'|'.join(sorted(_KNOWN_NATIONALITIES, key=len, reverse=True))})\b",
@@ -558,11 +603,53 @@ class IntentClassifier:
                 except ValueError:
                     pass
 
+        # Natural trip briefs often state the outbound date first and the
+        # return date in a later sentence rather than as "date to date".
+        # Accept ordinal forms with "of" ("10th of October 2026") and
+        # inherit the outbound year when the return sentence omits it.
+        if "start_date" not in entities:
+            outbound_match = re.search(
+                rf"\b(?:the\s+)?(\d{{1,2}})(?:st|nd|rd|th)?(?:\s+of)?\s+"
+                rf"({month_pattern})\s+(20\d{{2}})\b",
+                text,
+            )
+            return_match = re.search(
+                rf"\breturn\s+date\b.*?(?:the\s+)?(\d{{1,2}})"
+                rf"(?:st|nd|rd|th)?(?:\s+of)?\s+({month_pattern})"
+                rf"(?:\s+(20\d{{2}}))?\b",
+                text,
+            )
+            if outbound_match:
+                try:
+                    start = datetime.strptime(
+                        " ".join(outbound_match.groups()), "%d %B %Y"
+                    ).date()
+                    entities["start_date"] = start.isoformat()
+                    entities["date_hint"] = outbound_match.group(0)
+                    if return_match:
+                        end_day, end_month, end_year = return_match.groups()
+                        end = datetime.strptime(
+                            f"{end_day} {end_month} {end_year or start.year}",
+                            "%d %B %Y",
+                        ).date()
+                        if end > start:
+                            entities["end_date"] = end.isoformat()
+                            entities["duration_days"] = str((end - start).days)
+                            entities["date_hint"] = (
+                                f"{outbound_match.group(0)} to {return_match.group(0)}"
+                            )
+                    elif entities.get("duration_days"):
+                        end = start + timedelta(days=int(entities["duration_days"]))
+                        entities["end_date"] = end.isoformat()
+                except ValueError:
+                    pass
+
         # A single dated departure plus an explicit duration is also a
         # complete date range: "on 17 August 2026 for two weeks".
         if "start_date" not in entities:
             single_date_match = re.search(
-                rf"\b(\d{{1,2}})(?:st|nd|rd|th)?\s+({month_pattern})\s+(\d{{4}})\b",
+                rf"\b(\d{{1,2}})(?:st|nd|rd|th)?(?:\s+of)?\s+"
+                rf"({month_pattern})\s+(\d{{4}})\b",
                 text,
             )
             if single_date_match:
@@ -619,6 +706,63 @@ class IntentClassifier:
             entities["date_precision"] = "EXACT"
         elif entities.get("month"):
             entities["date_precision"] = "MONTH"
+
+        trip_year = (
+            entities.get("start_date", "")[:4]
+            or entities.get("travel_year")
+        )
+
+        birthday_match = re.search(
+            rf"\bbirthday\b.*?(?:the\s+)?(\d{{1,2}})(?:st|nd|rd|th)?"
+            rf"(?:\s+of)?\s+({month_pattern})(?:\s+(20\d{{2}}))?\b",
+            text,
+        )
+        if birthday_match:
+            day, month_name, explicit_year = birthday_match.groups()
+            year = explicit_year or trip_year
+            entities["special_occasion"] = "Birthday"
+            if year:
+                try:
+                    occasion_date = datetime.strptime(
+                        f"{day} {month_name} {year}", "%d %B %Y"
+                    ).date()
+                    entities["special_occasion_date"] = occasion_date.isoformat()
+                except ValueError:
+                    pass
+            if "party with friends" in text:
+                entities["special_occasion_notes"] = "Party with friends"
+
+        checkout_match = re.search(
+            rf"\buntil\s+(?:the\s+)?(\d{{1,2}})(?:st|nd|rd|th)?"
+            rf"(?:\s+of)?\s+({month_pattern})(?:\s+(20\d{{2}}))?\b",
+            text,
+        )
+        if "riu hotel" in text or "riu hotels" in text:
+            entities["stay_1_property"] = "RIU Hotel"
+            if "Ocho Rios" in local_areas:
+                entities["stay_1_area"] = "Ocho Rios"
+            if entities.get("start_date"):
+                entities["stay_1_start_date"] = entities["start_date"]
+            if checkout_match:
+                checkout_day, checkout_month, checkout_year = checkout_match.groups()
+                year = checkout_year or trip_year
+                if year:
+                    try:
+                        checkout = datetime.strptime(
+                            f"{checkout_day} {checkout_month} {year}", "%d %B %Y"
+                        ).date()
+                        entities["stay_1_end_date"] = checkout.isoformat()
+                    except ValueError:
+                        pass
+
+        if re.search(r"\bbudget[- ]friendly\s+hotel\b", text):
+            entities["stay_2_style"] = "Budget-friendly hotel"
+            if "St Mary Parish" in local_areas:
+                entities["stay_2_area"] = "St Mary Parish"
+            if entities.get("stay_1_end_date"):
+                entities["stay_2_start_date"] = entities["stay_1_end_date"]
+            if entities.get("end_date"):
+                entities["stay_2_end_date"] = entities["end_date"]
 
         budget_patterns = (
             (r"£\s*([\d,]+(?:\.\d{1,2})?)", "GBP"),

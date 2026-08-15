@@ -36,6 +36,41 @@ class TestIntentClassification:
         assert result.entities["start_date"] == "2026-09-15"
         assert result.entities["end_date"] == "2026-09-22"
 
+    def test_extracts_jamaica_multi_stay_birthday_and_separate_companion(self, classifier):
+        result = classifier.classify(
+            "I would like to travel to Jamaica from either London or Manchester "
+            "on the 10th of October 2026. I would like to stay in St Mary Parish "
+            "near the family. I would like to party with friends on my birthday, "
+            "which is the 12th of October, so I would like to stay at the RIU Hotels "
+            "in Oshi Rius until the 13th of October. On the 13th I will check out of "
+            "the RIU Hotel and would like you to book a budget-friendly hotel for me "
+            "for the rest of the trip. My return date to the UK would be the 22nd of "
+            "October. I will be meeting my girlfriend, who is travelling from the US "
+            "to meet me in Jamaica, and we would also like to visit a few places of "
+            "interest within St Mary Parish."
+        )
+
+        assert result.intent == Intent.PLAN_TRIP
+        assert result.entities["destination"] == "Jamaica"
+        assert result.entities["origin"] == "London"
+        assert result.entities["departure_options"] == "London,Manchester"
+        assert result.entities["start_date"] == "2026-10-10"
+        assert result.entities["end_date"] == "2026-10-22"
+        assert result.entities["duration_days"] == "12"
+        assert result.entities["local_areas"] == "St Mary Parish,Ocho Rios"
+        assert result.entities["stay_1_property"] == "RIU Hotel"
+        assert result.entities["stay_1_area"] == "Ocho Rios"
+        assert result.entities["stay_1_end_date"] == "2026-10-13"
+        assert result.entities["stay_2_style"] == "Budget-friendly hotel"
+        assert result.entities["stay_2_area"] == "St Mary Parish"
+        assert result.entities["stay_2_start_date"] == "2026-10-13"
+        assert result.entities["stay_2_end_date"] == "2026-10-22"
+        assert result.entities["special_occasion"] == "Birthday"
+        assert result.entities["special_occasion_date"] == "2026-10-12"
+        assert result.entities["companion_relationship"] == "Girlfriend"
+        assert result.entities["companion_origin"] == "United States"
+        assert "local attractions" in result.entities["interests"]
+
     def test_modify_trip_intent(self, classifier):
         result = classifier.classify("I need to change my trip")
         assert result.intent == Intent.MODIFY_TRIP
