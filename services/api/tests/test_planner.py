@@ -385,3 +385,4 @@ def test_jamaica_multi_stay_prompt_generates_and_preserves_each_stage(client):
     assert "child" not in str(itinerary["daily_outline"]).lower()
     assert "Office Day" not in str(itinerary["daily_outline"])
     assert "conference" not in str(itinerary["daily_outline"]).lower()
+    assert "Spa & Wellness" not in str(itinerary["daily_outline"])
