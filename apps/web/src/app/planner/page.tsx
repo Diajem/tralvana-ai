@@ -119,17 +119,29 @@ function TripBriefCard({ itinerary }: { itinerary: TripItinerary }) {
       ? `${brief.travellers.infants} infant${brief.travellers.infants === 1 ? "" : "s"}`
       : "",
   ].filter(Boolean).join(", ");
+  const departure = brief.departure_options?.length > 1
+    ? brief.departure_options.join(" or ")
+    : brief.origin || "Not supplied";
+  const occasion = brief.special_occasion
+    ? `${brief.special_occasion.type}${brief.special_occasion.date ? ` · ${brief.special_occasion.date}` : ""}`
+    : "Not supplied";
+  const companion = brief.companion_plan
+    ? `${brief.companion_plan.relationship || "Companion"}${brief.companion_plan.origin ? ` travelling separately from ${brief.companion_plan.origin}` : ""}`
+    : "Not supplied";
 
   return (
     <SectionCard title="Trip Details We Are Using">
       <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-3">
         {[
-          ["From", brief.origin || "Not supplied"],
+          ["Fly from", departure],
           ["To", brief.destination],
+          ["Stay areas", brief.local_areas?.length ? brief.local_areas.join(", ") : "Not supplied"],
           ["Duration", `${brief.duration_days} days`],
           ["Travel period", brief.travel_period],
           ["Travellers", travellers],
           ["Interests", brief.interests.length ? brief.interests.join(", ") : "Not supplied"],
+          ["Special occasion", occasion],
+          ["Separate arrival", companion],
         ].map(([label, value]) => (
           <div key={label}>
             <dt className="text-xs text-gray-400">{label}</dt>
@@ -137,6 +149,37 @@ function TripBriefCard({ itinerary }: { itinerary: TripItinerary }) {
           </div>
         ))}
       </dl>
+    </SectionCard>
+  );
+}
+
+function RequestedStayPlanCard({ itinerary }: { itinerary: TripItinerary }) {
+  const stays = itinerary.trip_brief.stay_plan || [];
+  if (!stays.length) return null;
+
+  return (
+    <SectionCard title="Your Requested Stay Plan">
+      <div className="grid gap-3 md:grid-cols-2">
+        {stays.map((stay, index) => (
+          <div key={`${stay.start_date}-${index}`} className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-indigo-600">
+              Stay {index + 1} · Requested, not booked
+            </p>
+            <p className="mt-2 font-semibold text-slate-950">
+              {stay.property_name || stay.style || "Accommodation to search"}
+            </p>
+            <p className="mt-1 text-sm text-slate-600">
+              {stay.area || "Area to confirm"}
+            </p>
+            <p className="mt-2 text-sm font-medium text-slate-800">
+              {stay.start_date || "Start date needed"} → {stay.end_date || "End date needed"}
+            </p>
+          </div>
+        ))}
+      </div>
+      <p className="mt-4 text-xs leading-5 text-amber-700">
+        These are your requested stays. Tralvana has not yet confirmed a room, rate, or booking.
+      </p>
     </SectionCard>
   );
 }
@@ -280,6 +323,7 @@ function ItineraryView({
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-indigo-600">Travel essentials</p>
           <h2 className="mt-1 text-2xl font-bold text-slate-950">Flights, stay and budget</h2>
         </div>
+        <RequestedStayPlanCard itinerary={itinerary} />
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
           <SectionCard title="Flight">
             {itinerary.flight_recommendation ? (
