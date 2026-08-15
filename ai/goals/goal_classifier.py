@@ -12,7 +12,11 @@ _TEXT_PATTERNS: list[tuple[str, list[str]]] = [
     ("FOOTBALL_TRAVEL", ["football", "soccer", "match", "stadium", "premier league", "la liga", "serie a", "bundesliga", "champions league", "world cup"]),
     ("DIASPORA_TRAVEL", ["diaspora", "heritage", "homeland", "roots", "ancestral", "ancestry", "home country", "visit family", "back home"]),
     ("ROMANTIC_TRIP",   ["honeymoon", "romantic", "anniversary", "couple", "partner", "valentine", "propose", "engagement"]),
-    ("FAMILY_TRIP",     ["family", "kids", "children", "baby", "toddler", "school holiday", "half term", "parents"]),
+    # "family" by itself can describe people at the destination ("stay near
+    # family") rather than children travelling in the party.  Use explicit
+    # party language or child-related terms before selecting child-oriented
+    # itinerary templates.
+    ("FAMILY_TRIP",     ["family trip", "family holiday", "family vacation", "with my family", "with our family", "with my parents", "kids", "children", "baby", "toddler", "school holiday", "half term"]),
     ("ADVENTURE",       ["adventure", "hiking", "trekking", "safari", "extreme", "bungee", "skydive", "rafting", "climbing", "kayak", "scuba", "dive"]),
     ("FOOD_TOUR",       ["food", "cuisine", "restaurant", "culinary", "wine", "gastronomy", "michelin", "street food", "eat", "tasting"]),
     ("PHOTOGRAPHY",     ["photography", "photo", "camera", "shoot", "landscape", "wildlife photography", "portrait"]),

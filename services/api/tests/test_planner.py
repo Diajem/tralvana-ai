@@ -382,3 +382,4 @@ def test_jamaica_multi_stay_prompt_generates_and_preserves_each_stage(client):
     assert itinerary["daily_outline"][2]["title"] == "Day 3: Birthday celebration"
     assert "RIU Hotel in Ocho Rios" in itinerary["daily_outline"][2]["accommodation"]
     assert "Budget-friendly hotel in St Mary Parish" in itinerary["daily_outline"][3]["accommodation"]
+    assert "child" not in str(itinerary["daily_outline"]).lower()
