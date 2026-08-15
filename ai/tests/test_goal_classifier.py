@@ -31,3 +31,19 @@ def test_explicit_client_meeting_still_selects_business_travel() -> None:
     assert classifier.classify_from_text(
         "I have a client meeting and conference in Kingston."
     ) == "BUSINESS_TRAVEL"
+
+
+def test_rest_of_the_trip_does_not_imply_a_relaxation_goal() -> None:
+    classifier = GoalClassifier()
+
+    assert classifier.classify_from_text(
+        "Book a budget-friendly hotel for the rest of the trip."
+    ) == "GENERAL_TRAVEL"
+
+
+def test_explicit_rest_and_relaxation_still_selects_relaxation() -> None:
+    classifier = GoalClassifier()
+
+    assert classifier.classify_from_text(
+        "I want a spa holiday for rest and relaxation."
+    ) == "RELAXATION"
