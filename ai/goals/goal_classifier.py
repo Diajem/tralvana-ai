@@ -24,7 +24,9 @@ _TEXT_PATTERNS: list[tuple[str, list[str]]] = [
     # Require a business/work/client qualifier instead of the bare word
     # "meeting".
     ("BUSINESS_TRAVEL", ["business", "conference", "business meeting", "work meeting", "client meeting", "networking", "summit", "trade show", "work trip", "client visit"]),
-    ("RELAXATION",      ["relax", "spa", "wellness", "beach", "rest", "chill", "unwind", "retreat", "yoga", "meditation", "resort"]),
+    # Bare "rest" appears in ordinary sequencing ("for the rest of the
+    # trip") and must not turn the whole itinerary into a spa break.
+    ("RELAXATION",      ["relax", "spa", "wellness", "beach", "rest and relaxation", "restful", "chill", "unwind", "retreat", "yoga", "meditation", "resort"]),
 ]
 
 _INTEREST_PATTERNS: dict[str, str] = {
