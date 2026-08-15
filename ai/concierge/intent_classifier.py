@@ -220,7 +220,7 @@ class IntentClassifier:
 
         origin_match = re.search(
             r"\b(?:travelling|traveling|flying|departing|leaving)\s+from\s+"
-            r"([a-z][a-z .'-]{1,40}?)(?=,|[.!?]|\s+(?:and|but|with|on|for|we|i)\b|$)",
+            r"([a-z][a-z .'-]{1,40}?)(?=,|[.!?]|\s+(?:and|but|with|on|for|from|we|i)\b|$)",
             text,
         )
         if origin_match:
@@ -229,7 +229,7 @@ class IntentClassifier:
         if "origin" not in entities:
             simple_origin_match = re.search(
                 r"\bfrom\s+([a-z][a-z .'-]{1,40}?)"
-                r"(?=\s+(?:in|on|for|with)\b|,|[.!?]|$)",
+                r"(?=\s+(?:in|on|for|from|with)\b|,|[.!?]|$)",
                 text,
             )
             if simple_origin_match:
@@ -349,12 +349,21 @@ class IntentClassifier:
         if interests:
             entities["interests"] = ",".join(interests)
 
+        traveller_nationality = re.search(
+            r"\b(?:both\s+)?(?:travellers?|travelers?|passengers?)\s+"
+            r"(?:are|'re)\s+([a-z]+)\s+(?:citizens?|nationals?|passport holders?)\b",
+            text,
+        )
         nationality_with_label = re.search(
             r"\b(?:we (?:are|'re)\s+)?(?:both\s+)?([a-z]+)\s+"
             r"(?:citizens?|nationals?|passport holders?)\b",
             text,
         )
-        if nationality_with_label:
+        if traveller_nationality:
+            nationality = traveller_nationality.group(1).title()
+            entities["nationality"] = nationality
+            entities["nationalities"] = nationality
+        elif nationality_with_label:
             nationality = nationality_with_label.group(1).title()
             entities["nationality"] = nationality
             entities["nationalities"] = nationality
@@ -471,6 +480,15 @@ class IntentClassifier:
                         entities["destination"] = candidate.title()
                         destination_found = True
                         break
+
+        if not destination_found:
+            visa_destination = re.search(
+                r"\b(?:visa|entry requirements?)\s+(?:for|to)\s+(?:the\s+)?"
+                r"([a-z][a-z.'-]*(?:\s+[a-z][a-z.'-]*){0,3})(?=[?.,!]|$)",
+                text,
+            )
+            if visa_destination:
+                entities["destination"] = visa_destination.group(1).title()
 
         if "nationality" not in entities:
             nationality_statement = re.search(
