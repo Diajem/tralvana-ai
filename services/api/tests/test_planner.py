@@ -324,3 +324,61 @@ def test_holiday_goal_persists_dates_party_and_interests(client):
     assert goal["timeframe"]["duration_days"] == 15
     assert goal["travellers"]["adults"] == 2
     assert {"fashion", "soccer"}.issubset(set(goal["interests"]))
+
+
+def test_jamaica_multi_stay_prompt_generates_and_preserves_each_stage(client):
+    res = client.post("/planner/plan", json={
+        "message": (
+            "I would like to travel to Jamaica from either London or Manchester "
+            "on the 10th of October 2026. I would like to stay in St Mary Parish "
+            "near the family. I would like to party with friends on my birthday, "
+            "which is the 12th of October, so I would like to stay at the RIU Hotels "
+            "in Oshi Rius until the 13th of October. On the 13th I will check out of "
+            "the RIU Hotel and would like you to book a budget-friendly hotel for me "
+            "for the rest of the trip. My return date to the UK would be the 22nd of "
+            "October. I will be meeting my girlfriend, who is travelling from the US "
+            "to meet me in Jamaica, and we would also like to visit a few places of "
+            "interest within St Mary Parish."
+        ),
+    })
+
+    assert res.status_code == 200
+    body = res.json()
+    itinerary = body["itinerary"]
+    assert itinerary is not None
+    brief = itinerary["trip_brief"]
+    assert brief["origin"] == "London"
+    assert brief["departure_options"] == ["London", "Manchester"]
+    assert brief["destination"] == "Jamaica"
+    assert brief["local_areas"] == ["St Mary Parish", "Ocho Rios"]
+    assert brief["start_date"] == "2026-10-10"
+    assert brief["end_date"] == "2026-10-22"
+    assert brief["duration_days"] == 12
+    assert len(itinerary["daily_outline"]) == 12
+    assert brief["stay_plan"] == [
+        {
+            "start_date": "2026-10-10",
+            "end_date": "2026-10-13",
+            "area": "Ocho Rios",
+            "property_name": "RIU Hotel",
+            "style": None,
+            "status": "REQUESTED_NOT_BOOKED",
+        },
+        {
+            "start_date": "2026-10-13",
+            "end_date": "2026-10-22",
+            "area": "St Mary Parish",
+            "property_name": None,
+            "style": "Budget-friendly hotel",
+            "status": "REQUESTED_NOT_BOOKED",
+        },
+    ]
+    assert brief["special_occasion"]["date"] == "2026-10-12"
+    assert brief["companion_plan"]["origin"] == "United States"
+    assert brief["companion_plan"]["relationship"] == "Girlfriend"
+    assert "companion's Jamaica arrival" in " ".join(
+        itinerary["booking_readiness"]["items_needed"]
+    )
+    assert itinerary["daily_outline"][2]["title"] == "Day 3: Birthday celebration"
+    assert "RIU Hotel in Ocho Rios" in itinerary["daily_outline"][2]["accommodation"]
+    assert "Budget-friendly hotel in St Mary Parish" in itinerary["daily_outline"][3]["accommodation"]
