@@ -94,7 +94,10 @@ class DecisionEngine:
         if intent == Intent.PLAN_TRIP:
             if not destination:
                 questions.append("Where would you like to go?")
-            elif destination in _COUNTRY_ONLY_DESTINATIONS:
+            elif (
+                destination in _COUNTRY_ONLY_DESTINATIONS
+                and not entities.get("local_areas")
+            ):
                 questions.append(
                     f"Which city, town, or resort area in {entities['destination']} "
                     "would you like to stay in?"
