@@ -52,18 +52,13 @@ async function apiFetch(
   explicitToken?: string
 ): Promise<Response> {
   /*
-   * Same-origin browser requests are authenticated by the Next.js relay from
-   * the Clerk session cookie.  Do not call Clerk getToken() in the browser:
-   * that extra network step can fail before the planner request is sent.
-   * Server-side/direct API calls still use the supplied token provider.
+   * Clerk's frontend SDK supplies the session token for browser requests.
+   * The same-origin Next.js relay forwards that signed token to FastAPI,
+   * where it is verified again.  The relay retains a server-cookie fallback
+   * for callers that cannot attach a token themselves.
    */
-  const usesBrowserRelay =
-    typeof window !== "undefined" &&
-    typeof input === "string" &&
-    (input === "/api" || input.startsWith("/api/"));
-  const token = usesBrowserRelay
-    ? null
-    : explicitToken ?? (authTokenProvider ? await authTokenProvider() : null);
+  const token =
+    explicitToken ?? (authTokenProvider ? await authTokenProvider() : null);
   const headers = new Headers(init.headers);
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
