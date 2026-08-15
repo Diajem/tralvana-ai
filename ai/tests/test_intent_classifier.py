@@ -202,6 +202,14 @@ class TestIntentClassification:
         result = classifier.classify("weather in Tokyo")
         assert result.intent == Intent.WEATHER_ANALYSIS
 
+    def test_natural_weather_question_routes_to_weather_analysis(self, classifier):
+        result = classifier.classify(
+            "What is the weather like in Barcelona in November?"
+        )
+        assert result.intent == Intent.WEATHER_ANALYSIS
+        assert result.entities.get("destination") == "Barcelona"
+        assert result.entities.get("month") == "11"
+
     def test_best_time_to_visit_now_routes_to_weather_analysis(self, classifier):
         # Reclaimed from TRAVEL_ADVICE — a new, more specific intent.
         result = classifier.classify("best time to visit Barcelona")
