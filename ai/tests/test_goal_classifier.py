@@ -15,3 +15,19 @@ def test_explicit_family_party_still_selects_family_trip() -> None:
     assert classifier.classify_from_text(
         "Plan a family holiday to Jamaica with my children."
     ) == "FAMILY_TRIP"
+
+
+def test_meeting_a_girlfriend_does_not_imply_business_travel() -> None:
+    classifier = GoalClassifier()
+
+    assert classifier.classify_from_text(
+        "I will be meeting my girlfriend, who is travelling from the US."
+    ) == "GENERAL_TRAVEL"
+
+
+def test_explicit_client_meeting_still_selects_business_travel() -> None:
+    classifier = GoalClassifier()
+
+    assert classifier.classify_from_text(
+        "I have a client meeting and conference in Kingston."
+    ) == "BUSINESS_TRAVEL"
