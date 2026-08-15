@@ -511,7 +511,11 @@ export default function PlannerPage() {
 
         {result && !result.itinerary && (
           <div className="space-y-3 rounded-2xl border border-indigo-100 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-950">A little more information is needed</h2>
+            <h2 className="text-lg font-bold text-slate-950">
+              {result.missing_information.length > 0
+                ? "A little more information is needed"
+                : "Your Tralvana answer"}
+            </h2>
             <p className="whitespace-pre-line text-sm leading-6 text-slate-700">{result.response.replaceAll("**", "")}</p>
             {result.missing_information.length > 0 && (
               <ul className="space-y-2 rounded-xl bg-indigo-50 p-4">
