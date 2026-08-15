@@ -9,8 +9,9 @@ import { AccountMenu } from "@/components/auth/AccountMenu";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Tralvana AI",
-  description: "AI-native travel operating system",
+  title: "Tralvana AI | One Intelligent Plan for Your Whole Trip",
+  description:
+    "Plan flights, accommodation, budget, visa guidance, weather, events, and a daily itinerary in one AI-powered travel plan.",
 };
 
 export default function RootLayout({

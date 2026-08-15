@@ -24,6 +24,18 @@ class TestIntentClassification:
         assert result.entities["destination"] == "New York"
         assert result.entities["duration_days"] == "15"
 
+    def test_full_planner_brief_with_weather_information_stays_plan_trip(self, classifier):
+        result = classifier.classify(
+            "Plan a 7-day trip to New York for 2 adults, travelling from Manchester "
+            "from 15 September 2026 to 22 September 2026. Both travellers are Irish "
+            "citizens. We want weather information and eSIM options."
+        )
+
+        assert result.intent == Intent.PLAN_TRIP
+        assert result.entities["destination"] == "New York"
+        assert result.entities["start_date"] == "2026-09-15"
+        assert result.entities["end_date"] == "2026-09-22"
+
     def test_modify_trip_intent(self, classifier):
         result = classifier.classify("I need to change my trip")
         assert result.intent == Intent.MODIFY_TRIP
@@ -129,6 +141,14 @@ class TestIntentClassification:
         result = classifier.classify("Do I need a visa?")
         assert result.intent == Intent.VISA_CHECK
 
+    def test_visa_check_recognises_the_united_states(self, classifier):
+        result = classifier.classify(
+            "Do Irish citizens need a visa for the United States?"
+        )
+        assert result.intent == Intent.VISA_CHECK
+        assert result.entities["nationality"] == "Irish"
+        assert result.entities["destination"] == "United States"
+
     def test_visa_check_can_i_enter(self, classifier):
         result = classifier.classify("Can I enter Japan?")
         assert result.intent == Intent.VISA_CHECK
@@ -229,6 +249,19 @@ class TestEntityExtraction:
         assert result.entities["nationality"] == "British"
         assert result.entities["nationalities"] == "British,Nigerian"
         assert result.entities["interests"] == "beaches,culture,food,music"
+
+    def test_origin_stops_at_a_second_from_for_date_range(self, classifier):
+        result = classifier.classify(
+            "Plan a holiday to Montego Bay from Leeds from 4 October 2026 "
+            "to 11 October 2026 for 2 British adults."
+        )
+        assert result.entities["origin"] == "Leeds"
+
+    def test_extracts_nationality_from_both_travellers_phrase(self, classifier):
+        result = classifier.classify(
+            "Plan a trip to New York. Both travellers are Irish citizens."
+        )
+        assert result.entities["nationality"] == "Irish"
 
     def test_extracts_exact_dates_duration_and_adult_count(self, classifier):
         result = classifier.classify(
