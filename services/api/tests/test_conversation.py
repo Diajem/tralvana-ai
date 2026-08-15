@@ -173,6 +173,17 @@ def test_conversation_weather_analysis_without_month_still_ready(client):
     assert body["missing_information"] == []
 
 
+def test_conversation_natural_weather_question_returns_assessment(client):
+    res = client.post("/conversation/message", json={
+        "message": "What is the weather like in Barcelona in November?",
+    })
+    body = res.json()
+    assert body["intent"] == "WEATHER_ANALYSIS"
+    assert body["missing_information"] == []
+    assert "Weather" in body["response"]
+    assert "November" in body["response"]
+
+
 def test_conversation_preserves_session(client):
     first = client.post("/conversation/message", json={
         "message": "I want to visit London",
