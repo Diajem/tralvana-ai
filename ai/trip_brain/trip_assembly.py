@@ -42,6 +42,87 @@ from ai.shared.agent_status import AgentStatus
 from ai.trip_brain.models import UnifiedRecommendation
 
 
+_AMSTERDAM_DAY_PLANS: dict[int, tuple[str, str, str, str, str]] = {
+    4: (
+        "Canal belt & Rijksmuseum",
+        "Reserve timed entry for the Rijksmuseum or choose another Museumplein museum",
+        "Walk a section of the UNESCO canal belt with landmark and photo stops",
+        "Dinner around the Nine Streets or Jordaan",
+        "Museum and canal-cruise times must be confirmed before the day.",
+    ),
+    5: (
+        "Van Gogh & Museumplein",
+        "Reserve timed entry for the Van Gogh Museum if it is a priority",
+        "Explore Museumplein and nearby architecture or a second museum",
+        "Relaxed evening around Leidseplein",
+        "Use the museum's official website for timed-entry availability.",
+    ),
+    6: (
+        "Anne Frank House & Jordaan",
+        "Visit the Anne Frank House only with a confirmed timed ticket",
+        "Walk through Jordaan, its courtyards, canals, and independent shops",
+        "Dinner in Jordaan",
+        "Anne Frank House tickets are limited and must be checked officially.",
+    ),
+    7: (
+        "Historic centre",
+        "Explore Dam Square and check Royal Palace visitor access",
+        "Walk to Begijnhof and the old city lanes",
+        "Evening canal cruise if an official operator and time are confirmed",
+        "Confirm opening hours because ceremonial use can affect palace access.",
+    ),
+    8: (
+        "De Pijp & Albert Cuyp Market",
+        "Browse Albert Cuyp Market",
+        "Explore De Pijp cafés, shops, and neighbourhood streets",
+        "Choose a well-reviewed local dinner in De Pijp",
+        "Check the market's operating day and hours.",
+    ),
+    9: (
+        "Vondelpark & local culture",
+        "Walk or cycle through Vondelpark at a comfortable pace",
+        "Choose a nearby gallery, live-music venue, or café district",
+        "Free evening for the group's preferred activity",
+        "Keep this as a lighter day after several ticketed attractions.",
+    ),
+    10: (
+        "Zaanse Schans day trip",
+        "Check the current train or bus route to Zaanse Schans",
+        "Explore the windmill area and heritage sites that are open that day",
+        "Return to Amsterdam for dinner",
+        "Transport times and individual attraction tickets require confirmation.",
+    ),
+    11: (
+        "Haarlem day trip",
+        "Take a confirmed train to Haarlem and orient around Grote Markt",
+        "Choose a museum, historic church, or canal walk",
+        "Return to Amsterdam for a relaxed evening",
+        "Check rail times and attraction opening hours before departure.",
+    ),
+    12: (
+        "Amsterdam Noord & NDSM",
+        "Take the public ferry to Amsterdam Noord",
+        "Explore NDSM Wharf and current cultural spaces",
+        "Return for dinner near the shared hotel",
+        "Check current ferry service and venue programmes.",
+    ),
+    13: (
+        "Maritime Amsterdam",
+        "Choose the National Maritime Museum or another Oosterdok attraction",
+        "Walk the eastern docklands and waterfront",
+        "Dinner in the historic centre",
+        "Reserve timed entry where required.",
+    ),
+    14: (
+        "Final priorities & shopping",
+        "Return to a favourite area or complete one missed priority attraction",
+        "Shop for souvenirs around the Nine Streets or another preferred district",
+        "Farewell dinner for the three travellers",
+        "Keep this day flexible until the Ajax fixture and ticket position is known.",
+    ),
+}
+
+
 @dataclass
 class GroundingNotice:
     """Public, provider-neutral description of how current a planner fact is.
@@ -387,6 +468,7 @@ class TripAssemblyEngine:
             for value in (brief.get("accommodation_preferences") or [])
         )
         adults = int((brief.get("travellers") or {}).get("adults") or 1)
+        is_amsterdam = str(brief.get("destination") or "").casefold() == "amsterdam"
         for entry in outline:
             day_date = (
                 trip_start + timedelta(days=int(entry["day"]) - 1)
@@ -440,6 +522,17 @@ class TripAssemblyEngine:
                 entry["morning"] = "Choose a major museum or historic attraction and confirm opening times"
                 entry["afternoon"] = "Explore the canal belt and central landmarks"
                 entry["evening"] = "Relaxed dinner in a neighbourhood convenient for the shared hotel"
+
+            if is_amsterdam and entry["day"] in _AMSTERDAM_DAY_PLANS:
+                title, morning, afternoon, evening, note = _AMSTERDAM_DAY_PLANS[
+                    int(entry["day"])
+                ]
+                entry["title"] = f"Day {entry['day']}: {title}"
+                entry["theme"] = title
+                entry["morning"] = morning
+                entry["afternoon"] = afternoon
+                entry["evening"] = evening
+                entry["notes"] = note
 
             if day_date and occasion_date == day_date.isoformat():
                 occasion_type = occasion.get("type") or "Special occasion"
