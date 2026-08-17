@@ -459,6 +459,30 @@ class TestEntityExtraction:
             "Additional family-friendly Dublin attractions",
         }
 
+    @pytest.mark.parametrize(
+        ("phrase", "expected"),
+        [
+            ("a quiet room", "Quiet room"),
+            ("a boutique hotel", "Boutique hotel"),
+            ("a luxury hotel", "Luxury hotel"),
+            ("a beachfront hotel", "Beachfront hotel"),
+            (
+                "wheelchair-accessible accommodation",
+                "Wheelchair-accessible accommodation",
+            ),
+            ("a hotel with a pool", "Hotel with a pool"),
+            ("an apartment", "Apartment accommodation"),
+            ("breakfast included", "Breakfast included"),
+            ("connecting rooms", "Connecting rooms"),
+        ],
+    )
+    def test_extracts_accommodation_requirements(self, classifier, phrase, expected):
+        result = classifier.classify(
+            f"Plan a 4 day trip to Paris from London in September with {phrase}."
+        )
+        preferences = result.entities["additional_accommodation_preferences"].split(",")
+        assert expected in preferences
+
     def test_no_destination_when_not_present(self, classifier):
         # "Hello there" has no location markers
         result = classifier.classify("Hello there")

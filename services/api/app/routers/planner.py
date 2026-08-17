@@ -243,6 +243,13 @@ def _build_trip_brief(
         )
         if value
     ]
+    accommodation_preferences.extend(
+        value
+        for value in entities.get(
+            "additional_accommodation_preferences", ""
+        ).split(",")
+        if value and value not in accommodation_preferences
+    )
     requested_activities = [
         value
         for value in entities.get("requested_activities", "").split(",")

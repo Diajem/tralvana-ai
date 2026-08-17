@@ -504,6 +504,9 @@ class TripAssemblyEngine:
         }
         requested_events = brief.get("requested_events") or []
         requested_event = requested_events[0] if requested_events else None
+        requested_activities = [
+            str(value) for value in (brief.get("requested_activities") or [])
+        ]
         same_hotel = any(
             "same hotel" in str(value).casefold()
             for value in (brief.get("accommodation_preferences") or [])
@@ -596,6 +599,17 @@ class TripAssemblyEngine:
                 entry["afternoon"] = afternoon
                 entry["evening"] = evening
                 entry["notes"] = note
+            elif (
+                requested_activities
+                and 1 < int(entry["day"]) < int(brief.get("duration_days") or 1)
+            ):
+                activity_index = int(entry["day"]) - 2
+                if activity_index < len(requested_activities):
+                    activity = requested_activities[activity_index]
+                    entry["afternoon"] = (
+                        f"Include the requested {activity}; confirm current opening times, "
+                        "tickets and suitability before booking"
+                    )
 
             if day_date and occasion_date == day_date.isoformat():
                 occasion_type = occasion.get("type") or "Special occasion"
