@@ -386,3 +386,55 @@ def test_jamaica_multi_stay_prompt_generates_and_preserves_each_stage(client):
     assert "Office Day" not in str(itinerary["daily_outline"])
     assert "conference" not in str(itinerary["daily_outline"]).lower()
     assert "Spa & Wellness" not in str(itinerary["daily_outline"])
+
+
+def test_amsterdam_friends_request_preserves_party_hotel_match_and_15_days(client):
+    res = client.post("/planner/plan", json={
+        "message": (
+            "Me and my 2 friends are going to Amsterdam for a week from New York; "
+            "we would like to stay in the same hotel and would love to see many "
+            "tourist attractions in Amsterdam. We would like to visit Ajax stadium "
+            "and also would like a ticket to Ajax vs feynold game. We would like to "
+            "travel on the 10th of August from New York to Amsterdam for 15 days."
+        ),
+    })
+
+    assert res.status_code == 200
+    itinerary = res.json()["itinerary"]
+    assert itinerary is not None
+    brief = itinerary["trip_brief"]
+    assert brief["origin"] == "New York"
+    assert brief["destination"] == "Amsterdam"
+    assert brief["travellers"]["adults"] == 3
+    assert brief["duration_days"] == 15
+    assert brief["departure_day"] == 10
+    assert brief["travel_period"] == "10 August · year needed"
+    assert brief["date_precision"] == "DAY_WITHOUT_YEAR"
+    assert brief["accommodation_preferences"] == [
+        "Same hotel for all travellers"
+    ]
+    assert brief["requested_events"] == [{
+        "name": "Ajax vs Feyenoord",
+        "type": "Football match",
+        "ticket_requested": True,
+        "status": "REQUESTED_NOT_CONFIRMED",
+    }]
+    assert brief["duration_note"] == (
+        "Both 7 days and 15 days were supplied; using the later 15-day request."
+    )
+    assert len(itinerary["daily_outline"]) == 15
+    assert itinerary["daily_outline"][1]["title"] == "Day 2: Ajax stadium visit"
+    assert itinerary["daily_outline"][2]["title"] == (
+        "Day 3: Ajax vs Feyenoord fixture check"
+    )
+    assert "requested, not confirmed" in itinerary["daily_outline"][2]["notes"]
+    assert itinerary["daily_outline"][3]["title"] == "Day 4: Amsterdam highlights"
+    assert all(
+        "One hotel for all 3 travellers" in day["accommodation"]
+        for day in itinerary["daily_outline"]
+    )
+    needed = " ".join(itinerary["booking_readiness"]["items_needed"])
+    assert "Add the travel year for 10 August" in needed
+    assert "Ajax vs Feyenoord" in needed
+    assert "ticket availability" in needed
+    assert "New York To Amsterdam" not in str(itinerary)

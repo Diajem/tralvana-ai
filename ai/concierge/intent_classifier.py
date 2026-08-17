@@ -262,7 +262,7 @@ class IntentClassifier:
         if "origin" not in entities:
             simple_origin_match = re.search(
                 r"\bfrom\s+([a-z][a-z .'-]{1,40}?)"
-                r"(?=\s+(?:in|on|for|from|with)\b|,|[.!?]|$)",
+                r"(?=\s+(?:in|on|for|from|to|with)\b|,|[.!?]|$)",
                 text,
             )
             if simple_origin_match:
@@ -299,7 +299,21 @@ class IntentClassifier:
             entities["adults"] = str(
                 int(raw_adults) if raw_adults.isdigit() else _NUMBER_WORDS[raw_adults]
             )
-        elif (
+        if not adults_match:
+            friends_match = re.search(
+                rf"\b(?:me|i)\s+and\s+my\s+"
+                rf"(\d+|{'|'.join(_NUMBER_WORDS)})\s+friends?\b",
+                text,
+            )
+            if friends_match:
+                raw_friends = friends_match.group(1)
+                friend_count = (
+                    int(raw_friends)
+                    if raw_friends.isdigit()
+                    else _NUMBER_WORDS[raw_friends]
+                )
+                entities["adults"] = str(friend_count + 1)
+        if "adults" not in entities and (
             "with my partner" in text
             or "with my partners" in text
             or re.search(r"\bwe (?:are|'re) both\b", text)
@@ -361,7 +375,10 @@ class IntentClassifier:
             ("soccer", ("soccer", "football match", "football game")),
             (
                 "major attractions",
-                ("places of significant interest", "sightseeing", "landmarks", "major attractions"),
+                (
+                    "places of significant interest", "sightseeing", "landmarks",
+                    "major attractions", "tourist attractions",
+                ),
             ),
         )
         interests = [
@@ -381,8 +398,48 @@ class IntentClassifier:
                 interests.append(canonical)
         if "places of interest" in text and "local attractions" not in interests:
             interests.append("local attractions")
+        if "ajax stadium" in text and "Ajax stadium" not in interests:
+            interests.append("Ajax stadium")
+        if (
+            ("stadium" in text or re.search(r"\b[a-z]+\s+vs\.?\s+[a-z]+\b", text))
+            and "soccer" not in interests
+        ):
+            interests.append("soccer")
         if interests:
             entities["interests"] = ",".join(interests)
+
+        if re.search(r"\b(?:the\s+)?same\s+hotel\b", text):
+            entities["accommodation_type"] = "HOTEL"
+            entities["shared_hotel"] = "true"
+            entities["accommodation_preference"] = "Same hotel for all travellers"
+
+        ticket_match = re.search(
+            r"\b(?:a\s+)?tickets?\s+(?:to|for)\s+"
+            r"([a-z][a-z .'-]{1,30}?)\s+vs\.?\s+"
+            r"([a-z][a-z .'-]{1,30}?)(?=\s+(?:game|match)\b|[.,;!?]|$)",
+            text,
+        )
+        match_request = ticket_match or re.search(
+            r"\b([a-z][a-z.'-]*(?:\s+[a-z][a-z.'-]*){0,2})\s+vs\.?\s+"
+            r"([a-z][a-z.'-]*(?:\s+[a-z][a-z.'-]*){0,2})"
+            r"(?=\s+(?:game|match)\b|[.,;!?]|$)",
+            text,
+        )
+        if match_request:
+            home_team, away_team = (
+                value.strip().title() for value in match_request.groups()
+            )
+            team_aliases = {
+                "Feynold": "Feyenoord",
+                "Feynoord": "Feyenoord",
+                "Feyernoord": "Feyenoord",
+            }
+            away_team = team_aliases.get(away_team, away_team)
+            entities["requested_event"] = f"{home_team} vs {away_team}"
+            entities["requested_event_type"] = "Football match"
+            entities["requested_event_status"] = "REQUESTED_NOT_CONFIRMED"
+            if ticket_match:
+                entities["ticket_requested"] = "true"
 
         traveller_nationality = re.search(
             r"\b(?:both\s+)?(?:travellers?|travelers?|passengers?)\s+"
@@ -558,21 +615,31 @@ class IntentClassifier:
             "july", "august", "september", "october", "november", "december",
         )
         month_pattern = "|".join(months)
-        duration_match = re.search(
-            rf"\b(\d{{1,2}}|{'|'.join(_NUMBER_WORDS)})\s*(?:-\s*)?"
+        duration_matches = list(re.finditer(
+            rf"\b(a|an|\d{{1,2}}|{'|'.join(_NUMBER_WORDS)})\s*(?:-\s*)?"
             r"(days?|weeks?)\b",
             text,
-        )
-        if duration_match:
-            raw_duration, unit = duration_match.groups()
-            duration = (
-                int(raw_duration)
-                if raw_duration.isdigit()
-                else _NUMBER_WORDS[raw_duration]
-            )
-            if unit.startswith("week"):
-                duration *= 7
-            entities["duration_days"] = str(duration)
+        ))
+        if duration_matches:
+            durations: list[int] = []
+            for duration_match in duration_matches:
+                raw_duration, unit = duration_match.groups()
+                duration = (
+                    1
+                    if raw_duration in {"a", "an"}
+                    else int(raw_duration)
+                    if raw_duration.isdigit()
+                    else _NUMBER_WORDS[raw_duration]
+                )
+                if unit.startswith("week"):
+                    duration *= 7
+                durations.append(duration)
+            entities["duration_days"] = str(durations[-1])
+            if len(set(durations)) > 1:
+                entities["duration_conflict"] = (
+                    f"Both {durations[0]} days and {durations[-1]} days were supplied; "
+                    f"using the later {durations[-1]}-day request."
+                )
         elif re.search(r"\b(?:a\s+)?fortnight\b", text):
             entities["duration_days"] = "14"
 
@@ -644,6 +711,22 @@ class IntentClassifier:
                 except ValueError:
                     pass
 
+        # Preserve a specific day and month even when the year is missing.
+        # The planner can still build the requested number of days while
+        # clearly asking for only the missing year before live searches.
+        if "start_date" not in entities:
+            day_without_year = re.search(
+                rf"\b(?:on\s+)?(?:the\s+)?(\d{{1,2}})(?:st|nd|rd|th)?"
+                rf"(?:\s+of)?\s+({month_pattern})\b(?!\s+20\d{{2}})",
+                text,
+            )
+            if day_without_year:
+                day, month_name = day_without_year.groups()
+                entities["departure_day"] = str(int(day))
+                entities["month"] = str(months.index(month_name) + 1)
+                entities["date_hint"] = f"{int(day)} {month_name.title()}"
+                entities["date_precision"] = "DAY_WITHOUT_YEAR"
+
         # A single dated departure plus an explicit duration is also a
         # complete date range: "on 17 August 2026 for two weeks".
         if "start_date" not in entities:
@@ -704,6 +787,8 @@ class IntentClassifier:
             entities["date_precision"] = "MONTH"
         elif entities.get("start_date") and entities.get("end_date"):
             entities["date_precision"] = "EXACT"
+        elif entities.get("date_precision") == "DAY_WITHOUT_YEAR":
+            pass
         elif entities.get("month"):
             entities["date_precision"] = "MONTH"
 

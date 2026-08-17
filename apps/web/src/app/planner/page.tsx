@@ -139,6 +139,7 @@ function TripBriefCard({ itinerary }: { itinerary: TripItinerary }) {
           ["Duration", `${brief.duration_days} days`],
           ["Travel period", brief.travel_period],
           ["Travellers", travellers],
+          ["Hotel arrangement", brief.accommodation_preferences?.length ? brief.accommodation_preferences.join(", ") : "Not supplied"],
           ["Interests", brief.interests.length ? brief.interests.join(", ") : "Not supplied"],
           ["Special occasion", occasion],
           ["Separate arrival", companion],
@@ -149,6 +150,11 @@ function TripBriefCard({ itinerary }: { itinerary: TripItinerary }) {
           </div>
         ))}
       </dl>
+      {brief.duration_note && (
+        <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+          <span className="font-semibold">Duration check:</span> {brief.duration_note}
+        </p>
+      )}
     </SectionCard>
   );
 }
@@ -180,6 +186,32 @@ function RequestedStayPlanCard({ itinerary }: { itinerary: TripItinerary }) {
       <p className="mt-4 text-xs leading-5 text-amber-700">
         These are your requested stays. Tralvana has not yet confirmed a room, rate, or booking.
       </p>
+    </SectionCard>
+  );
+}
+
+function RequestedEventsCard({ itinerary }: { itinerary: TripItinerary }) {
+  const events = itinerary.trip_brief.requested_events || [];
+  if (!events.length) return null;
+
+  return (
+    <SectionCard title="Events You Asked For">
+      <div className="grid gap-3 md:grid-cols-2">
+        {events.map((event) => (
+          <div key={event.name} className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-indigo-600">
+              Requested · Not yet confirmed
+            </p>
+            <p className="mt-2 font-semibold text-slate-950">{event.name}</p>
+            <p className="mt-1 text-sm text-slate-600">{event.type}</p>
+            <p className="mt-2 text-sm text-slate-800">
+              {event.ticket_requested
+                ? "Ticket requested — official fixture date, ticket quantity and availability still need checking."
+                : "Official fixture date and availability still need checking."}
+            </p>
+          </div>
+        ))}
+      </div>
     </SectionCard>
   );
 }
@@ -376,6 +408,7 @@ function ItineraryView({
               : "These are planning ideas, not confirmed dated listings."}
           </p>
         </div>
+        <RequestedEventsCard itinerary={itinerary} />
         {itinerary.event_recommendations.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {itinerary.event_recommendations.map((event) => (

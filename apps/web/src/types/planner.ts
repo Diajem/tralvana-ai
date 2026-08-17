@@ -36,8 +36,10 @@ export interface TripBrief {
   end_date: string | null;
   month: number | null;
   year: number | null;
+  departure_day: number | null;
   date_precision: string;
   travel_period: string;
+  duration_note: string | null;
   travellers: {
     adults: number;
     children: number;
@@ -50,6 +52,8 @@ export interface TripBrief {
   };
   nationality: string | null;
   interests: string[];
+  accommodation_preferences: string[];
+  requested_events: RequestedEvent[];
   stay_plan: StayPlanSegment[];
   special_occasion: {
     type: string;
@@ -63,6 +67,13 @@ export interface TripBrief {
     departure_date: string | null;
     meeting_destination: string | null;
   } | null;
+}
+
+export interface RequestedEvent {
+  name: string;
+  type: string;
+  ticket_requested: boolean;
+  status: "REQUESTED_NOT_CONFIRMED";
 }
 
 export interface StayPlanSegment {
