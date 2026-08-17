@@ -50,6 +50,7 @@ def test_render_blueprint_uses_dedicated_app_domain_and_safe_provider_modes():
     assert api_environment["TRALVANA_PROVIDER_ENVIRONMENT"] == "MOCK"
     assert api_environment["TRALVANA_FLIGHT_PROVIDER_MODE"] == "MOCK"
     assert api_environment["TRALVANA_ACCOMMODATION_PROVIDER_MODE"] == "MOCK"
+    assert api_environment["TRALVANA_EVENT_PROVIDER_MODE"] == "MOCK"
     assert api_environment["TRALVANA_AUTH_MODE"] == "CLERK"
     assert api_environment["CLERK_AUTHORIZED_PARTIES"] == "https://app.tralvana.com"
     assert api_environment["CORS_ORIGINS"] == (
