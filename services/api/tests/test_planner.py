@@ -428,7 +428,25 @@ def test_amsterdam_friends_request_preserves_party_hotel_match_and_15_days(clien
         "Day 3: Ajax vs Feyenoord fixture check"
     )
     assert "requested, not confirmed" in itinerary["daily_outline"][2]["notes"]
-    assert itinerary["daily_outline"][3]["title"] == "Day 4: Amsterdam highlights"
+    assert itinerary["daily_outline"][3]["title"] == (
+        "Day 4: Canal belt & Rijksmuseum"
+    )
+    assert itinerary["daily_outline"][4]["title"] == (
+        "Day 5: Van Gogh & Museumplein"
+    )
+    assert itinerary["daily_outline"][5]["title"] == (
+        "Day 6: Anne Frank House & Jordaan"
+    )
+    assert itinerary["daily_outline"][9]["title"] == (
+        "Day 10: Zaanse Schans day trip"
+    )
+    assert itinerary["daily_outline"][10]["title"] == (
+        "Day 11: Haarlem day trip"
+    )
+    assert itinerary["daily_outline"][13]["title"] == (
+        "Day 14: Final priorities & shopping"
+    )
+    assert len({day["theme"] for day in itinerary["daily_outline"]}) == 15
     assert all(
         "One hotel for all 3 travellers" in day["accommodation"]
         for day in itinerary["daily_outline"]
