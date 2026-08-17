@@ -167,7 +167,7 @@ def test_additional_details_rebuild_an_existing_itinerary(client):
     second = client.post("/planner/plan", json={
         "message": (
             "We are British passport holders. Our total budget is £2,500 and "
-            "we want a child-friendly hotel near the city centre."
+            "we want a child-friendly hotel near the city centre with a quiet room."
         ),
         "conversation_id": first_body["conversation_id"],
     })
@@ -180,6 +180,7 @@ def test_additional_details_rebuild_an_existing_itinerary(client):
     assert itinerary["trip_brief"]["accommodation_preferences"] == [
         "Child-friendly hotel",
         "Near Dublin city centre",
+        "Quiet room",
     ]
 
 
