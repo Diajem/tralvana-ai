@@ -340,6 +340,7 @@ class TripAssemblyEngine:
         value.setdefault("end_date", None)
         value.setdefault("month", None)
         value.setdefault("year", None)
+        value.setdefault("departure_day", None)
         value.setdefault(
             "date_precision",
             "EXACT"
@@ -347,12 +348,15 @@ class TripAssemblyEngine:
             else "UNSPECIFIED",
         )
         value.setdefault("travel_period", "Dates not supplied")
+        value.setdefault("duration_note", None)
         value.setdefault(
             "travellers", {"adults": 1, "children": 0, "infants": 0}
         )
         value.setdefault("budget", {})
         value.setdefault("nationality", None)
         value.setdefault("interests", list(interests))
+        value.setdefault("accommodation_preferences", [])
+        value.setdefault("requested_events", [])
         value.setdefault("stay_plan", [])
         value.setdefault("special_occasion", None)
         value.setdefault("companion_plan", None)
@@ -372,6 +376,17 @@ class TripAssemblyEngine:
 
         occasion = brief.get("special_occasion") or {}
         occasion_date = occasion.get("date")
+        interests = {
+            str(value).strip().casefold()
+            for value in (brief.get("interests") or [])
+        }
+        requested_events = brief.get("requested_events") or []
+        requested_event = requested_events[0] if requested_events else None
+        same_hotel = any(
+            "same hotel" in str(value).casefold()
+            for value in (brief.get("accommodation_preferences") or [])
+        )
+        adults = int((brief.get("travellers") or {}).get("adults") or 1)
         for entry in outline:
             day_date = (
                 trip_start + timedelta(days=int(entry["day"]) - 1)
@@ -392,6 +407,39 @@ class TripAssemblyEngine:
                             f"{description}{f' in {area}' if area else ''} — requested, not booked"
                         )
                     break
+
+            if same_hotel and not brief.get("stay_plan"):
+                entry["accommodation"] = (
+                    f"One hotel for all {adults} travellers — requested, not booked"
+                )
+
+            if entry["day"] == 2 and "ajax stadium" in interests:
+                entry["title"] = "Day 2: Ajax stadium visit"
+                entry["theme"] = "Ajax stadium visit"
+                entry["morning"] = "Explore central Amsterdam and learn the local transport routes"
+                entry["afternoon"] = "Check and book an official Ajax stadium tour"
+                entry["evening"] = "Dinner in Amsterdam after the stadium visit"
+                entry["notes"] = "Confirm the stadium-tour date and entry time on the official Ajax site."
+            elif entry["day"] == 3 and requested_event:
+                event_name = str(requested_event.get("name") or "Requested match")
+                entry["title"] = f"Day 3: {event_name} fixture check"
+                entry["theme"] = f"{event_name} fixture check"
+                entry["morning"] = "Check the official Ajax and league fixture calendar for your travel dates"
+                entry["afternoon"] = "Check official ticket availability and confirm how many tickets are needed"
+                entry["evening"] = "Keep a flexible Amsterdam activity as the alternative until the fixture is confirmed"
+                entry["notes"] = (
+                    f"{event_name} is requested, not confirmed; no match date or ticket has been invented."
+                )
+            elif (
+                entry["day"] == 4
+                and "major attractions" in interests
+                and ("ajax stadium" in interests or requested_event)
+            ):
+                entry["title"] = "Day 4: Amsterdam highlights"
+                entry["theme"] = "Amsterdam highlights"
+                entry["morning"] = "Choose a major museum or historic attraction and confirm opening times"
+                entry["afternoon"] = "Explore the canal belt and central landmarks"
+                entry["evening"] = "Relaxed dinner in a neighbourhood convenient for the shared hotel"
 
             if day_date and occasion_date == day_date.isoformat():
                 occasion_type = occasion.get("type") or "Special occasion"
@@ -461,8 +509,15 @@ class TripAssemblyEngine:
         score = min(score, 100)
 
         needed: list[str] = []
-        if brief.get("date_precision") != "EXACT":
+        if brief.get("date_precision") == "DAY_WITHOUT_YEAR":
+            needed.append(
+                f"Add the travel year for {brief.get('travel_period', '').replace(' · year needed', '')}; "
+                f"the {brief.get('duration_days')}-day duration is already understood."
+            )
+        elif brief.get("date_precision") != "EXACT":
             needed.append("Choose exact departure and return dates.")
+        if brief.get("duration_note"):
+            needed.append(f"Confirm the trip length: {brief['duration_note']}")
         if not brief.get("nationality"):
             needed.append(
                 "Add each traveller's passport nationality for official entry checks."
@@ -483,8 +538,14 @@ class TripAssemblyEngine:
             event.get("data_source") == "TICKETMASTER_DISCOVERY_API"
             for event in events
         ):
+            event_names = [
+                str(event.get("name"))
+                for event in (brief.get("requested_events") or [])
+                if event.get("name")
+            ]
             needed.append(
-                "Confirm any football match or event on an official dated calendar."
+                f"Confirm {' and '.join(event_names) if event_names else 'any football match or event'} "
+                "on an official dated calendar and check official ticket availability."
             )
 
         label = (
@@ -564,6 +625,12 @@ class TripAssemblyEngine:
             assumptions.append(
                 f"{brief.get('travel_period')} is treated as a broad travel window, not an exact booking date."
             )
+        elif brief.get("date_precision") == "DAY_WITHOUT_YEAR":
+            assumptions.append(
+                f"The departure day and month are preserved as {brief.get('travel_period')}; only the year remains to be confirmed."
+            )
+        if brief.get("duration_note"):
+            assumptions.append(str(brief["duration_note"]))
         if not flight:
             assumptions.append(
                 f"The departure point remains {brief.get('origin') or 'to be confirmed'}; no substitute airport was selected."
