@@ -31,12 +31,6 @@ services:
         value: MOCK
       - key: TRALVANA_ACCOMMODATION_PROVIDER_MODE
         value: MOCK
-      - key: TICKETMASTER_API_KEY
-        sync: false
-      - key: TRALVANA_EVENT_PROVIDER_MODE
-        value: LIVE
-      - key: TRALVANA_EVENT_MOCK_FALLBACK_ENABLED
-        value: "false"
 
   - type: web
     name: tralvana-web
