@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 from typing import Any
 
 from ai.concierge.conversation_session import ConversationSession
@@ -53,7 +54,7 @@ class ConversationEngine:
         session.add_message("user", message)
 
         classified = self._continue_plan_if_needed(
-            session, self._classifier.classify(message)
+            session, self._classifier.classify(message), message
         )
         classified = self._add_active_trip_context(session, classified, message)
         profile = self._fetch_profile(session.traveller_id)
@@ -280,6 +281,7 @@ class ConversationEngine:
         self,
         session: ConversationSession,
         classified: ClassifiedIntent,
+        message: str,
     ) -> ClassifiedIntent:
         """Merge facts across turns while a trip plan is awaiting answers.
 
@@ -288,15 +290,29 @@ class ConversationEngine:
         conversation. In an unfinished PLAN_TRIP session, however, it is an
         answer to the planner's pending question and must retain that intent.
         """
+        clarification_entities = self._clarification_entities(
+            session, classified, message
+        )
         continuing_plan = (
             session.active_goal == Intent.PLAN_TRIP.value
-            and bool(session.pending_questions)
-            and session.last_recommendation is None
+            and (
+                bool(session.pending_questions)
+                or (
+                    classified.intent
+                    in {Intent.GENERAL_CONVERSATION, Intent.BUDGET_ADVICE}
+                    and bool(clarification_entities)
+                )
+            )
         )
         if classified.intent != Intent.PLAN_TRIP and not continuing_plan:
             return classified
 
-        merged = {**session.planning_entities, **classified.entities}
+        merged = {
+            **session.planning_entities,
+            **classified.entities,
+            **clarification_entities,
+        }
+        self._resolve_explicit_follow_up_date(merged)
         session.planning_entities = merged
         return ClassifiedIntent(
             intent=Intent.PLAN_TRIP,
@@ -307,6 +323,59 @@ class ConversationEngine:
             ),
             entities=merged,
         )
+
+    def _clarification_entities(
+        self,
+        session: ConversationSession,
+        classified: ClassifiedIntent,
+        message: str,
+    ) -> dict[str, str]:
+        """Interpret terse replies against the question the active plan asked.
+
+        The normal classifier deliberately avoids treating an unlabelled place
+        name as a destination.  Inside a plan that just asked for a city or
+        resort area, however, "Ocho Rios" is no longer ambiguous.
+        """
+        entities = dict(classified.entities)
+        lowered_questions = " ".join(session.pending_questions).casefold()
+        answer = message.strip(" .,!?")
+        if (
+            "which city, town, or resort area" in lowered_questions
+            and answer
+            and len(answer.split()) <= 6
+            and not entities.get("local_areas")
+        ):
+            entities["local_areas"] = answer.title()
+        return entities
+
+    def _resolve_explicit_follow_up_date(self, entities: dict[str, str]) -> None:
+        """Apply a supplied year to the preserved day/month/duration.
+
+        This also lets a traveller correct a year the planner previously
+        inferred, without leaving stale start/end dates behind.
+        """
+        if entities.get("year_explicit") != "true":
+            return
+        if not all(
+            entities.get(key)
+            for key in ("travel_year", "month", "departure_day", "duration_days")
+        ):
+            return
+        try:
+            start = date(
+                int(entities["travel_year"]),
+                int(entities["month"]),
+                int(entities["departure_day"]),
+            )
+            end = start + timedelta(days=int(entities["duration_days"]))
+        except (TypeError, ValueError):
+            return
+        entities["start_date"] = start.isoformat()
+        entities["end_date"] = end.isoformat()
+        entities["date_precision"] = "EXACT"
+        entities["date_hint"] = start.strftime("%-d %B %Y")
+        entities.pop("date_year_inferred", None)
+        entities.pop("date_inference_note", None)
 
     def _add_active_trip_context(
         self,
