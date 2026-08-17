@@ -152,6 +152,12 @@ def _build_trip_brief(
     )
     if start_date and end_date:
         travel_period = f"{start_date} to {end_date}"
+    elif entities.get("departure_day") and month:
+        month_name = calendar.month_name[int(month)]
+        day_month = f"{int(entities['departure_day'])} {month_name}"
+        travel_period = (
+            f"{day_month} {year}" if year else f"{day_month} · year needed"
+        )
     elif month:
         month_name = calendar.month_name[int(month)]
         travel_period = f"{month_name} {year}".strip() if year else month_name
@@ -210,6 +216,22 @@ def _build_trip_brief(
             "meeting_destination": destination,
         }
 
+    requested_events: list[dict[str, Any]] = []
+    if entities.get("requested_event"):
+        requested_events.append({
+            "name": entities["requested_event"],
+            "type": entities.get("requested_event_type") or "Event",
+            "ticket_requested": entities.get("ticket_requested") == "true",
+            "status": entities.get("requested_event_status")
+            or "REQUESTED_NOT_CONFIRMED",
+        })
+
+    accommodation_preferences = [
+        value
+        for value in (entities.get("accommodation_preference"),)
+        if value
+    ]
+
     return {
         "origin": entities.get("origin") or trip.get("origin") or "",
         "departure_options": departure_options,
@@ -220,8 +242,14 @@ def _build_trip_brief(
         "end_date": end_date,
         "month": int(month) if month else None,
         "year": int(year) if year else None,
+        "departure_day": (
+            int(entities["departure_day"])
+            if entities.get("departure_day")
+            else None
+        ),
         "date_precision": date_precision,
         "travel_period": travel_period,
+        "duration_note": entities.get("duration_conflict"),
         "travellers": {
             "adults": int(travellers.get("adults") or 1),
             "children": int(travellers.get("children") or 0),
@@ -230,6 +258,8 @@ def _build_trip_brief(
         "budget": budget,
         "nationality": entities.get("nationality"),
         "interests": list(interests),
+        "accommodation_preferences": accommodation_preferences,
+        "requested_events": requested_events,
         "stay_plan": stay_plan,
         "special_occasion": special_occasion,
         "companion_plan": companion_plan,
