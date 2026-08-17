@@ -29,6 +29,7 @@ export interface TripItinerary {
 export interface TripBrief {
   origin: string;
   departure_options: string[];
+  airport_preference: string | null;
   destination: string;
   local_areas: string[];
   duration_days: number;
@@ -40,6 +41,7 @@ export interface TripBrief {
   date_precision: string;
   travel_period: string;
   duration_note: string | null;
+  date_inference_note: string | null;
   travellers: {
     adults: number;
     children: number;
@@ -54,6 +56,7 @@ export interface TripBrief {
   interests: string[];
   accommodation_preferences: string[];
   requested_events: RequestedEvent[];
+  requested_activities: string[];
   stay_plan: StayPlanSegment[];
   special_occasion: {
     type: string;
