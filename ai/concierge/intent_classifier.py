@@ -321,12 +321,40 @@ class IntentClassifier:
                     else _NUMBER_WORDS[raw_friends]
                 )
                 entities["adults"] = str(friend_count + 1)
+        if "adults" not in entities:
+            reverse_friends_match = re.search(
+                rf"\b(\d+|{'|'.join(_NUMBER_WORDS)})\s+friends?\s+and\s+(?:me|i)\b",
+                text,
+            )
+            if reverse_friends_match:
+                raw_friends = reverse_friends_match.group(1)
+                friend_count = (
+                    int(raw_friends)
+                    if raw_friends.isdigit()
+                    else _NUMBER_WORDS[raw_friends]
+                )
+                entities["adults"] = str(friend_count + 1)
         if "adults" not in entities and (
             "with my partner" in text
             or "with my partners" in text
             or re.search(r"\bwe (?:are|'re) both\b", text)
+            or re.search(
+                r"\b(?:my\s+)?(?:wife|husband|partner|girlfriend|boyfriend)\s+and\s+i\b",
+                text,
+            )
+            or re.search(
+                r"\bi\s+and\s+my\s+(?:wife|husband|partner|girlfriend|boyfriend)\b",
+                text,
+            )
+            or re.search(r"\b(?:as|for)\s+a\s+couple\b|\bwe (?:are|'re) a couple\b", text)
         ):
             entities["adults"] = "2"
+        if "adults" not in entities and re.search(
+            r"\b(?:travelling|traveling|going)\s+(?:alone|solo)\b"
+            r"|\bsolo\s+(?:trip|holiday)\b|\bjust\s+me\b",
+            text,
+        ):
+            entities["adults"] = "1"
 
         children_match = re.search(
             rf"\b(\d+|{'|'.join(_NUMBER_WORDS)})\s+"
@@ -454,6 +482,33 @@ class IntentClassifier:
         ):
             entities["accommodation_location_preference"] = "Near Dublin city centre"
 
+        additional_accommodation_preferences: list[str] = []
+        accommodation_patterns = (
+            ("Quiet room", r"\bquiet\s+(?:hotel|room)\b"),
+            ("Boutique hotel", r"\bboutique\s+hotel\b"),
+            ("Luxury hotel", r"\bluxury\s+hotel\b"),
+            ("Beachfront hotel", r"\b(?:beachfront|beach-front)\s+hotel\b"),
+            (
+                "Wheelchair-accessible accommodation",
+                r"\b(?:wheelchair[- ]accessible|step[- ]free|accessible)\s+"
+                r"(?:hotel|room|accommodation)\b",
+            ),
+            ("Hotel with a pool", r"\bhotel\s+with\s+(?:a\s+)?pool\b"),
+            (
+                "Apartment accommodation",
+                r"\b(?:stay\s+in\s+|book\s+)?(?:an?\s+)?apartment\b",
+            ),
+            ("Breakfast included", r"\bbreakfast\s+included\b"),
+            ("Connecting rooms", r"\bconnecting\s+rooms?\b"),
+        )
+        for preference, pattern in accommodation_patterns:
+            if re.search(pattern, text):
+                additional_accommodation_preferences.append(preference)
+        if additional_accommodation_preferences:
+            entities["additional_accommodation_preferences"] = ",".join(
+                additional_accommodation_preferences
+            )
+
         if re.search(r"\bany\s+(?:london\s+)?airport\b", text):
             entities["airport_preference"] = (
                 "Any London airport; prioritise a reasonable price"
@@ -475,6 +530,32 @@ class IntentClassifier:
             or "list other attractions" in text
         ):
             requested_activities.append("Additional family-friendly Dublin attractions")
+
+        generic_activity_pattern = re.compile(
+            r"\b(?:visit|see|tour|explore)\s+(?:the\s+)?"
+            r"([a-z0-9][a-z0-9 &'().-]{2,70}?)"
+            r"(?=\s+(?:and\s+(?:also\s+)?(?:visit|see|tour|explore)\b|"
+            r"for\s+(?:a|one)\s+day\b)|[,;.!?]|$)"
+        )
+        activity_aliases = {
+            "gunness factory": "Guinness Storehouse",
+            "guinness factory": "Guinness Storehouse",
+            "ajax stadium": "Ajax stadium",
+            "wicklow mountains": "Wicklow Mountains day trip",
+        }
+        for activity_match in generic_activity_pattern.finditer(text):
+            candidate = activity_match.group(1).strip(" ,")
+            if any(
+                generic in candidate
+                for generic in (
+                    "tourist attraction", "various attraction", "other attraction",
+                    "places of interest", "local area", "city centre", "city center",
+                )
+            ):
+                continue
+            canonical_activity = activity_aliases.get(candidate, candidate.title())
+            if canonical_activity not in requested_activities:
+                requested_activities.append(canonical_activity)
         if requested_activities:
             entities["requested_activities"] = ",".join(requested_activities)
 
@@ -658,6 +739,15 @@ class IntentClassifier:
             local_areas.append("Ocho Rios")
         if local_areas:
             entities["local_areas"] = ",".join(local_areas)
+
+        if (
+            entities.get("accommodation_location_preference")
+            == "Near Dublin city centre"
+            and entities.get("destination")
+        ):
+            entities["accommodation_location_preference"] = (
+                f"Near {entities['destination']} city centre"
+            )
 
         if "nationality" not in entities:
             nationality_statement = re.search(
