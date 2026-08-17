@@ -134,6 +134,7 @@ function TripBriefCard({ itinerary }: { itinerary: TripItinerary }) {
       <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-3">
         {[
           ["Fly from", departure],
+          ["Airport preference", brief.airport_preference || "Not supplied"],
           ["To", brief.destination],
           ["Stay areas", brief.local_areas?.length ? brief.local_areas.join(", ") : "Not supplied"],
           ["Duration", `${brief.duration_days} days`],
@@ -153,6 +154,11 @@ function TripBriefCard({ itinerary }: { itinerary: TripItinerary }) {
       {brief.duration_note && (
         <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
           <span className="font-semibold">Duration check:</span> {brief.duration_note}
+        </p>
+      )}
+      {brief.date_inference_note && (
+        <p className="mt-4 rounded-lg bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-800">
+          <span className="font-semibold">Date assumed:</span> {brief.date_inference_note}
         </p>
       )}
     </SectionCard>
@@ -208,6 +214,29 @@ function RequestedEventsCard({ itinerary }: { itinerary: TripItinerary }) {
               {event.ticket_requested
                 ? "Ticket requested — official fixture date, ticket quantity and availability still need checking."
                 : "Official fixture date and availability still need checking."}
+            </p>
+          </div>
+        ))}
+      </div>
+    </SectionCard>
+  );
+}
+
+function RequestedActivitiesCard({ itinerary }: { itinerary: TripItinerary }) {
+  const activities = itinerary.trip_brief.requested_activities || [];
+  if (!activities.length) return null;
+
+  return (
+    <SectionCard title="Activities You Asked For">
+      <div className="grid gap-3 sm:grid-cols-2">
+        {activities.map((activity) => (
+          <div key={activity} className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-indigo-600">
+              Included in your plan
+            </p>
+            <p className="mt-2 font-semibold text-slate-950">{activity}</p>
+            <p className="mt-1 text-xs leading-5 text-slate-600">
+              Availability, opening times and tickets must be checked for the confirmed travel year.
             </p>
           </div>
         ))}
@@ -409,6 +438,7 @@ function ItineraryView({
           </p>
         </div>
         <RequestedEventsCard itinerary={itinerary} />
+        <RequestedActivitiesCard itinerary={itinerary} />
         {itinerary.event_recommendations.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {itinerary.event_recommendations.map((event) => (

@@ -95,18 +95,22 @@ def _assemble_itinerary(session: Any):
         except Exception:
             trip = None
 
+    entities = dict(getattr(session, "planning_entities", {}) or {})
     unified = session.last_recommendation
     destination = unified.destination
     duration_days = (
-        (trip or {}).get("duration_days")
+        entities.get("duration_days")
+        or (trip or {}).get("duration_days")
         or (goal or {}).get("timeframe", {}).get("duration_days")
         or 7
     )
     goal_type = (goal or {}).get("goal_type", "GENERAL_TRAVEL")
     budget_style = (trip or {}).get("travel_style") or "balanced"
-    interests = (goal or {}).get("interests", [])
+    interests = (
+        [value for value in entities.get("interests", "").split(",") if value]
+        or (goal or {}).get("interests", [])
+    )
 
-    entities = dict(getattr(session, "planning_entities", {}) or {})
     return trip_assembly_engine.assemble(
         unified,
         destination=destination,
@@ -137,7 +141,12 @@ def _build_trip_brief(
     goal = goal or {}
     trip = trip or {}
     timeframe = goal.get("timeframe", {})
-    travellers = trip.get("travellers") or goal.get("travellers") or {}
+    stored_travellers = trip.get("travellers") or goal.get("travellers") or {}
+    travellers = {
+        "adults": entities.get("adults") or stored_travellers.get("adults") or 1,
+        "children": entities.get("children") or stored_travellers.get("children") or 0,
+        "infants": entities.get("infants") or stored_travellers.get("infants") or 0,
+    }
     budget = goal.get("budget") or trip.get("budget") or {}
     start_date = entities.get("start_date") or timeframe.get("earliest")
     end_date = entities.get("end_date") or timeframe.get("latest")
@@ -228,13 +237,22 @@ def _build_trip_brief(
 
     accommodation_preferences = [
         value
-        for value in (entities.get("accommodation_preference"),)
+        for value in (
+            entities.get("accommodation_preference"),
+            entities.get("accommodation_location_preference"),
+        )
+        if value
+    ]
+    requested_activities = [
+        value
+        for value in entities.get("requested_activities", "").split(",")
         if value
     ]
 
     return {
         "origin": entities.get("origin") or trip.get("origin") or "",
         "departure_options": departure_options,
+        "airport_preference": entities.get("airport_preference"),
         "destination": destination or trip.get("destination") or "",
         "local_areas": local_areas,
         "duration_days": int(duration_days),
@@ -250,6 +268,7 @@ def _build_trip_brief(
         "date_precision": date_precision,
         "travel_period": travel_period,
         "duration_note": entities.get("duration_conflict"),
+        "date_inference_note": entities.get("date_inference_note"),
         "travellers": {
             "adults": int(travellers.get("adults") or 1),
             "children": int(travellers.get("children") or 0),
@@ -260,6 +279,7 @@ def _build_trip_brief(
         "interests": list(interests),
         "accommodation_preferences": accommodation_preferences,
         "requested_events": requested_events,
+        "requested_activities": requested_activities,
         "stay_plan": stay_plan,
         "special_occasion": special_occasion,
         "companion_plan": companion_plan,

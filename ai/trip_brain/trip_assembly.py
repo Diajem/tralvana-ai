@@ -122,6 +122,44 @@ _AMSTERDAM_DAY_PLANS: dict[int, tuple[str, str, str, str, str]] = {
     ),
 }
 
+_DUBLIN_FAMILY_DAY_PLANS: dict[int, tuple[str, str, str, str, str]] = {
+    1: (
+        "Arrival & easy city-centre orientation",
+        "Travel from the selected London airport and transfer to the requested child-friendly hotel near Dublin city centre",
+        "Settle in, then take a gentle walk around St Stephen's Green and Grafton Street",
+        "Choose an early family dinner near Temple Bar, away from the busiest late-night venues",
+        "Flight, transfer, hotel and restaurant availability still require a dated live search.",
+    ),
+    2: (
+        "Hop-on hop-off Dublin & Guinness Storehouse",
+        "Use a confirmed family hop-on hop-off route to orient around Dublin's main landmarks",
+        "Visit the Guinness Storehouse with timed entry if it suits the children's ages and the family's interests",
+        "Relaxed dinner near the city centre",
+        "Confirm the tour route, child policy, opening hours and timed-entry tickets officially.",
+    ),
+    3: (
+        "Dublin family highlights",
+        "Choose Trinity College and the Book of Kells or Dublin Castle, subject to current access",
+        "Visit a family-friendly option such as EPIC, Dublinia, Phoenix Park or Dublin Zoo",
+        "Family meal around Temple Bar or another convenient central neighbourhood",
+        "These are curated choices; select and reserve the family's priorities after checking current hours and prices.",
+    ),
+    4: (
+        "Wicklow Mountains day trip",
+        "Depart on a confirmed family-suitable guided tour or pre-arranged private transport",
+        "Explore selected Wicklow Mountains viewpoints and stops at a pace suitable for both children",
+        "Return to Dublin for a quiet evening",
+        "Check weather, walking difficulty, child-seat requirements, pickup point and operator availability before booking.",
+    ),
+    5: (
+        "Final Dublin stop & departure",
+        "Choose one short remaining attraction, park visit or souvenir stop near the hotel",
+        "Collect luggage and transfer to the selected London-bound airport service",
+        "Return journey to London",
+        "Keep the final activity close to the hotel and allow enough time for airport check-in.",
+    ),
+}
+
 
 @dataclass
 class GroundingNotice:
@@ -414,6 +452,7 @@ class TripAssemblyEngine:
         value = dict(brief or {})
         value.setdefault("origin", "")
         value.setdefault("departure_options", [])
+        value.setdefault("airport_preference", None)
         value.setdefault("destination", destination)
         value.setdefault("local_areas", [])
         value.setdefault("duration_days", max(int(duration_days or 1), 1))
@@ -430,6 +469,7 @@ class TripAssemblyEngine:
         )
         value.setdefault("travel_period", "Dates not supplied")
         value.setdefault("duration_note", None)
+        value.setdefault("date_inference_note", None)
         value.setdefault(
             "travellers", {"adults": 1, "children": 0, "infants": 0}
         )
@@ -438,6 +478,7 @@ class TripAssemblyEngine:
         value.setdefault("interests", list(interests))
         value.setdefault("accommodation_preferences", [])
         value.setdefault("requested_events", [])
+        value.setdefault("requested_activities", [])
         value.setdefault("stay_plan", [])
         value.setdefault("special_occasion", None)
         value.setdefault("companion_plan", None)
@@ -469,6 +510,13 @@ class TripAssemblyEngine:
         )
         adults = int((brief.get("travellers") or {}).get("adults") or 1)
         is_amsterdam = str(brief.get("destination") or "").casefold() == "amsterdam"
+        is_dublin_family = (
+            str(brief.get("destination") or "").casefold() == "dublin"
+            and int((brief.get("travellers") or {}).get("children") or 0) > 0
+        )
+        accommodation_preferences = [
+            str(value) for value in (brief.get("accommodation_preferences") or [])
+        ]
         for entry in outline:
             day_date = (
                 trip_start + timedelta(days=int(entry["day"]) - 1)
@@ -493,6 +541,10 @@ class TripAssemblyEngine:
             if same_hotel and not brief.get("stay_plan"):
                 entry["accommodation"] = (
                     f"One hotel for all {adults} travellers — requested, not booked"
+                )
+            elif accommodation_preferences and not brief.get("stay_plan"):
+                entry["accommodation"] = (
+                    ", ".join(accommodation_preferences) + " — requested, not booked"
                 )
 
             if entry["day"] == 2 and "ajax stadium" in interests:
@@ -525,6 +577,17 @@ class TripAssemblyEngine:
 
             if is_amsterdam and entry["day"] in _AMSTERDAM_DAY_PLANS:
                 title, morning, afternoon, evening, note = _AMSTERDAM_DAY_PLANS[
+                    int(entry["day"])
+                ]
+                entry["title"] = f"Day {entry['day']}: {title}"
+                entry["theme"] = title
+                entry["morning"] = morning
+                entry["afternoon"] = afternoon
+                entry["evening"] = evening
+                entry["notes"] = note
+
+            if is_dublin_family and entry["day"] in _DUBLIN_FAMILY_DAY_PLANS:
+                title, morning, afternoon, evening, note = _DUBLIN_FAMILY_DAY_PLANS[
                     int(entry["day"])
                 ]
                 entry["title"] = f"Day {entry['day']}: {title}"
@@ -724,6 +787,8 @@ class TripAssemblyEngine:
             )
         if brief.get("duration_note"):
             assumptions.append(str(brief["duration_note"]))
+        if brief.get("date_inference_note"):
+            assumptions.append(str(brief["date_inference_note"]))
         if not flight:
             assumptions.append(
                 f"The departure point remains {brief.get('origin') or 'to be confirmed'}; no substitute airport was selected."
