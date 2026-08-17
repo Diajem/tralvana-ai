@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 
 from ai.concierge.intent_classifier import Intent, IntentClassifier
@@ -87,7 +89,13 @@ class TestIntentClassification:
         assert result.entities["duration_days"] == "15"
         assert result.entities["departure_day"] == "10"
         assert result.entities["date_hint"] == "10 August"
-        assert result.entities["date_precision"] == "DAY_WITHOUT_YEAR"
+        inferred_year = datetime.now().year
+        assert result.entities["start_date"] == f"{inferred_year}-08-10"
+        assert result.entities["end_date"] == f"{inferred_year}-08-25"
+        assert result.entities["date_precision"] == "EXACT"
+        assert result.entities["date_inference_note"] == (
+            f"Year not supplied; using {inferred_year}."
+        )
         assert result.entities["shared_hotel"] == "true"
         assert result.entities["requested_event"] == "Ajax vs Feyenoord"
         assert result.entities["ticket_requested"] == "true"
@@ -403,6 +411,53 @@ class TestEntityExtraction:
             f"Plan a trip to Dublin in August for {phrase}"
         )
         assert result.entities["duration_days"] == expected_days
+
+    def test_extracts_dublin_family_trip_without_confusing_day_trip_duration(
+        self, classifier
+    ):
+        result = classifier.classify(
+            "Plan a 5 days trip to Dublin for a family of 4. A man, a woman and "
+            "two kids, a boy and a girl, from the UK. We would be traveling from "
+            "London so, any airport with the best or reasonable price. Departure "
+            "date would be the 18th of August for 5 days. We would like to stay in "
+            "a children friendly hotel in Dublin area not far from the city center. "
+            "We would like to visit Gunness factory, visit various tourist "
+            "attractions, visit the Wicklow Mountains for a day, go for meals in "
+            "nice restaurants around Temple Bar, list other attractions in Dublin "
+            "and arrange local hop-on hop-off sightseeing in Dublin."
+        )
+
+        assert result.intent == Intent.PLAN_TRIP
+        assert result.entities["origin"] == "London"
+        assert result.entities["destination"] == "Dublin"
+        assert result.entities["party_size"] == "4"
+        assert result.entities["adults"] == "2"
+        assert result.entities["children"] == "2"
+        assert result.entities["duration_days"] == "5"
+        assert "duration_conflict" not in result.entities
+        assert result.entities["departure_day"] == "18"
+        assert result.entities["month"] == "8"
+        inferred_year = datetime.now().year
+        assert result.entities["start_date"] == f"{inferred_year}-08-18"
+        assert result.entities["end_date"] == f"{inferred_year}-08-23"
+        assert result.entities["date_precision"] == "EXACT"
+        assert result.entities["date_inference_note"] == (
+            f"Year not supplied; using {inferred_year}."
+        )
+        assert result.entities["airport_preference"] == (
+            "Any London airport; prioritise a reasonable price"
+        )
+        assert result.entities["accommodation_preference"] == "Child-friendly hotel"
+        assert result.entities["accommodation_location_preference"] == (
+            "Near Dublin city centre"
+        )
+        assert set(result.entities["requested_activities"].split(",")) == {
+            "Guinness Storehouse",
+            "Wicklow Mountains day trip",
+            "Family meal near Temple Bar",
+            "Dublin hop-on hop-off sightseeing tour",
+            "Additional family-friendly Dublin attractions",
+        }
 
     def test_no_destination_when_not_present(self, classifier):
         # "Hello there" has no location markers
