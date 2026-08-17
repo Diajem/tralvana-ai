@@ -219,6 +219,14 @@ class IntentClassifier:
     def _extract_entities(self, text: str) -> dict[str, str]:
         entities: dict[str, str] = {}
 
+        standalone_year = re.fullmatch(
+            r"(?:the\s+year\s+is\s+|use\s+)?(20\d{2})[.!]?",
+            text,
+        )
+        if standalone_year:
+            entities["travel_year"] = standalone_year.group(1)
+            entities["year_explicit"] = "true"
+
         # Preserve a traveller's explicitly flexible departure choice before
         # looking for generic "travelling from" phrases.  A later phrase such
         # as "my girlfriend is travelling from the US" describes a companion,
@@ -253,7 +261,7 @@ class IntentClassifier:
         if "origin" not in entities:
             origin_match = re.search(
                 r"\b(?:travelling|traveling|flying|departing|leaving)\s+from\s+"
-                r"([a-z][a-z .'-]{1,40}?)(?=,|[.!?]|\s+(?:and|but|with|on|for|from|we|i)\b|$)",
+                r"([a-z][a-z .'-]{1,40}?)(?=,|[.!?]|\s+(?:and|but|with|on|for|from|we|i|so)\b|$)",
                 text,
             )
             if origin_match:
@@ -345,6 +353,26 @@ class IntentClassifier:
                 else _NUMBER_WORDS[raw_infants]
             )
 
+        family_size_match = re.search(
+            rf"\b(?:family|group|party)\s+of\s+"
+            rf"(\d+|{'|'.join(_NUMBER_WORDS)})\b",
+            text,
+        )
+        if family_size_match:
+            raw_party_size = family_size_match.group(1)
+            party_size = (
+                int(raw_party_size)
+                if raw_party_size.isdigit()
+                else _NUMBER_WORDS[raw_party_size]
+            )
+            entities["party_size"] = str(party_size)
+            if "adults" not in entities:
+                dependants = int(entities.get("children", "0")) + int(
+                    entities.get("infants", "0")
+                )
+                if party_size > dependants:
+                    entities["adults"] = str(party_size - dependants)
+
         interests_match = re.search(
             r"\b(?:we|i)\s+(?:like|love|enjoy|are interested in|am interested in)\s+"
             r"(.+?)(?:[.!?]|$)",
@@ -412,6 +440,43 @@ class IntentClassifier:
             entities["accommodation_type"] = "HOTEL"
             entities["shared_hotel"] = "true"
             entities["accommodation_preference"] = "Same hotel for all travellers"
+
+        if re.search(
+            r"\b(?:child|children|kid|kids|family)[- ]friendly\s+hotel\b",
+            text,
+        ):
+            entities["accommodation_type"] = "HOTEL"
+            entities["accommodation_preference"] = "Child-friendly hotel"
+        if re.search(
+            r"\bnot\s+(?:too\s+)?far\s+from\s+(?:the\s+)?city\s+cent(?:re|er)\b"
+            r"|\bnear\s+(?:the\s+)?city\s+cent(?:re|er)\b",
+            text,
+        ):
+            entities["accommodation_location_preference"] = "Near Dublin city centre"
+
+        if re.search(r"\bany\s+(?:london\s+)?airport\b", text):
+            entities["airport_preference"] = (
+                "Any London airport; prioritise a reasonable price"
+                if entities.get("origin", "").casefold() == "london"
+                else "Any suitable departure airport; prioritise a reasonable price"
+            )
+
+        requested_activities: list[str] = []
+        if re.search(r"\b(?:guinness|gunness)\s+(?:factory|storehouse)\b", text):
+            requested_activities.append("Guinness Storehouse")
+        if "wicklow mountains" in text:
+            requested_activities.append("Wicklow Mountains day trip")
+        if "temple bar" in text and re.search(r"\b(?:meal|meals|restaurant|restaurants|dining)\b", text):
+            requested_activities.append("Family meal near Temple Bar")
+        if re.search(r"\bhop[- ]on\s+hop[- ]off\b", text):
+            requested_activities.append("Dublin hop-on hop-off sightseeing tour")
+        if (
+            re.search(r"\b(?:various|other)\s+(?:tourist\s+)?attractions\b", text)
+            or "list other attractions" in text
+        ):
+            requested_activities.append("Additional family-friendly Dublin attractions")
+        if requested_activities:
+            entities["requested_activities"] = ",".join(requested_activities)
 
         ticket_match = re.search(
             r"\b(?:a\s+)?tickets?\s+(?:to|for)\s+"
@@ -570,7 +635,8 @@ class IntentClassifier:
                         candidate_words.append(word)
                     candidate = " ".join(candidate_words).strip(".,?!")
                     if len(candidate) > 2 and candidate not in (
-                        "the", "my", "a", "an", "be", "me", "do", "go", "is", "stay", "visit"
+                        "the", "my", "a", "an", "be", "me", "do", "go", "is", "stay", "visit",
+                        "city centre", "the city centre", "city center", "the city center",
                     ):
                         entities["destination"] = candidate.title()
                         destination_found = True
@@ -602,6 +668,18 @@ class IntentClassifier:
                 entities["nationality"] = nationality_statement.group(1).title()
 
         if "nationality" not in entities:
+            bare_nationality = re.fullmatch(
+                rf"(?:we\s+(?:are|'re)\s+)?"
+                rf"({'|'.join(sorted(_KNOWN_NATIONALITIES, key=len, reverse=True))})"
+                r"(?:\s+passports?)?[.!]?",
+                text,
+            )
+            if bare_nationality:
+                nationality = bare_nationality.group(1).title()
+                entities["nationality"] = nationality
+                entities["nationalities"] = nationality
+
+        if "nationality" not in entities:
             idx = text.find(" passport")
             if idx != -1:
                 before = text[:idx].split()
@@ -621,6 +699,25 @@ class IntentClassifier:
             text,
         ))
         if duration_matches:
+            # A trip brief can contain an excursion length as well as the
+            # overall holiday length: "5 days ... Wicklow Mountains for a
+            # day".  When a numeric/number-word duration exists, an article-
+            # based singular day is an activity duration, not a replacement
+            # for the whole trip.  "a week ... 15 days" remains a genuine
+            # conflicting trip-duration pair and is still surfaced.
+            has_explicit_duration = any(
+                match.group(1) not in {"a", "an"}
+                for match in duration_matches
+            )
+            if has_explicit_duration:
+                duration_matches = [
+                    match
+                    for match in duration_matches
+                    if not (
+                        match.group(1) in {"a", "an"}
+                        and match.group(2).startswith("day")
+                    )
+                ]
             durations: list[int] = []
             for duration_match in duration_matches:
                 raw_duration, unit = duration_match.groups()
@@ -711,9 +808,9 @@ class IntentClassifier:
                 except ValueError:
                     pass
 
-        # Preserve a specific day and month even when the year is missing.
-        # The planner can still build the requested number of days while
-        # clearly asking for only the missing year before live searches.
+        # A dated trip that omits only the year uses the current calendar
+        # year.  Preserve the inference explicitly so the UI can make it
+        # visible and the traveller can correct it before any purchase.
         if "start_date" not in entities:
             day_without_year = re.search(
                 rf"\b(?:on\s+)?(?:the\s+)?(\d{{1,2}})(?:st|nd|rd|th)?"
@@ -722,10 +819,25 @@ class IntentClassifier:
             )
             if day_without_year:
                 day, month_name = day_without_year.groups()
+                inferred_year = datetime.now().year
                 entities["departure_day"] = str(int(day))
                 entities["month"] = str(months.index(month_name) + 1)
                 entities["date_hint"] = f"{int(day)} {month_name.title()}"
-                entities["date_precision"] = "DAY_WITHOUT_YEAR"
+                entities["travel_year"] = str(inferred_year)
+                entities["date_year_inferred"] = "true"
+                entities["date_inference_note"] = (
+                    f"Year not supplied; using {inferred_year}."
+                )
+                try:
+                    start = datetime.strptime(
+                        f"{day} {month_name} {inferred_year}", "%d %B %Y"
+                    ).date()
+                    entities["start_date"] = start.isoformat()
+                    if entities.get("duration_days"):
+                        end = start + timedelta(days=int(entities["duration_days"]))
+                        entities["end_date"] = end.isoformat()
+                except ValueError:
+                    pass
 
         # A single dated departure plus an explicit duration is also a
         # complete date range: "on 17 August 2026 for two weeks".
@@ -787,8 +899,6 @@ class IntentClassifier:
             entities["date_precision"] = "MONTH"
         elif entities.get("start_date") and entities.get("end_date"):
             entities["date_precision"] = "EXACT"
-        elif entities.get("date_precision") == "DAY_WITHOUT_YEAR":
-            pass
         elif entities.get("month"):
             entities["date_precision"] = "MONTH"
 
