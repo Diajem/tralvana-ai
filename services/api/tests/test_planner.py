@@ -6,6 +6,8 @@ Brain pipeline unchanged and only adds the Trip Assembly step on top.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 
 def test_full_plan_trip_message_returns_an_assembled_itinerary(client):
     res = client.post("/planner/plan", json={
@@ -125,6 +127,81 @@ def test_plan_trip_accumulates_details_and_completes_across_turns(client):
     assert itinerary["flight_recommendation"] is None
     assert itinerary["accommodation_recommendation"] is None
     assert itinerary["visa_summary"]["nationality"] == "British"
+
+
+def test_city_clarification_reply_completes_country_level_plan(client):
+    first = client.post("/planner/plan", json={
+        "message": (
+            "Plan a 5 day trip to Jamaica from London on 18 August 2026 "
+            "for 2 adults."
+        ),
+    })
+    first_body = first.json()
+    assert first_body["itinerary"] is None
+    assert any(
+        "Which city, town, or resort area in Jamaica" in question
+        for question in first_body["missing_information"]
+    )
+
+    second = client.post("/planner/plan", json={
+        "message": "Ocho Rios",
+        "conversation_id": first_body["conversation_id"],
+    })
+    second_body = second.json()
+    assert second_body["intent"] == "PLAN_TRIP"
+    assert second_body["itinerary"] is not None
+    assert second_body["itinerary"]["trip_brief"]["local_areas"] == ["Ocho Rios"]
+
+
+def test_additional_details_rebuild_an_existing_itinerary(client):
+    first = client.post("/planner/plan", json={
+        "message": (
+            "Plan a 5 day family trip to Dublin from London on 18 August 2026 "
+            "for 2 adults and 2 children."
+        ),
+    })
+    first_body = first.json()
+    assert first_body["itinerary"] is not None
+    assert first_body["itinerary"]["budget_summary"] is None
+
+    second = client.post("/planner/plan", json={
+        "message": (
+            "We are British passport holders. Our total budget is £2,500 and "
+            "we want a child-friendly hotel near the city centre."
+        ),
+        "conversation_id": first_body["conversation_id"],
+    })
+    second_body = second.json()
+    itinerary = second_body["itinerary"]
+    assert second_body["intent"] == "PLAN_TRIP"
+    assert itinerary is not None
+    assert itinerary["trip_brief"]["nationality"] == "British"
+    assert itinerary["budget_summary"]["declared_budget"] == 2500
+    assert itinerary["trip_brief"]["accommodation_preferences"] == [
+        "Child-friendly hotel",
+        "Near Dublin city centre",
+    ]
+
+
+def test_standalone_year_reply_corrects_an_inferred_year(client):
+    first = client.post("/planner/plan", json={
+        "message": (
+            "Plan a 5 day family trip to Dublin from London on 18 August "
+            "for 2 adults and 2 children."
+        ),
+    })
+    first_body = first.json()
+    assert first_body["itinerary"]["trip_brief"]["date_inference_note"] is not None
+
+    second = client.post("/planner/plan", json={
+        "message": "2027",
+        "conversation_id": first_body["conversation_id"],
+    })
+    brief = second.json()["itinerary"]["trip_brief"]
+    assert second.json()["intent"] == "PLAN_TRIP"
+    assert brief["start_date"] == "2027-08-18"
+    assert brief["end_date"] == "2027-08-23"
+    assert brief["date_inference_note"] is None
 
 
 def test_daily_outline_length_matches_trip_duration(client):
@@ -408,8 +485,14 @@ def test_amsterdam_friends_request_preserves_party_hotel_match_and_15_days(clien
     assert brief["travellers"]["adults"] == 3
     assert brief["duration_days"] == 15
     assert brief["departure_day"] == 10
-    assert brief["travel_period"] == "10 August · year needed"
-    assert brief["date_precision"] == "DAY_WITHOUT_YEAR"
+    inferred_year = datetime.now().year
+    assert brief["travel_period"] == (
+        f"{inferred_year}-08-10 to {inferred_year}-08-25"
+    )
+    assert brief["date_precision"] == "EXACT"
+    assert brief["date_inference_note"] == (
+        f"Year not supplied; using {inferred_year}."
+    )
     assert brief["accommodation_preferences"] == [
         "Same hotel for all travellers"
     ]
@@ -452,7 +535,76 @@ def test_amsterdam_friends_request_preserves_party_hotel_match_and_15_days(clien
         for day in itinerary["daily_outline"]
     )
     needed = " ".join(itinerary["booking_readiness"]["items_needed"])
-    assert "Add the travel year for 10 August" in needed
+    assert "Add the travel year" not in needed
     assert "Ajax vs Feyenoord" in needed
     assert "ticket availability" in needed
     assert "New York To Amsterdam" not in str(itinerary)
+
+
+def test_dublin_family_request_preserves_five_days_and_every_requested_activity(client):
+    res = client.post("/planner/plan", json={
+        "message": (
+            "Plan a 5 days trip to Dublin for a family of 4. A man, a woman and "
+            "two kids, a boy and a girl, from the UK. We would be traveling from "
+            "London so, any airport with the best or reasonable price. Departure "
+            "date would be the 18th of August for 5 days. We would like to stay in "
+            "a children friendly hotel in Dublin area not far from the city center. "
+            "We would like to visit Gunness factory, visit various tourist "
+            "attractions, visit the Wicklow Mountains for a day, go for meals in "
+            "nice restaurants around Temple Bar, list other attractions in Dublin "
+            "and arrange local hop-on hop-off sightseeing in Dublin."
+        ),
+    })
+
+    assert res.status_code == 200
+    itinerary = res.json()["itinerary"]
+    assert itinerary is not None
+    brief = itinerary["trip_brief"]
+    assert brief["origin"] == "London"
+    assert brief["destination"] == "Dublin"
+    assert brief["duration_days"] == 5
+    assert brief["duration_note"] is None
+    assert brief["travellers"] == {"adults": 2, "children": 2, "infants": 0}
+    assert brief["departure_day"] == 18
+    inferred_year = datetime.now().year
+    assert brief["start_date"] == f"{inferred_year}-08-18"
+    assert brief["end_date"] == f"{inferred_year}-08-23"
+    assert brief["travel_period"] == (
+        f"{inferred_year}-08-18 to {inferred_year}-08-23"
+    )
+    assert brief["date_precision"] == "EXACT"
+    assert brief["date_inference_note"] == (
+        f"Year not supplied; using {inferred_year}."
+    )
+    assert brief["airport_preference"] == (
+        "Any London airport; prioritise a reasonable price"
+    )
+    assert brief["accommodation_preferences"] == [
+        "Child-friendly hotel",
+        "Near Dublin city centre",
+    ]
+    assert set(brief["requested_activities"]) == {
+        "Guinness Storehouse",
+        "Wicklow Mountains day trip",
+        "Family meal near Temple Bar",
+        "Dublin hop-on hop-off sightseeing tour",
+        "Additional family-friendly Dublin attractions",
+    }
+    assert len(itinerary["daily_outline"]) == 5
+    assert [day["title"] for day in itinerary["daily_outline"]] == [
+        "Day 1: Arrival & easy city-centre orientation",
+        "Day 2: Hop-on hop-off Dublin & Guinness Storehouse",
+        "Day 3: Dublin family highlights",
+        "Day 4: Wicklow Mountains day trip",
+        "Day 5: Final Dublin stop & departure",
+    ]
+    assert all(
+        "Child-friendly hotel, Near Dublin city centre — requested, not booked"
+        in day["accommodation"]
+        for day in itinerary["daily_outline"]
+    )
+    needed = " ".join(itinerary["booking_readiness"]["items_needed"])
+    assert "Add the travel year" not in needed
+    assert "Confirm the trip length" not in needed
+    assert itinerary["flight_recommendation"] is None
+    assert itinerary["accommodation_recommendation"] is None
