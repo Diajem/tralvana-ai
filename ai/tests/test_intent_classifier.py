@@ -71,6 +71,33 @@ class TestIntentClassification:
         assert result.entities["companion_origin"] == "United States"
         assert "local attractions" in result.entities["interests"]
 
+    def test_extracts_amsterdam_friends_shared_hotel_and_requested_match(self, classifier):
+        result = classifier.classify(
+            "Me and my 2 friends are going to Amsterdam for a week from New York; "
+            "we would like to stay in the same hotel and would love to see many "
+            "tourist attractions in Amsterdam. We would like to visit Ajax stadium "
+            "and also would like a ticket to Ajax vs feynold game. We would like to "
+            "travel on the 10th of August from New York to Amsterdam for 15 days."
+        )
+
+        assert result.intent == Intent.PLAN_TRIP
+        assert result.entities["origin"] == "New York"
+        assert result.entities["destination"] == "Amsterdam"
+        assert result.entities["adults"] == "3"
+        assert result.entities["duration_days"] == "15"
+        assert result.entities["departure_day"] == "10"
+        assert result.entities["date_hint"] == "10 August"
+        assert result.entities["date_precision"] == "DAY_WITHOUT_YEAR"
+        assert result.entities["shared_hotel"] == "true"
+        assert result.entities["requested_event"] == "Ajax vs Feyenoord"
+        assert result.entities["ticket_requested"] == "true"
+        assert "major attractions" in result.entities["interests"]
+        assert "Ajax stadium" in result.entities["interests"]
+        assert "soccer" in result.entities["interests"]
+        assert result.entities["duration_conflict"] == (
+            "Both 7 days and 15 days were supplied; using the later 15-day request."
+        )
+
     def test_modify_trip_intent(self, classifier):
         result = classifier.classify("I need to change my trip")
         assert result.intent == Intent.MODIFY_TRIP
