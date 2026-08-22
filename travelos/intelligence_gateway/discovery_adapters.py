@@ -229,6 +229,7 @@ class GatewayFlightProvider:
         departure_date: str,
         return_date: str | None,
         cabin_class: str,
+        adults: int = 1,
     ) -> list[dict[str, Any]]:
         self.used_mock_fallback = False
         request = ProviderRequest(
@@ -236,6 +237,7 @@ class GatewayFlightProvider:
             params={
                 "origin": origin, "destination": destination, "departure_date": departure_date,
                 "return_date": return_date, "cabin_class": cabin_class,
+                "adults": adults,
             },
         )
         result = self._gateway.execute(Capability.FLIGHTS, request)
@@ -253,7 +255,14 @@ class GatewayFlightProvider:
         if config.flight_mock_fallback_enabled:
             from ai.discovery.flights.flight_intelligence import MockFlightProvider
             self.used_mock_fallback = True
-            return MockFlightProvider().search(origin, destination, departure_date, return_date, cabin_class)
+            return MockFlightProvider().search(
+                origin,
+                destination,
+                departure_date,
+                return_date,
+                cabin_class,
+                adults,
+            )
 
         raise LiveFlightSearchUnavailableError(
             "Duffel sandbox flight search is unavailable "

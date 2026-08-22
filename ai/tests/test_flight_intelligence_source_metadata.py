@@ -22,8 +22,23 @@ class _ProviderStub:
         self.last_result = last_result
         self.used_mock_fallback = used_mock_fallback
 
-    def search(self, origin, destination, departure_date, return_date, cabin_class):
-        return MockFlightProvider().search(origin, destination, departure_date, return_date, cabin_class)
+    def search(
+        self,
+        origin,
+        destination,
+        departure_date,
+        return_date,
+        cabin_class,
+        adults=1,
+    ):
+        return MockFlightProvider().search(
+            origin,
+            destination,
+            departure_date,
+            return_date,
+            cabin_class,
+            adults,
+        )
 
 
 def _result(provider_name: str, request_id: str = "req-123") -> ProviderResult:

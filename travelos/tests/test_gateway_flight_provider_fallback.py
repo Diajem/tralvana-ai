@@ -14,8 +14,9 @@ from travelos.intelligence_gateway.discovery_adapters import (
     LiveFlightSearchUnavailableError,
 )
 from travelos.intelligence_gateway.gateway import IntelligenceGateway
+from travelos.intelligence_gateway.provider_result import ProviderResult
 from travelos.intelligence_gateway.provider_registry import ProviderRegistry
-from travelos.intelligence_gateway.provider_status import ProviderStatus
+from travelos.intelligence_gateway.provider_status import Capability, ProviderStatus
 
 _MODE_VAR = "TRALVANA_FLIGHT_PROVIDER_MODE"
 _FALLBACK_VAR = "TRALVANA_FLIGHT_MOCK_FALLBACK_ENABLED"
@@ -33,6 +34,21 @@ def _empty_gateway() -> IntelligenceGateway:
     return IntelligenceGateway(registry=ProviderRegistry())
 
 
+class _RecordingGateway:
+    def __init__(self) -> None:
+        self.request = None
+
+    def execute(self, capability, request):
+        self.request = request
+        return ProviderResult(
+            provider_name="mock_flight_provider",
+            capability=Capability.FLIGHTS,
+            status=ProviderStatus.AVAILABLE,
+            data=[],
+            confidence=1.0,
+        )
+
+
 class TestLastResultTracking:
     def test_last_result_none_before_any_search(self):
         provider = GatewayFlightProvider(gateway=_empty_gateway())
@@ -44,6 +60,22 @@ class TestLastResultTracking:
         provider.search(origin="LON", destination="NYC", departure_date="2026-10-01", return_date=None, cabin_class="economy")
         assert provider.last_result is not None
         assert provider.last_result.status == ProviderStatus.UNAVAILABLE
+
+    def test_search_forwards_the_adult_count_to_the_gateway(self, monkeypatch):
+        monkeypatch.setenv(_MODE_VAR, "MOCK")
+        gateway = _RecordingGateway()
+        provider = GatewayFlightProvider(gateway=gateway)
+
+        provider.search(
+            origin="LON",
+            destination="NYC",
+            departure_date="2026-10-01",
+            return_date=None,
+            cabin_class="economy",
+            adults=4,
+        )
+
+        assert gateway.request.params["adults"] == 4
 
 
 class TestMockModeNeverRaises:

@@ -65,12 +65,11 @@ CI or as part of `pytest`.** It requires a real, working
   shaped like real data but not booking-grade. Never present sandbox
   results as available for purchase (enforced in the frontend — see
   `docs/LIVE_FLIGHT_SEARCH.md`'s Frontend section).
-- **One adult passenger only.** `GatewayFlightProvider.search()` never
-  received a passenger-count parameter from its callers even before
-  T-038 — every live search sends exactly one adult to Duffel
-  regardless of what the UI's "Adults" field shows. This is a
-  pre-existing Discovery-layer limitation (out of scope, "no Discovery
-  Layer redesign").
+- **Adults are preserved; child ages are not yet supported.** T-061 passes
+  the requested adult count through Flight Intelligence and the Gateway into
+  Duffel's `passengers` array, and both mock and Duffel prices now represent
+  the complete adult party. Duffel requires ages for passengers under 18;
+  Tralvana must collect those ages before enabling family booking.
 - **No booking.** Every offer's `provider_offer_id` is preserved
   internally (`FlightOption.provider_offer_id`) for a possible future
   booking task, but nothing in this repository ever calls Duffel's

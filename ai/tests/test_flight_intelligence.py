@@ -51,6 +51,35 @@ class TestFlightIntelligence:
         prices2 = sorted(f["estimated_price"] for f in result2["flight_options"])
         assert prices1 == prices2
 
+    def test_total_fares_scale_with_the_adult_count(self):
+        engine = FlightIntelligence()
+        one_adult = engine.recommend(
+            origin="London",
+            destination="Tokyo",
+            departure_date="2026-09-15",
+            return_date="2026-09-25",
+            adults=1,
+        )
+        three_adults = engine.recommend(
+            origin="London",
+            destination="Tokyo",
+            departure_date="2026-09-15",
+            return_date="2026-09-25",
+            adults=3,
+        )
+
+        single_prices = sorted(
+            option["estimated_price"] for option in one_adult["flight_options"]
+        )
+        group_prices = sorted(
+            option["estimated_price"] for option in three_adults["flight_options"]
+        )
+        assert group_prices == [price * 3 for price in single_prices]
+        assert any(
+            "3 adult passenger(s)" in assumption
+            for assumption in three_adults["assumptions"]
+        )
+
     def test_missing_departure_date_is_defaulted_and_noted(self):
         engine = FlightIntelligence()
         result = engine.recommend(origin="London", destination="Rome", departure_date=None, return_date=None)

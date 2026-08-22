@@ -183,7 +183,7 @@ now calls it automatically at the right time.
 
 See `docs/LIVE_FLIGHT_SEARCH.md`'s "What Remains Before Production and
 Booking" — most of `docs/PRODUCTION_READINESS.md`'s checklist,
-adult-only passenger count, and `_price_anchor` set to each offer's own
-price rather than an independent baseline. The real-transport,
-real-sandbox-call, and application-startup-wiring items are now closed
-(T-037, T-038).
+age-aware child/infant passengers, and `_price_anchor` set to each offer's
+own price rather than an independent baseline. Adult party size is now
+preserved end to end (T-061). The real-transport, real-sandbox-call, and
+application-startup-wiring items are closed (T-037, T-038).
