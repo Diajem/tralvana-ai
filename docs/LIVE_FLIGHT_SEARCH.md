@@ -196,7 +196,10 @@ script above — never part of the automated suite.
   re-derive it, but no booking flow reads it yet.
 - **Duffel sandbox only** — no production Duffel token has been used or
   should be, anywhere in this repository.
-- **Adult-only passenger count** — `GatewayFlightProvider.search()`'s
-  signature still doesn't accept a passenger count from the caller
-  (pre-existing Discovery-layer limitation, out of scope per "no
-  Discovery Layer redesign").
+- **Child and infant ages are not yet supported** — T-061 now carries the
+  requested adult count through Flight Intelligence, the Gateway, and the
+  Duffel offer request, so group availability and total fares are no longer
+  searched as a single adult. Duffel requires the age of every passenger
+  under 18, however, and Tralvana's flight request does not yet collect those
+  ages. A booking flow must add age-aware child/infant passengers before it
+  can sell family itineraries.

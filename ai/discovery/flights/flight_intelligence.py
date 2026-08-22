@@ -131,6 +131,7 @@ class MockFlightProvider:
         departure_date: str,
         return_date: str | None,
         cabin_class: str,
+        adults: int = 1,
     ) -> list[dict[str, Any]]:
         seed = sum(ord(c) for c in f"{origin}{destination}".lower()) or 1
         base_flight_hours = 2.0 + (seed % 12)
@@ -152,8 +153,13 @@ class MockFlightProvider:
             )
             arrival_dt = departure_dt + timedelta(minutes=total_minutes)
 
-            price = _CABIN_BASE_USD[option_cabin] * tpl["price_multiplier"] * route_price_factor
-            price = round(price / 5) * 5
+            per_adult_price = (
+                _CABIN_BASE_USD[option_cabin]
+                * tpl["price_multiplier"]
+                * route_price_factor
+            )
+            per_adult_price = round(per_adult_price / 5) * 5
+            price = per_adult_price * adults
 
             candidates.append({
                 "airline": tpl["airline"],
@@ -233,7 +239,13 @@ class FlightIntelligence:
                 "No departure date supplied — defaulted to 30 days from today for mock pricing."
             )
 
-        preferences = self._build_preferences(cabin_class, budget_style, airline_preference, profile)
+        preferences = self._build_preferences(
+            cabin_class,
+            budget_style,
+            airline_preference,
+            profile,
+            adults,
+        )
 
         dna: dict[str, Any] | None = None
         if profile:
@@ -248,7 +260,12 @@ class FlightIntelligence:
         goal_type = (goal or {}).get("goal_type")
 
         candidates = self._provider.search(
-            origin, destination, resolved_departure_date, return_date, cabin_class
+            origin,
+            destination,
+            resolved_departure_date,
+            return_date,
+            cabin_class,
+            adults,
         )
 
         scored: list[dict[str, Any]] = []
@@ -299,6 +316,9 @@ class FlightIntelligence:
         else:
             assumptions.append("Prices and schedules are deterministic mock data — no live airline inventory was queried.")
         assumptions.append(f"Scoring assumes a {preferences['cabin_class']} cabin preference and '{budget_style}' budget style.")
+        assumptions.append(
+            f"Flight availability and total fare were searched for {adults} adult passenger(s)."
+        )
 
         return {
             "flight_options": ranked,
@@ -343,11 +363,12 @@ class FlightIntelligence:
         budget_style: str,
         airline_preference: str | None,
         profile: dict[str, Any] | None,
+        adults: int = 1,
     ) -> dict[str, Any]:
         prefs = (profile or {}).get("preferences", {})
         max_price = _CABIN_BASE_USD.get(cabin_class, _CABIN_BASE_USD["economy"]) * {
             "backpacker": 0.7, "budget": 0.85, "balanced": 1.15, "comfort": 1.5, "luxury": 2.2,
-        }.get(budget_style, 1.15)
+        }.get(budget_style, 1.15) * adults
 
         preferred_airlines: list[str] = []
         if airline_preference:

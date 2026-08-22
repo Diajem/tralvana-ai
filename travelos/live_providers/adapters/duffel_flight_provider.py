@@ -127,6 +127,8 @@ class DuffelFlightProvider(BaseLiveProvider):
 
         from travelos.config.configuration_manager import config
 
+        adults = int(params.get("adults", 1))
+
         return TransportRequest(
             method="POST",
             url=f"{_DUFFEL_BASE_URL}/air/offer_requests?return_offers=true",
@@ -138,7 +140,7 @@ class DuffelFlightProvider(BaseLiveProvider):
             json_body={
                 "data": {
                     "slices": slices,
-                    "passengers": [{"type": "adult"}],
+                    "passengers": [{"type": "adult"} for _ in range(adults)],
                     "cabin_class": duffel_cabin_class,
                 }
             },

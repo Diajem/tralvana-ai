@@ -153,6 +153,21 @@ class TestRequestMapping:
             {"origin": "JFK", "destination": "LHR", "departure_date": "2026-10-08"},
         ]
 
+    def test_build_request_preserves_the_requested_adult_count(self, monkeypatch):
+        monkeypatch.setenv(_ENV_VAR, "duffel_test_abc123")
+        transport = FakeTransport.always_returning(
+            status_code=200,
+            body=_offer_request_body(_DIRECT_OFFER),
+        )
+        provider = DuffelFlightProvider(transport=transport)
+        provider.execute(_req(adults=3))
+
+        assert transport.sent_requests[0].json_body["data"]["passengers"] == [
+            {"type": "adult"},
+            {"type": "adult"},
+            {"type": "adult"},
+        ]
+
     def test_auth_header_merged_as_bearer_token(self, monkeypatch):
         monkeypatch.setenv(_ENV_VAR, "duffel_test_my-secret-token")
         transport = FakeTransport.always_returning(status_code=200, body=_offer_request_body(_DIRECT_OFFER))
