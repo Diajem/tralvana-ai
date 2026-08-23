@@ -160,6 +160,58 @@ _DUBLIN_FAMILY_DAY_PLANS: dict[int, tuple[str, str, str, str, str]] = {
     ),
 }
 
+_NEW_YORK_FAMILY_DAY_PLANS: dict[int, tuple[str, str, str, str, str]] = {
+    1: (
+        "Arrival & easy Manhattan orientation",
+        "Travel from London on the selected economy service and transfer to the family-friendly hotel",
+        "Settle in, then take a short neighbourhood walk at a pace suitable for the children",
+        "Early family dinner near the hotel",
+        "The Duffel fare is sandbox test data and the hotel is indicative until live availability is checked.",
+    ),
+    2: (
+        "Central Park & natural history",
+        "Explore a manageable section of Central Park, allowing time for playground or rest stops",
+        "Reserve the American Museum of Natural History if it suits the family's priorities",
+        "Relaxed family meal on the Upper West Side",
+        "Confirm museum hours, timed entry and the child ticket policy on the official website.",
+    ),
+    3: (
+        "Statue of Liberty & Lower Manhattan",
+        "Use an official timed ferry booking for the Statue of Liberty and Ellis Island",
+        "Walk selected Lower Manhattan landmarks without overloading the day",
+        "Return to the hotel for a lighter evening",
+        "Check ferry security rules, weather, accessibility and child ticket requirements before booking.",
+    ),
+    4: (
+        "Intrepid Museum & Hudson River",
+        "Visit the Intrepid Museum with timed entry if it matches the children's interests",
+        "Walk a family-suitable section of Hudson River Park or the High Line",
+        "Choose an early dinner around Midtown West or Chelsea",
+        "Confirm current opening hours, exhibits and age suitability officially.",
+    ),
+    5: (
+        "Rockefeller Center & Midtown",
+        "Explore Rockefeller Center and choose a confirmed observation-deck time if wanted",
+        "See selected Midtown landmarks and Times Square during the quieter daytime period",
+        "Attend a confirmed family-suitable live event or keep a flexible alternative",
+        "Use the official event page to confirm date, age guidance, seats, price and availability.",
+    ),
+    6: (
+        "Brooklyn Bridge & family Brooklyn",
+        "Cross part or all of Brooklyn Bridge at a comfortable family pace",
+        "Explore DUMBO, then choose Prospect Park or Brooklyn Children's Museum according to current hours",
+        "Farewell family dinner in a convenient neighbourhood",
+        "Check journey times and attraction schedules; do not treat the named alternatives as reservations.",
+    ),
+    7: (
+        "Final New York stop & departure",
+        "Choose one short attraction, park visit or souvenir stop close to the hotel",
+        "Collect luggage and transfer to the airport with enough time for family check-in",
+        "Return journey to London",
+        "Keep the final activity flexible until the departure airport and flight time are confirmed.",
+    ),
+}
+
 
 @dataclass
 class GroundingNotice:
@@ -262,13 +314,19 @@ class TripAssemblyEngine:
         raw_accommodation_rec = self._top_option(
             by_module.get("accommodation_intelligence")
         )
-        flight_rec = self._current_provider_option(raw_flight_rec)
-        accommodation_rec = self._current_provider_option(raw_accommodation_rec)
         brief = self._normalise_trip_brief(
             trip_brief,
             destination=destination,
             duration_days=duration_days,
             interests=interests or [],
+        )
+        flight_rec = self._displayable_provider_option(raw_flight_rec)
+        accommodation_rec = self._displayable_provider_option(
+            raw_accommodation_rec,
+            allow_estimate=any(
+                "child-friendly hotel" in str(preference).casefold()
+                for preference in brief.get("accommodation_preferences", [])
+            ),
         )
         budget_rec = self._declared_budget_summary(brief)
         visa_rec = self._assessment(by_module.get("visa_intelligence"))
@@ -433,13 +491,20 @@ class TripAssemblyEngine:
         top = result.data.get("top_option")
         return top or None
 
-    def _current_provider_option(
-        self, option: dict[str, Any] | None
+    def _displayable_provider_option(
+        self,
+        option: dict[str, Any] | None,
+        *,
+        allow_estimate: bool = False,
     ) -> dict[str, Any] | None:
         if not option:
             return None
         source = str(option.get("data_source", "")).upper()
-        return option if self._is_live_source(source) else None
+        if self._is_live_source(source) or self._is_sandbox_source(source):
+            return option
+        if allow_estimate and source in {"MOCK", "MOCK_FALLBACK"}:
+            return option
+        return None
 
     def _normalise_trip_brief(
         self,
@@ -515,6 +580,10 @@ class TripAssemblyEngine:
         is_amsterdam = str(brief.get("destination") or "").casefold() == "amsterdam"
         is_dublin_family = (
             str(brief.get("destination") or "").casefold() == "dublin"
+            and int((brief.get("travellers") or {}).get("children") or 0) > 0
+        )
+        is_new_york_family = (
+            str(brief.get("destination") or "").casefold() == "new york"
             and int((brief.get("travellers") or {}).get("children") or 0) > 0
         )
         accommodation_preferences = [
@@ -600,6 +669,19 @@ class TripAssemblyEngine:
                 entry["evening"] = evening
                 entry["notes"] = note
             elif (
+                is_new_york_family
+                and entry["day"] in _NEW_YORK_FAMILY_DAY_PLANS
+            ):
+                title, morning, afternoon, evening, note = _NEW_YORK_FAMILY_DAY_PLANS[
+                    int(entry["day"])
+                ]
+                entry["title"] = f"Day {entry['day']}: {title}"
+                entry["theme"] = title
+                entry["morning"] = morning
+                entry["afternoon"] = afternoon
+                entry["evening"] = evening
+                entry["notes"] = note
+            elif (
                 requested_activities
                 and 1 < int(entry["day"]) < int(brief.get("duration_days") or 1)
             ):
@@ -664,6 +746,16 @@ class TripAssemblyEngine:
         accommodation: dict[str, Any] | None,
         events: list[dict[str, Any]],
     ) -> dict[str, Any]:
+        current_flight = bool(
+            flight
+            and self._is_live_source(str(flight.get("data_source", "")).upper())
+        )
+        current_accommodation = bool(
+            accommodation
+            and self._is_live_source(
+                str(accommodation.get("data_source", "")).upper()
+            )
+        )
         score = 0
         score += 10 if brief.get("destination") else 0
         score += 10 if brief.get("origin") else 0
@@ -674,8 +766,8 @@ class TripAssemblyEngine:
         score += 5 if brief.get("interests") else 0
         score += 15 if brief.get("date_precision") == "EXACT" else 0
         score += 10 if brief.get("nationality") else 0
-        score += 10 if flight else 0
-        score += 10 if accommodation else 0
+        score += 10 if current_flight else 0
+        score += 10 if current_accommodation else 0
         score = min(score, 100)
 
         needed: list[str] = []
@@ -692,9 +784,9 @@ class TripAssemblyEngine:
             needed.append(
                 "Add each traveller's passport nationality for official entry checks."
             )
-        if not flight or not accommodation:
+        if not current_flight or not current_accommodation:
             needed.append(
-                "Run current flight and accommodation searches, then reconcile the prices."
+                "Replace sandbox or indicative flight and accommodation results with current bookable searches, then reconcile the prices."
             )
         companion = brief.get("companion_plan") or {}
         if companion and (
@@ -757,7 +849,17 @@ class TripAssemblyEngine:
             risks.append(
                 "Exact travel dates are not set, so availability and bookable prices cannot be checked."
             )
-        if not flight or not accommodation:
+        current_flight = bool(
+            flight
+            and self._is_live_source(str(flight.get("data_source", "")).upper())
+        )
+        current_accommodation = bool(
+            accommodation
+            and self._is_live_source(
+                str(accommodation.get("data_source", "")).upper()
+            )
+        )
+        if not current_flight or not current_accommodation:
             risks.append(
                 "No reconciled current flight and accommodation prices are included."
             )
@@ -807,6 +909,12 @@ class TripAssemblyEngine:
             assumptions.append(
                 f"The departure point remains {brief.get('origin') or 'to be confirmed'}; no substitute airport was selected."
             )
+        elif self._is_sandbox_source(
+            str(flight.get("data_source", "")).upper()
+        ):
+            assumptions.append(
+                "The displayed Duffel flight is sandbox test data and cannot be purchased."
+            )
         if not accommodation and brief.get("stay_plan"):
             assumptions.append(
                 "The requested two-stage stay is preserved, but neither property nor rate is confirmed."
@@ -814,6 +922,12 @@ class TripAssemblyEngine:
         elif not accommodation:
             assumptions.append(
                 "Accommodation remains unselected until a current provider search is completed."
+            )
+        elif not self._is_live_source(
+            str(accommodation.get("data_source", "")).upper()
+        ):
+            assumptions.append(
+                "The displayed accommodation is an indicative planning result, not live inventory or a bookable quote."
             )
         return assumptions
 
@@ -1045,10 +1159,19 @@ class TripAssemblyEngine:
                 if option.get("interests_matched")
             ]
             if matched:
+                live_events = events[0].get("data_source") == "TICKETMASTER_DISCOVERY_API"
                 parts.append(
-                    "Curated event ideas include "
+                    (
+                        "Live Ticketmaster listings include "
+                        if live_events
+                        else "Curated event ideas include "
+                    )
                     + ", ".join(matched[:2])
-                    + "; confirm exact dates and availability with official live sources."
+                    + (
+                        "; confirm final status, pricing and ticket availability."
+                        if live_events
+                        else "; confirm exact dates and availability with official live sources."
+                    )
                 )
 
         del confidence

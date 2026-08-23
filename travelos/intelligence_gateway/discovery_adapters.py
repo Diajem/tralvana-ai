@@ -475,6 +475,14 @@ class LiveEventSearchUnavailableError(Exception):
 
 def _distinct_event_search_interests(interests: list[str]) -> list[str]:
     """Keep live fan-out bounded while preserving the traveller's ordering."""
+    if any(
+        " ".join(str(value).casefold().split()) in {"event", "events", "live event", "live events"}
+        for value in interests
+    ):
+        # A generic event request should remain a broad destination/date
+        # search. Sending "live events" as a Ticketmaster keyword can hide
+        # valid concerts, theatre, sport and family listings.
+        return []
     return list(
         dict.fromkeys(
             cleaned

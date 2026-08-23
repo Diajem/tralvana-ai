@@ -38,6 +38,28 @@ class TestIntentClassification:
         assert result.entities["start_date"] == "2026-09-15"
         assert result.entities["end_date"] == "2026-09-22"
 
+    def test_family_new_york_request_preserves_ages_cabin_and_requested_experiences(self, classifier):
+        result = classifier.classify(
+            "Plan a 7-day trip from London to New York for 2 adults and 2 children "
+            "aged 6 and 9, departing 10 October 2026 and returning 17 October 2026. "
+            "We want economy flights, a family-friendly hotel, attractions and live events."
+        )
+
+        assert result.intent == Intent.PLAN_TRIP
+        assert result.entities["origin"] == "London"
+        assert result.entities["destination"] == "New York"
+        assert result.entities["adults"] == "2"
+        assert result.entities["children"] == "2"
+        assert result.entities["minor_ages"] == "6,9"
+        assert result.entities["cabin_class"] == "economy"
+        assert result.entities["start_date"] == "2026-10-10"
+        assert result.entities["end_date"] == "2026-10-17"
+        assert set(result.entities["interests"].split(",")) == {
+            "major attractions",
+            "live events",
+        }
+        assert result.entities["accommodation_preference"] == "Child-friendly hotel"
+
     def test_extracts_jamaica_multi_stay_birthday_and_separate_companion(self, classifier):
         result = classifier.classify(
             "I would like to travel to Jamaica from either London or Manchester "

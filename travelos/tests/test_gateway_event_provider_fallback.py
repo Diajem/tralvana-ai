@@ -5,6 +5,7 @@ import pytest
 from travelos.intelligence_gateway.discovery_adapters import (
     GatewayEventProvider,
     LiveEventSearchUnavailableError,
+    _distinct_event_search_interests,
 )
 from travelos.intelligence_gateway.gateway import IntelligenceGateway
 from travelos.intelligence_gateway.provider_registry import ProviderRegistry
@@ -50,3 +51,9 @@ def test_live_failure_can_use_labelled_curated_fallback(monkeypatch):
     assert len(options) == 4
     assert provider.used_mock_fallback is True
     assert all(option["starts_at"] is None for option in options)
+
+
+def test_generic_live_events_request_uses_broad_destination_date_search():
+    assert _distinct_event_search_interests(
+        ["major attractions", "live events"]
+    ) == []

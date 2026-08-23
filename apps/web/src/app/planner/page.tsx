@@ -109,12 +109,27 @@ function RecommendationFacts({ data }: { data: Record<string, unknown> }) {
   );
 }
 
+function ProviderStatus({ data, domain }: { data: Record<string, unknown>; domain: "flight" | "hotel" }) {
+  const source = String(data.data_source || "").toUpperCase();
+  if (source.includes("SANDBOX")) {
+    return <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-800">Sandbox test data — demonstrates the {domain} integration but is not available to purchase.</p>;
+  }
+  if (source === "MOCK" || source === "MOCK_FALLBACK") {
+    return <p className="mb-3 rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold leading-5 text-blue-800">Indicative planning estimate — not live inventory or a bookable quote.</p>;
+  }
+  return null;
+}
+
 function TripBriefCard({ itinerary }: { itinerary: TripItinerary }) {
   const brief = itinerary.trip_brief;
+  const childAges = brief.travellers.minor_ages || [];
+  const childAgesText = childAges.length
+    ? ` aged ${childAges.length === 1 ? childAges[0] : `${childAges.slice(0, -1).join(", ")} and ${childAges.at(-1)}`}`
+    : "";
   const travellers = [
     `${brief.travellers.adults} adult${brief.travellers.adults === 1 ? "" : "s"}`,
     brief.travellers.children
-      ? `${brief.travellers.children} child${brief.travellers.children === 1 ? "" : "ren"}`
+      ? `${brief.travellers.children} child${brief.travellers.children === 1 ? "" : "ren"}${childAgesText}`
       : "",
     brief.travellers.infants
       ? `${brief.travellers.infants} infant${brief.travellers.infants === 1 ? "" : "s"}`
@@ -389,14 +404,14 @@ function ItineraryView({
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
           <SectionCard title="Flight">
             {itinerary.flight_recommendation ? (
-              <RecommendationFacts data={itinerary.flight_recommendation} />
+              <><ProviderStatus data={itinerary.flight_recommendation} domain="flight" /><RecommendationFacts data={itinerary.flight_recommendation} /></>
             ) : (
               <p className="text-sm leading-6 text-amber-700">A current flight result is still needed. No invented airline or fare is shown.</p>
             )}
           </SectionCard>
           <SectionCard title="Accommodation">
             {itinerary.accommodation_recommendation ? (
-              <RecommendationFacts data={itinerary.accommodation_recommendation} />
+              <><ProviderStatus data={itinerary.accommodation_recommendation} domain="hotel" /><RecommendationFacts data={itinerary.accommodation_recommendation} /></>
             ) : (
               <p className="text-sm leading-6 text-amber-700">A current hotel result is still needed. No invented property or rate is shown.</p>
             )}

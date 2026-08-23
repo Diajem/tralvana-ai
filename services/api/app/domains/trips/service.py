@@ -143,7 +143,7 @@ class TripPlanningService:
         origin = entities.get("origin") or prefs.get("home_airport", "London")
         destination = entities.get("destination", "")
         budget_style = entities.get("budget_style") or prefs.get("budget_style", "balanced")
-        cabin_class = prefs.get("cabin_class", "economy")
+        cabin_class = entities.get("cabin_class") or prefs.get("cabin_class", "economy")
         interests = (
             [value for value in entities.get("interests", "").split(",") if value]
             or (goal.get("interests", []) if goal else [])
@@ -155,6 +155,11 @@ class TripPlanningService:
             "adults": int(entities.get("adults", "1")),
             "children": int(entities.get("children", "0")),
             "infants": int(entities.get("infants", "0")),
+            "minor_ages": [
+                int(age.strip())
+                for age in entities.get("minor_ages", "").split(",")
+                if age.strip()
+            ],
         }
 
         request = CreateTripPlanRequest(

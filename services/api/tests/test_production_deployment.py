@@ -51,7 +51,7 @@ def test_render_blueprint_uses_dedicated_app_domain_and_safe_provider_modes():
     assert api_environment["TRALVANA_FLIGHT_PROVIDER_MODE"] == "LIVE_SANDBOX"
     assert api_environment["TRALVANA_FLIGHT_MOCK_FALLBACK_ENABLED"] == "false"
     assert api_environment["TRALVANA_ACCOMMODATION_PROVIDER_MODE"] == "MOCK"
-    assert api_environment["TRALVANA_EVENT_PROVIDER_MODE"] == "MOCK"
+    assert api_environment["TRALVANA_EVENT_PROVIDER_MODE"] == "LIVE"
     assert api_environment["TRALVANA_AUTH_MODE"] == "CLERK"
     assert api_environment["CLERK_AUTHORIZED_PARTIES"] == "https://app.tralvana.com"
     assert api_environment["CORS_ORIGINS"] == (
@@ -71,14 +71,18 @@ def test_render_blueprint_uses_dedicated_app_domain_and_safe_provider_modes():
     api_secrets = {
         item["key"]: item.get("sync")
         for item in services["tralvana-api"]["envVars"]
-        if item["key"] in {"CLERK_JWT_KEY", "DUFFEL_API_TOKEN"}
+        if item["key"] in {"CLERK_JWT_KEY", "DUFFEL_API_TOKEN", "TICKETMASTER_API_KEY"}
     }
     web_secrets = {
         item["key"]: item.get("sync")
         for item in services["tralvana-web"]["envVars"]
         if item["key"] in {"NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "CLERK_SECRET_KEY"}
     }
-    assert api_secrets == {"CLERK_JWT_KEY": False, "DUFFEL_API_TOKEN": False}
+    assert api_secrets == {
+        "CLERK_JWT_KEY": False,
+        "DUFFEL_API_TOKEN": False,
+        "TICKETMASTER_API_KEY": False,
+    }
     assert web_secrets == {
         "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": False,
         "CLERK_SECRET_KEY": False,

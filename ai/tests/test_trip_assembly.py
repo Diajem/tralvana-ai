@@ -286,8 +286,9 @@ class TestExecutiveSummary:
             destination="Tokyo",
             duration_days=5,
         )
-        assert itinerary.flight_recommendation is None
-        assert "Duffel Test Air" not in itinerary.executive_summary
+        assert itinerary.flight_recommendation == sandbox
+        assert "Duffel sandbox test data returned Duffel Test Air" in itinerary.executive_summary
+        assert "not a purchasable fare" in itinerary.executive_summary
 
     def test_summary_never_fabricates_a_module_that_did_not_run(self):
         unified = _unified([_flight_result()])
@@ -419,8 +420,9 @@ class TestGroundingNotices:
             duration_days=5,
         )
         notice = next(n for n in itinerary.grounding_notices if n.domain == "flight")
-        assert notice.level == "GUIDANCE"
+        assert notice.level == "SANDBOX"
         assert notice.is_current is False
+        assert notice.requires_confirmation is True
 
     def test_unknown_provider_label_is_not_promoted_to_live(self):
         unknown = {

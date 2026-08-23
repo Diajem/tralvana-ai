@@ -25,6 +25,16 @@ _INTEREST_CONCEPTS: dict[str, set[str]] = {
     "major attractions": {"culture", "art", "theatre", "theater"},
     "event": {"event"},
     "events": {"event"},
+    "live event": {
+        "event", "sport", "sports", "fashion", "style", "design", "music",
+        "concert", "festival", "theatre", "theater", "food", "dining",
+        "culture", "art",
+    },
+    "live events": {
+        "event", "sport", "sports", "fashion", "style", "design", "music",
+        "concert", "festival", "theatre", "theater", "food", "dining",
+        "culture", "art",
+    },
 }
 
 _CATEGORY_CONCEPTS: dict[str, set[str]] = {

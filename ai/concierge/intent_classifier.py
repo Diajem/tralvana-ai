@@ -392,6 +392,17 @@ class IntentClassifier:
             entities["children"] = str(inferred_children)
             entities["infants"] = str(inferred_infants)
 
+        cabin_patterns = (
+            ("premium_economy", r"\bpremium[- ]economy(?:\s+(?:flights?|class|cabin))?\b"),
+            ("business", r"\bbusiness(?:[- ]class)?(?:\s+(?:flights?|cabin))?\b"),
+            ("first", r"\bfirst[- ]class(?:\s+(?:flights?|cabin))?\b"),
+            ("economy", r"\beconomy(?:[- ]class)?(?:\s+(?:flights?|cabin))?\b"),
+        )
+        for cabin_class, pattern in cabin_patterns:
+            if re.search(pattern, text):
+                entities["cabin_class"] = cabin_class
+                break
+
         family_size_match = re.search(
             rf"\b(?:family|group|party)\s+of\s+"
             rf"(\d+|{'|'.join(_NUMBER_WORDS)})\b",
@@ -444,7 +455,14 @@ class IntentClassifier:
                 "major attractions",
                 (
                     "places of significant interest", "sightseeing", "landmarks",
-                    "major attractions", "tourist attractions",
+                    "major attractions", "tourist attractions", "attractions",
+                ),
+            ),
+            (
+                "live events",
+                (
+                    "live events", "live event", "concerts", "concert",
+                    "theatre shows", "theater shows",
                 ),
             ),
         )
@@ -1111,7 +1129,8 @@ class IntentClassifier:
         labelled = re.search(
             r"\b(?:(?:children|child|kids?|infants?|bab(?:y|ies)|their|children'?s|kids'?)\s+)"
             r"(?:are\s+)?(?:aged?|ages?)\s*(?:are|is|:)?\s*"
-            r"([0-9,\sand-]{1,60})(?=[.!?;]|$)",
+            r"(\d{1,2}(?:(?:\s*,\s*and\s+|\s*,\s*|\s+and\s+)\d{1,2})*)"
+            r"(?=\s*(?:[,.;!?]|\b(?:departing|returning|travelling|traveling|with|we\s+want)\b|$))",
             text,
         )
         if labelled:
