@@ -4,6 +4,7 @@ import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  useCallback,
   createContext,
   useContext,
   useEffect,
@@ -16,13 +17,17 @@ interface TralvanaAuth {
   loaded: boolean;
   signedIn: boolean;
   userId: string | null;
+  getSessionToken: () => Promise<string | null>;
 }
+
+const noSessionToken = async (): Promise<null> => null;
 
 const AuthContext = createContext<TralvanaAuth>({
   clerkEnabled: false,
   loaded: true,
   signedIn: true,
   userId: null,
+  getSessionToken: noSessionToken,
 });
 
 export function LocalAuthBridge({ children }: { children: ReactNode }) {
@@ -31,7 +36,13 @@ export function LocalAuthBridge({ children }: { children: ReactNode }) {
   }, []);
   return (
     <AuthContext.Provider
-      value={{ clerkEnabled: false, loaded: true, signedIn: true, userId: null }}
+      value={{
+        clerkEnabled: false,
+        loaded: true,
+        signedIn: true,
+        userId: null,
+        getSessionToken: noSessionToken,
+      }}
     >
       {children}
     </AuthContext.Provider>
@@ -40,11 +51,12 @@ export function LocalAuthBridge({ children }: { children: ReactNode }) {
 
 export function ClerkAuthBridge({ children }: { children: ReactNode }) {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
+  const getSessionToken = useCallback(() => getToken(), [getToken]);
 
   useEffect(() => {
-    setAuthTokenProvider(() => getToken());
+    setAuthTokenProvider(getSessionToken);
     return () => setAuthTokenProvider(null);
-  }, [getToken]);
+  }, [getSessionToken]);
 
   return (
     <AuthContext.Provider
@@ -53,6 +65,7 @@ export function ClerkAuthBridge({ children }: { children: ReactNode }) {
         loaded: isLoaded,
         signedIn: Boolean(isSignedIn),
         userId: userId ?? null,
+        getSessionToken,
       }}
     >
       {children}
