@@ -51,7 +51,10 @@ class VisaNormalizer:
             "passport_expiry_date": passport_expiry_date,
             "passport_validity_months": passport_validity_months,
             "visa_status": status,
-            "visa_required": status in _VISA_REQUIRED_STATUSES,
+            "visa_required": (
+                None if status == "CHECK_MANUALLY"
+                else status in _VISA_REQUIRED_STATUSES
+            ),
             "travel_authorisation_required": status in _TRAVEL_AUTH_STATUSES,
             "visa_type": raw["visa_type"],
             "max_stay_days": raw["max_stay_days"],

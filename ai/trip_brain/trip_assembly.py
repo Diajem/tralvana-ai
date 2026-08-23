@@ -321,13 +321,7 @@ class TripAssemblyEngine:
             interests=interests or [],
         )
         flight_rec = self._displayable_provider_option(raw_flight_rec)
-        accommodation_rec = self._displayable_provider_option(
-            raw_accommodation_rec,
-            allow_estimate=any(
-                "child-friendly hotel" in str(preference).casefold()
-                for preference in brief.get("accommodation_preferences", [])
-            ),
-        )
+        accommodation_rec = self._displayable_provider_option(raw_accommodation_rec)
         budget_rec = self._declared_budget_summary(brief)
         visa_rec = self._assessment(by_module.get("visa_intelligence"))
         weather_rec = self._assessment(by_module.get("weather_intelligence"))
@@ -494,15 +488,11 @@ class TripAssemblyEngine:
     def _displayable_provider_option(
         self,
         option: dict[str, Any] | None,
-        *,
-        allow_estimate: bool = False,
     ) -> dict[str, Any] | None:
         if not option:
             return None
         source = str(option.get("data_source", "")).upper()
         if self._is_live_source(source) or self._is_sandbox_source(source):
-            return option
-        if allow_estimate and source in {"MOCK", "MOCK_FALLBACK"}:
             return option
         return None
 
@@ -806,7 +796,7 @@ class TripAssemblyEngine:
                 if event.get("name")
             ]
             needed.append(
-                f"Confirm {' and '.join(event_names) if event_names else 'any football match or event'} "
+                f"Confirm {' and '.join(event_names) if event_names else 'the requested live events'} "
                 "on an official dated calendar and check official ticket availability."
             )
 
@@ -879,7 +869,7 @@ class TripAssemblyEngine:
             for event in events
         ):
             risks.append(
-                "Football fixtures and other events are ideas until an official dated listing is confirmed."
+                "Requested live events remain unconfirmed until an official dated listing is available."
             )
         return list(dict.fromkeys(item for item in risks if item))
 
@@ -1376,7 +1366,7 @@ class TripAssemblyEngine:
                     level="IDEA",
                     title="Event ideas require confirmation",
                     message=(
-                        "Fashion and football activities in the daily outline remain "
+                        "Activities and live-event requests in the daily outline remain "
                         "planning ideas because Event Intelligence did not return a "
                         "usable current listing for the trip."
                     ),

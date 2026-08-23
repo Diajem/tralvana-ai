@@ -28,7 +28,7 @@ class VisaAssessmentResponse(BaseModel):
     passport_expiry_date: str | None
     passport_validity_months: float | None
     visa_status: str
-    visa_required: bool
+    visa_required: bool | None
     visa_type: str
     entry_requirements: list[str]
     supporting_documents: list[str]

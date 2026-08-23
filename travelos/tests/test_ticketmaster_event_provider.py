@@ -111,8 +111,11 @@ def test_request_maps_destination_dates_and_single_interest(monkeypatch):
     assert sent.method == "GET"
     assert sent.url == "https://app.ticketmaster.com/discovery/v2/events.json"
     assert sent.query_params["city"] == "New York"
-    assert sent.query_params["startDateTime"] == "2026-08-07T00:00:00Z"
-    assert sent.query_params["endDateTime"] == "2026-08-22T23:59:59Z"
+    assert sent.query_params["localStartDateTime"] == (
+        "2026-08-07T00:00:00,2026-08-22T23:59:59"
+    )
+    assert "startDateTime" not in sent.query_params
+    assert "endDateTime" not in sent.query_params
     assert sent.query_params["keyword"] == "soccer"
     assert sent.query_params["apikey"] == "consumer-key-for-test"
     assert "Authorization" not in sent.headers
