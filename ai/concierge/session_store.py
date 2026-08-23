@@ -33,6 +33,10 @@ class SessionStore(Protocol):
 
     def find_by_trip_id(self, trip_id: str) -> ConversationSession | None: ...
 
+    def list_by_traveller(
+        self, traveller_id: str, limit: int = 50
+    ) -> list[ConversationSession]: ...
+
 
 class SessionStoreUnavailableError(RuntimeError):
     """The explicitly configured external session store cannot be reached."""
@@ -69,6 +73,16 @@ class InMemorySessionStore:
 
     def find_by_trip_id(self, trip_id: str) -> ConversationSession | None:
         return next((s for s in self._sessions.values() if s.trip_id == trip_id), None)
+
+    def list_by_traveller(
+        self, traveller_id: str, limit: int = 50
+    ) -> list[ConversationSession]:
+        sessions = [
+            session for session in self._sessions.values()
+            if session.traveller_id == traveller_id
+        ]
+        sessions.sort(key=lambda session: session.updated_at, reverse=True)
+        return sessions[:limit]
 
 
 class RedisSessionStore:
@@ -143,6 +157,20 @@ class RedisSessionStore:
             self._client.delete(index_key)
             return None
         return session
+
+    def list_by_traveller(
+        self, traveller_id: str, limit: int = 50
+    ) -> list[ConversationSession]:
+        sessions: list[ConversationSession] = []
+        for key in self._client.scan_iter(match=f"{SESSION_KEY_PREFIX}*"):
+            if isinstance(key, bytes):
+                key = key.decode("utf-8")
+            conversation_id = str(key)[len(SESSION_KEY_PREFIX):]
+            session = self.get(conversation_id)
+            if session is not None and session.traveller_id == traveller_id:
+                sessions.append(session)
+        sessions.sort(key=lambda session: session.updated_at, reverse=True)
+        return sessions[:limit]
 
     @staticmethod
     def _session_key(conversation_id: str) -> str:
