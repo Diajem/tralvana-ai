@@ -7,6 +7,7 @@ class TravellersSchema(BaseModel):
     adults: int = Field(default=1, ge=1)
     children: int = Field(default=0, ge=0)
     infants: int = Field(default=0, ge=0)
+    minor_ages: list[int] = Field(default_factory=list)
 
 
 class CreateTripPlanRequest(BaseModel):

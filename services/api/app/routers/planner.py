@@ -235,12 +235,22 @@ def _build_trip_brief(
     trip = trip or {}
     timeframe = goal.get("timeframe", {})
     stored_travellers = trip.get("travellers") or goal.get("travellers") or {}
-    travellers = {
+    travellers: dict[str, Any] = {
         "adults": entities.get("adults") or stored_travellers.get("adults") or 1,
         "children": entities.get("children") or stored_travellers.get("children") or 0,
         "infants": entities.get("infants") or stored_travellers.get("infants") or 0,
-        "minor_ages": entities.get("minor_ages") or stored_travellers.get("minor_ages") or [],
     }
+    raw_minor_ages = entities.get("minor_ages") or stored_travellers.get("minor_ages") or []
+    if raw_minor_ages:
+        travellers["minor_ages"] = (
+            [int(age) for age in raw_minor_ages]
+            if isinstance(raw_minor_ages, list)
+            else [
+                int(age.strip())
+                for age in str(raw_minor_ages).split(",")
+                if age.strip()
+            ]
+        )
     budget = goal.get("budget") or trip.get("budget") or {}
     start_date = entities.get("start_date") or timeframe.get("earliest")
     end_date = entities.get("end_date") or timeframe.get("latest")
@@ -374,6 +384,11 @@ def _build_trip_brief(
             "adults": int(travellers.get("adults") or 1),
             "children": int(travellers.get("children") or 0),
             "infants": int(travellers.get("infants") or 0),
+            **(
+                {"minor_ages": travellers["minor_ages"]}
+                if travellers.get("minor_ages")
+                else {}
+            ),
         },
         "budget": budget,
         "nationality": entities.get("nationality"),

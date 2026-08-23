@@ -46,6 +46,7 @@ export interface TripBrief {
     adults: number;
     children: number;
     infants: number;
+    minor_ages?: number[];
   };
   budget: {
     amount?: number | null;

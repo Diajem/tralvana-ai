@@ -84,3 +84,36 @@ def test_recommend_flights_with_traveller_profile(client, sample_profile):
     })
     assert res.status_code == 201
     assert res.json()["traveller_id"] == profile["id"]
+
+
+def test_conversation_flight_request_prefers_explicit_cabin_and_preserves_minor_ages(monkeypatch):
+    from app.domains.flights.service import flight_intelligence_service
+
+    captured = {}
+
+    def capture(request, trip=None, goal=None, profile=None):
+        captured["request"] = request
+        return {"flight_options": []}
+
+    monkeypatch.setattr(flight_intelligence_service, "recommend", capture)
+    flight_intelligence_service.recommend_from_conversation(
+        traveller_id=None,
+        trip_id=None,
+        entities={
+            "origin": "London",
+            "destination": "New York",
+            "start_date": "2026-10-10",
+            "end_date": "2026-10-17",
+            "cabin_class": "premium_economy",
+            "adults": "2",
+            "children": "2",
+            "minor_ages": "6,9",
+        },
+        profile={"preferences": {"cabin_class": "economy"}},
+    )
+
+    request = captured["request"]
+    assert request.cabin_class == "premium_economy"
+    assert request.adults == 2
+    assert request.minors == 2
+    assert request.minor_ages == [6, 9]

@@ -171,7 +171,7 @@ class FlightIntelligenceService:
             destination=entities.get("destination", ""),
             departure_date=entities.get("start_date"),
             return_date=entities.get("end_date"),
-            cabin_class=prefs.get("cabin_class", "economy"),
+            cabin_class=entities.get("cabin_class") or prefs.get("cabin_class", "economy"),
             budget_style=prefs.get("budget_style", "balanced"),
             adults=int(entities.get("adults") or travellers.get("adults") or 1),
             minors=declared_minors,
