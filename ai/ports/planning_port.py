@@ -6,6 +6,8 @@ from typing import Any, Protocol
 
 
 class PlanningPort(Protocol):
+    def get_traveller_profile(self, traveller_id: str) -> dict[str, Any] | None: ...
+
     def create_goal(
         self,
         traveller_id: str | None,
