@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { planTrip } from "@/lib/api";
+import { getLatestSavedPlan, getSavedPlan, planTrip } from "@/lib/api";
+import { useTralvanaAuth } from "@/lib/auth-context";
 import type { DailyOutlineEntry, GroundingNotice, PlanTripResponse, TripItinerary } from "@/types/planner";
 
 function ReadinessBadge({ score }: { score: number }) {
@@ -522,11 +523,48 @@ function ItineraryView({
 }
 
 export default function PlannerPage() {
+  const { clerkEnabled, loaded, signedIn, getSessionToken } = useTralvanaAuth();
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PlanTripResponse | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState(true);
+
+  useEffect(() => {
+    if (clerkEnabled && (!loaded || !signedIn)) return;
+    let active = true;
+    const restore = async () => {
+      try {
+        const token = clerkEnabled
+          ? await getSessionToken() ?? undefined
+          : undefined;
+        const params = new URLSearchParams(window.location.search);
+        const requestedConversation = params.get("conversation");
+        const saved = requestedConversation
+          ? await getSavedPlan(requestedConversation, token)
+          : await getLatestSavedPlan(token);
+        if (!active || !saved) return;
+        setResult(saved);
+        setConversationId(saved.conversation_id);
+        if (!requestedConversation) {
+          window.history.replaceState(
+            null,
+            "",
+            `/planner?conversation=${encodeURIComponent(saved.conversation_id)}${saved.itinerary ? "#overview" : ""}`
+          );
+        }
+      } catch (err: unknown) {
+        if (active) {
+          setError(err instanceof Error ? err.message : "Unable to restore your saved trip");
+        }
+      } finally {
+        if (active) setRestoring(false);
+      }
+    };
+    void restore();
+    return () => { active = false; };
+  }, [clerkEnabled, getSessionToken, loaded, signedIn]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -542,6 +580,11 @@ export default function PlannerPage() {
       setResult(response);
       setConversationId(response.conversation_id);
       setMessage("");
+      window.history.replaceState(
+        null,
+        "",
+        `/planner?conversation=${encodeURIComponent(response.conversation_id)}${response.itinerary ? "#overview" : ""}`
+      );
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to plan your trip");
     } finally {
@@ -554,6 +597,7 @@ export default function PlannerPage() {
     setError(null);
     setResult(null);
     setConversationId(null);
+    window.history.replaceState(null, "", "/planner");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -562,10 +606,19 @@ export default function PlannerPage() {
       <div className="mx-auto max-w-6xl space-y-8">
         <div className="flex items-center justify-between gap-4">
           <Link href="/" className="text-xl font-bold tracking-tight text-slate-950">Tralvana <span className="text-indigo-600">AI</span></Link>
-          {conversationId && (
-            <button type="button" onClick={startOver} className="text-sm font-semibold text-indigo-700 hover:text-indigo-900">New trip</button>
-          )}
+          <div className="flex items-center gap-4">
+            <Link href="/my-trips" className="text-sm font-semibold text-slate-600 hover:text-indigo-700">My Trips</Link>
+            {conversationId && (
+              <button type="button" onClick={startOver} className="text-sm font-semibold text-indigo-700 hover:text-indigo-900">New trip</button>
+            )}
+          </div>
         </div>
+
+        {restoring && (
+          <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-medium text-indigo-800">
+            Restoring your latest saved trip…
+          </div>
+        )}
 
         <header className={result?.itinerary ? "sr-only" : "max-w-3xl"}>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">One connected travel plan</p>
