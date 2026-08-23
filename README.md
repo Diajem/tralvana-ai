@@ -110,7 +110,7 @@ Run all tests from the project root:
 
 ```bash
 pytest
-# 1,549 tests across API, AI, and TravelOS platform layers
+# 1,553 tests across API, AI, and TravelOS platform layers
 ```
 
 Run by suite:
@@ -121,8 +121,8 @@ pytest ai/tests/              # AI classifiers and planner
 pytest travelos/tests/        # platform layer (Intelligence Gateway)
 ```
 
-No external services are required for tests. Commercial persistence tests use
-an isolated SQLite database; deployments use PostgreSQL.
+No external services are required for tests. Persistence tests use isolated
+SQLite databases; deployments use PostgreSQL.
 
 See [`docs/TESTING_FRAMEWORK.md`](docs/TESTING_FRAMEWORK.md) for full details.
 
