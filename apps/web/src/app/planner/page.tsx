@@ -68,6 +68,22 @@ function fmtValue(key: string, value: unknown, data: Record<string, unknown>): s
   if (key === "match_score" && typeof value === "number") {
     return `${Math.round(value * 100)}%`;
   }
+  if (key === "local_date" && typeof value === "string") {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (match) {
+      const [, year, month, day] = match;
+      return new Intl.DateTimeFormat("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        timeZone: "UTC",
+      }).format(new Date(Date.UTC(Number(year), Number(month) - 1, Number(day))));
+    }
+  }
+  if (key === "local_time" && typeof value === "string") {
+    const match = /^(\d{2}):(\d{2})/.exec(value);
+    if (match) return `${match[1]}:${match[2]}`;
+  }
   if (typeof value === "boolean") return value ? "Yes" : "No";
   return String(value).replace(/_/g, " ");
 }
@@ -77,7 +93,8 @@ function RecommendationFacts({ data }: { data: Record<string, unknown> }) {
   // field — but never invent a value that isn't already in `data`.
   const preferredOrder = [
     "airline", "flight_number", "property_name", "name", "city", "budget_style",
-    "category", "venue_area", "date_status", "availability_status", "team_level",
+    "category", "venue_area", "local_date", "local_time", "date_status",
+    "availability_status", "team_level",
     "estimated_price", "nightly_price", "total_price", "currency",
     "duration_days", "adults", "children", "total_cost_usd", "cost_per_day_usd",
     "declared_budget", "assessment_status", "affordability_status",

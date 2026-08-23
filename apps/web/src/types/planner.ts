@@ -105,6 +105,8 @@ export interface EventRecommendation extends Record<string, unknown> {
   description: string;
   starts_at: string | null;
   ends_at: string | null;
+  local_date: string | null;
+  local_time: string | null;
   date_status: string;
   availability_status: string;
   ticket_url: string | null;

@@ -69,6 +69,21 @@ def test_normalizer_never_promotes_missing_date_to_confirmed():
     assert event["availability_status"] == "UNKNOWN"
 
 
+def test_normalizer_exposes_provider_local_date_and_time():
+    event = EventNormalizer().normalize(
+        {
+            "destination": "New York",
+            "name": "Evening event",
+            "starts_at": "2026-10-11T23:30:00Z",
+            "_local_date": "2026-10-11",
+            "_local_time": "19:30:00",
+        }
+    )
+
+    assert event["local_date"] == "2026-10-11"
+    assert event["local_time"] == "19:30:00"
+
+
 def test_scorer_caps_strong_interest_match_when_evidence_is_unverified():
     event = {
         "date_status": "UNVERIFIED",

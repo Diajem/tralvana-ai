@@ -5,6 +5,7 @@ import pytest
 from travelos.intelligence_gateway.discovery_adapters import (
     GatewayEventProvider,
     LiveEventSearchUnavailableError,
+    _deduplicate_event_records,
     _distinct_event_search_interests,
 )
 from travelos.intelligence_gateway.gateway import IntelligenceGateway
@@ -57,3 +58,30 @@ def test_generic_live_events_request_uses_broad_destination_date_search():
     assert _distinct_event_search_interests(
         ["major attractions", "live events"]
     ) == []
+
+
+def test_duplicate_public_ticket_url_wins_over_different_provider_ids():
+    records = [
+        {
+            "name": "The Banksy Museum New York!",
+            "_provider_event_id": "event-a",
+            "ticket_url": "https://www.ticketmaster.com/event/banksy",
+        },
+        {
+            "name": "The Banksy Museum New York!",
+            "_provider_event_id": "event-b",
+            "ticket_url": "https://www.ticketmaster.com/event/banksy/",
+        },
+        {
+            "name": "Banksy Museum - Flexiticket",
+            "_provider_event_id": "event-c",
+            "ticket_url": "https://www.ticketmaster.com/event/banksy-flex",
+        },
+    ]
+
+    unique = _deduplicate_event_records(records)
+
+    assert [record["_provider_event_id"] for record in unique] == [
+        "event-a",
+        "event-c",
+    ]

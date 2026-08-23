@@ -498,9 +498,14 @@ def _deduplicate_event_records(
     unique: list[dict[str, Any]] = []
     seen: set[tuple[str, ...]] = set()
     for record in records:
-        provider_id = str(record.get("_provider_event_id", "")).strip()
+        ticket_url_value = record.get("ticket_url")
+        ticket_url = str(ticket_url_value).strip() if ticket_url_value else ""
+        provider_id_value = record.get("_provider_event_id")
+        provider_id = str(provider_id_value).strip() if provider_id_value else ""
         key = (
-            ("provider", provider_id)
+            ("ticket_url", ticket_url.casefold().rstrip("/"))
+            if ticket_url
+            else ("provider", provider_id)
             if provider_id
             else (
                 "canonical",

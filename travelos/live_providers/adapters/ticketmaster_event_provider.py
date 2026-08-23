@@ -315,6 +315,9 @@ def _map_event(event: Any) -> dict[str, Any]:
         "_local_date": (
             str(start["localDate"]).strip() if start.get("localDate") else None
         ),
+        "_local_time": (
+            str(start["localTime"]).strip() if start.get("localTime") else None
+        ),
         "availability_status": availability,
         "ticket_url": ticket_url,
         "requires_ticket": ticket_url is not None,
