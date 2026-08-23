@@ -23,6 +23,7 @@ def _event(event_id: str, name: str, local_date: str) -> dict:
         "dates": {
             "start": {
                 "localDate": local_date,
+                "localTime": "19:00:00",
                 "dateTime": f"{local_date}T23:00:00Z",
             },
             "status": {"code": "onsale"},
@@ -128,6 +129,11 @@ def test_new_york_planner_prefers_senior_event_and_preserves_live_grounding(
         "2026-08-07" <= event["starts_at"][:10] <= "2026-08-22"
         for event in events
     )
+    assert [event["local_date"] for event in events] == [
+        "2026-08-12",
+        "2026-08-10",
+    ]
+    assert all(event["local_time"] == "19:00:00" for event in events)
 
     event_notice = next(
         notice
