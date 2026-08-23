@@ -1,8 +1,13 @@
+"use client";
+
 import { AffiliateCheckout } from "@/components/commercial/AffiliateCheckout";
 import { getAffiliateProgrammes, getFlightOption } from "@/lib/api";
-import { serverSessionToken } from "@/lib/server-auth";
+import { useTralvanaAuth } from "@/lib/auth-context";
+import type { AffiliateProgramme } from "@/types/commercial";
 import type { FlightOption } from "@/types/flight";
-import { notFound } from "next/navigation";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const RECOMMENDATION_LABELS: Record<string, { label: string; className: string }> = {
   BEST_OVERALL: { label: "Best Overall", className: "bg-blue-600 text-white" },
@@ -31,21 +36,79 @@ function MatchScoreBar({ score }: { score: number }) {
   );
 }
 
-export default async function FlightOptionPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const token = await serverSessionToken();
-  let flight: FlightOption;
-  const affiliateProgrammes = await getAffiliateProgrammes().catch(() => []);
-  const expedia = affiliateProgrammes.find((programme) => programme.partner === "Expedia");
-  try {
-    flight = await getFlightOption(id, token);
-  } catch {
-    notFound();
+export default function FlightOptionPage() {
+  const { id } = useParams<{ id: string }>();
+  const { loaded: authLoaded, signedIn, getSessionToken } = useTralvanaAuth();
+  const [flight, setFlight] = useState<FlightOption | null>(null);
+  const [affiliateProgrammes, setAffiliateProgrammes] = useState<AffiliateProgramme[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!authLoaded || !signedIn || !id) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadFlight() {
+      setLoading(true);
+      setError(null);
+      try {
+        const token = await getSessionToken();
+        const [option, programmes] = await Promise.all([
+          getFlightOption(id, token ?? undefined),
+          getAffiliateProgrammes().catch(() => []),
+        ]);
+        if (!cancelled) {
+          setFlight(option);
+          setAffiliateProgrammes(programmes);
+        }
+      } catch {
+        if (!cancelled) {
+          setError("This flight option could not be loaded. Return to the search results and try again.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadFlight();
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoaded, getSessionToken, id, signedIn]);
+
+  if (!authLoaded || (signedIn && loading)) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-gray-50">
+        <p className="text-sm text-gray-500">Loading flight details…</p>
+      </main>
+    );
   }
+
+  if (!flight || error) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
+        <div className="max-w-md rounded-2xl bg-white p-8 text-center shadow-sm">
+          <h1 className="text-xl font-semibold text-gray-900">Flight option unavailable</h1>
+          <p className="mt-2 text-sm text-gray-500">
+            {error ?? "Sign in to view this flight option."}
+          </p>
+          <Link
+            href="/flights/recommend"
+            className="mt-6 inline-flex rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            Return to flight search
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  const expedia = affiliateProgrammes.find((programme) => programme.partner === "Expedia");
 
   const badge = RECOMMENDATION_LABELS[flight.recommendation_type] ?? {
     label: flight.recommendation_type,
