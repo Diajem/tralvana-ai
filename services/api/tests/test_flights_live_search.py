@@ -22,7 +22,7 @@ from travelos.intelligence_gateway.discovery_adapters import GatewayFlightProvid
 from travelos.intelligence_gateway.gateway import IntelligenceGateway
 from travelos.intelligence_gateway.provider_registry import ProviderRegistry
 from travelos.live_providers.adapters.duffel_flight_provider import register_duffel_flight_provider
-from travelos.live_providers.transport import FakeTransport
+from travelos.live_providers.transport import FakeTransport, TransportResponse
 
 _MODE_VAR = "TRALVANA_FLIGHT_PROVIDER_MODE"
 _TOKEN_VAR = "DUFFEL_API_TOKEN"
@@ -115,14 +115,24 @@ class TestMockModeResponseShapeUnchanged:
 
 
 class TestLiveSandboxValidation:
-    def test_non_iata_origin_returns_422_without_calling_provider(self, client, monkeypatch):
+    def test_city_name_is_validated_as_a_resolvable_place(self, client, monkeypatch):
         monkeypatch.setenv(_MODE_VAR, "LIVE_SANDBOX")
         monkeypatch.setenv(_TOKEN_VAR, "duffel_test_abc123")
         res = client.post("/flights/recommend", json={
-            "origin": "London", "destination": "JFK", "departure_date": _TOMORROW,
+            "origin": "", "destination": "JFK", "departure_date": _TOMORROW,
         })
         assert res.status_code == 422
         assert "origin" in str(res.json()["detail"])
+
+    def test_missing_minor_ages_returns_422_before_provider_call(self, client, monkeypatch):
+        monkeypatch.setenv(_MODE_VAR, "LIVE_SANDBOX")
+        monkeypatch.setenv(_TOKEN_VAR, "duffel_test_abc123")
+        res = client.post("/flights/recommend", json={
+            "origin": "LHR", "destination": "JFK", "departure_date": _TOMORROW,
+            "adults": 2, "minors": 2,
+        })
+        assert res.status_code == 422
+        assert "minor_ages" in str(res.json()["detail"])
 
     def test_missing_departure_date_returns_422(self, client, monkeypatch):
         monkeypatch.setenv(_MODE_VAR, "LIVE_SANDBOX")
@@ -159,6 +169,48 @@ class TestLiveSandboxEndToEnd:
         assert body["results_count"] == 1
         assert body["flight_options"][0]["airline"] == "British Airways"
         assert body["request_id"]
+
+    def test_age_aware_family_search_returns_duffel_sandbox_data(self, client, monkeypatch):
+        _install_live_provider(monkeypatch, status_code=200, body=_DUFFEL_OFFER_RESPONSE)
+        res = client.post("/flights/recommend", json={
+            "origin": "LHR", "destination": "JFK", "departure_date": _TOMORROW,
+            "cabin_class": "economy", "adults": 2, "minors": 2, "minor_ages": [6, 9],
+        })
+        assert res.status_code == 201
+        assert res.json()["data_source"] == "DUFFEL_SANDBOX"
+
+    def test_city_names_resolve_and_return_duffel_sandbox_data(self, client, monkeypatch):
+        monkeypatch.setenv(_MODE_VAR, "LIVE_SANDBOX")
+        monkeypatch.setenv(_TOKEN_VAR, "duffel_test_abc123")
+
+        def responder(request):
+            if request.url.endswith("/places/suggestions"):
+                query = request.query_params["query"]
+                code = {"London": "LON", "New York": "NYC"}[query]
+                return TransportResponse(
+                    status_code=200,
+                    body={"data": [{"type": "city", "name": query, "iata_code": code}]},
+                )
+            return TransportResponse(status_code=200, body=_DUFFEL_OFFER_RESPONSE)
+
+        registry = ProviderRegistry()
+        register_duffel_flight_provider(
+            transport=FakeTransport(responder=responder),
+            registry=registry,
+        )
+        gateway = IntelligenceGateway(registry=registry)
+        monkeypatch.setattr(
+            fi_module.flight_intelligence,
+            "_provider",
+            GatewayFlightProvider(gateway=gateway),
+        )
+
+        res = client.post("/flights/recommend", json={
+            "origin": "London", "destination": "New York", "departure_date": _TOMORROW,
+            "cabin_class": "economy",
+        })
+        assert res.status_code == 201
+        assert res.json()["data_source"] == "DUFFEL_SANDBOX"
 
     def test_live_search_result_carries_no_secret_or_raw_provider_payload(self, client, monkeypatch):
         _install_live_provider(monkeypatch, status_code=200, body=_DUFFEL_OFFER_RESPONSE)

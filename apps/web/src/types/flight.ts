@@ -70,5 +70,7 @@ export interface RecommendFlightsRequest {
   budget_style?: string;
   airline_preference?: string;
   adults?: number;
+  minors?: number;
+  minor_ages?: number[];
   trip_duration_days?: number;
 }

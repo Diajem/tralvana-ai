@@ -77,6 +77,23 @@ class TestLastResultTracking:
 
         assert gateway.request.params["adults"] == 4
 
+    def test_search_forwards_under_18_ages_to_the_gateway(self, monkeypatch):
+        monkeypatch.setenv(_MODE_VAR, "MOCK")
+        gateway = _RecordingGateway()
+        provider = GatewayFlightProvider(gateway=gateway)
+
+        provider.search(
+            origin="LON",
+            destination="NYC",
+            departure_date="2026-10-01",
+            return_date=None,
+            cabin_class="economy",
+            adults=2,
+            minor_ages=[6, 9],
+        )
+
+        assert gateway.request.params["minor_ages"] == [6, 9]
+
 
 class TestMockModeNeverRaises:
     def test_no_eligible_provider_in_mock_mode_returns_empty_list(self, monkeypatch):

@@ -230,6 +230,7 @@ class GatewayFlightProvider:
         return_date: str | None,
         cabin_class: str,
         adults: int = 1,
+        minor_ages: list[int] | None = None,
     ) -> list[dict[str, Any]]:
         self.used_mock_fallback = False
         request = ProviderRequest(
@@ -238,6 +239,7 @@ class GatewayFlightProvider:
                 "origin": origin, "destination": destination, "departure_date": departure_date,
                 "return_date": return_date, "cabin_class": cabin_class,
                 "adults": adults,
+                "minor_ages": list(minor_ages or []),
             },
         )
         result = self._gateway.execute(Capability.FLIGHTS, request)
@@ -262,6 +264,7 @@ class GatewayFlightProvider:
                 return_date,
                 cabin_class,
                 adults,
+                minor_ages or [],
             )
 
         raise LiveFlightSearchUnavailableError(

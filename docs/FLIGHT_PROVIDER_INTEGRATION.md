@@ -46,16 +46,16 @@ adapter is ever constructed with `environment=ProviderEnvironment.PRODUCTION`
 ## Request Mapping — `build_request()`
 
 Internal `ProviderRequest.params` (`origin`, `destination`,
-`departure_date`, `return_date`, `cabin_class` — exactly what
-`GatewayFlightProvider.search()` already passes, no new fields) maps to
+`departure_date`, `return_date`, `cabin_class`, `adults`, and
+`minor_ages`) maps to
 Duffel's `POST /air/offer_requests?return_offers=true`:
 
 | Internal field | Duffel field |
 |---|---|
-| `origin` / `destination` / `departure_date` | `data.slices[0]` |
+| `origin` / `destination` / `departure_date` | `data.slices[0]`; city/airport names are first resolved through Duffel Places to an IATA city/airport code |
 | `return_date` (if present) | `data.slices[1]` — omitted entirely for one-way |
 | `cabin_class` (`economy`\|`business`\|`first`) | `data.cabin_class` (identity mapping — Duffel's fourth tier, `premium_economy`, is never requested) |
-| *(none — not in `ProviderRequest.params`)* | `data.passengers` — always `[{"type": "adult"}]`; see Known Limitations |
+| `adults` / `minor_ages` | `data.passengers` — adults use `{"type": "adult"}` and each under-18 passenger uses `{"age": N}` |
 
 `Duffel-Version: v2` is sent as a required protocol header — not an
 auth header, so it's set directly in `build_request()`, not by
@@ -182,8 +182,8 @@ now calls it automatically at the right time.
 ## Known Limitations
 
 See `docs/LIVE_FLIGHT_SEARCH.md`'s "What Remains Before Production and
-Booking" — most of `docs/PRODUCTION_READINESS.md`'s checklist,
-age-aware child/infant passengers, and `_price_anchor` set to each offer's
-own price rather than an independent baseline. Adult party size is now
-preserved end to end (T-061). The real-transport, real-sandbox-call, and
-application-startup-wiring items are closed (T-037, T-038).
+Booking" — most of `docs/PRODUCTION_READINESS.md`'s checklist, passenger
+identity/order/payment flows, and `_price_anchor` set to each offer's own
+price rather than an independent baseline. Adult counts and under-18 ages
+are preserved end to end (T-061/T-062). The real-transport,
+real-sandbox-call, and application-startup-wiring items are closed.

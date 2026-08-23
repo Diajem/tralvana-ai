@@ -25,10 +25,14 @@ services:
         value: https://app.tralvana.com
       - key: CLERK_JWT_KEY
         sync: false
+      - key: DUFFEL_API_TOKEN
+        sync: false
       - key: TRALVANA_PROVIDER_ENVIRONMENT
         value: MOCK
       - key: TRALVANA_FLIGHT_PROVIDER_MODE
-        value: MOCK
+        value: LIVE_SANDBOX
+      - key: TRALVANA_FLIGHT_MOCK_FALLBACK_ENABLED
+        value: "false"
       - key: TRALVANA_ACCOMMODATION_PROVIDER_MODE
         value: MOCK
       - key: TRALVANA_EVENT_PROVIDER_MODE

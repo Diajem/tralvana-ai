@@ -30,6 +30,7 @@ class _ProviderStub:
         return_date,
         cabin_class,
         adults=1,
+        minor_ages=None,
     ):
         return MockFlightProvider().search(
             origin,
@@ -38,6 +39,7 @@ class _ProviderStub:
             return_date,
             cabin_class,
             adults,
+            minor_ages,
         )
 
 

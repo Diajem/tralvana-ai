@@ -508,3 +508,23 @@ class TestEntityExtraction:
     def test_destination_discovery_extracts_destination(self, classifier):
         result = classifier.classify("things to do in Singapore")
         assert result.entities.get("destination") == "Singapore"
+
+    def test_extracts_minor_ages_and_keeps_family_counts_consistent(self, classifier):
+        result = classifier.classify(
+            "Plan a trip to Dublin for a family of 4: 2 adults and 2 children aged 6 and 9."
+        )
+        assert result.entities["adults"] == "2"
+        assert result.entities["children"] == "2"
+        assert result.entities["infants"] == "0"
+        assert result.entities["minor_ages"] == "6,9"
+
+    def test_extracts_minor_ages_from_a_clarification_reply(self, classifier):
+        result = classifier.classify("Their ages are 1 and 8.")
+        assert result.entities["minor_ages"] == "1,8"
+        assert result.entities["infants"] == "1"
+        assert result.entities["children"] == "1"
+
+    def test_preserves_duplicate_ages_for_twins(self, classifier):
+        result = classifier.classify("The children are aged 7 and 7.")
+        assert result.entities["minor_ages"] == "7,7"
+        assert result.entities["children"] == "2"

@@ -41,23 +41,19 @@ class TestValidRequestsPass:
         validate_live_flight_search(**_valid(adults=1))
 
 
-class TestIataCodeValidation:
+class TestPlaceValidation:
     def test_lowercase_origin_is_normalised_and_accepted(self):
         validate_live_flight_search(**_valid(origin="lhr"))
 
-    def test_non_iata_origin_rejected(self):
-        with pytest.raises(LiveFlightSearchValidationError) as exc_info:
-            validate_live_flight_search(**_valid(origin="London"))
-        assert any("origin" in e for e in exc_info.value.errors)
+    def test_city_name_origin_is_accepted_for_private_resolution(self):
+        validate_live_flight_search(**_valid(origin="London"))
 
-    def test_non_iata_destination_rejected(self):
-        with pytest.raises(LiveFlightSearchValidationError) as exc_info:
-            validate_live_flight_search(**_valid(destination="New York"))
-        assert any("destination" in e for e in exc_info.value.errors)
+    def test_city_name_destination_is_accepted_for_private_resolution(self):
+        validate_live_flight_search(**_valid(destination="New York"))
 
-    def test_two_letter_code_rejected(self):
+    def test_blank_origin_rejected(self):
         with pytest.raises(LiveFlightSearchValidationError):
-            validate_live_flight_search(**_valid(origin="LH"))
+            validate_live_flight_search(**_valid(origin=""))
 
     def test_origin_equals_destination_rejected(self):
         with pytest.raises(LiveFlightSearchValidationError) as exc_info:
@@ -103,6 +99,24 @@ class TestPassengerAndCabinValidation:
         with pytest.raises(LiveFlightSearchValidationError):
             validate_live_flight_search(**_valid(adults=10))
 
+    def test_minor_ages_are_required_for_every_under_18_passenger(self):
+        with pytest.raises(LiveFlightSearchValidationError) as exc_info:
+            validate_live_flight_search(**_valid(minors=2, minor_ages=[]))
+        assert any("one age" in error for error in exc_info.value.errors)
+
+    def test_age_aware_family_search_is_accepted(self):
+        validate_live_flight_search(**_valid(adults=2, minors=2, minor_ages=[6, 9]))
+
+    def test_invalid_minor_age_is_rejected(self):
+        with pytest.raises(LiveFlightSearchValidationError) as exc_info:
+            validate_live_flight_search(**_valid(minors=1, minor_ages=[18]))
+        assert any("0 to 17" in error for error in exc_info.value.errors)
+
+    def test_total_party_is_bounded(self):
+        with pytest.raises(LiveFlightSearchValidationError) as exc_info:
+            validate_live_flight_search(**_valid(adults=8, minors=2, minor_ages=[6, 9]))
+        assert any("total passengers" in error for error in exc_info.value.errors)
+
     def test_invalid_cabin_class_rejected(self):
         with pytest.raises(LiveFlightSearchValidationError) as exc_info:
             validate_live_flight_search(**_valid(cabin_class="premium_economy"))
@@ -113,7 +127,7 @@ class TestMultipleErrorsCollected:
     def test_every_problem_is_reported_not_just_the_first(self):
         with pytest.raises(LiveFlightSearchValidationError) as exc_info:
             validate_live_flight_search(
-                origin="London", destination="London", departure_date=_YESTERDAY,
+                origin="", destination="", departure_date=_YESTERDAY,
                 return_date=None, adults=0, cabin_class="luxury",
             )
         assert len(exc_info.value.errors) >= 4

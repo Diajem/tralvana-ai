@@ -38,8 +38,9 @@ tralvana-ai/
 │                       #   {flight,accommodation}_provider_bootstrap.py — the
 │                       #   composition-root wiring that turns real Duffel sandbox
 │                       #   search on for TRALVANA_FLIGHT_PROVIDER_MODE=LIVE_SANDBOX /
-│                       #   TRALVANA_ACCOMMODATION_PROVIDER_MODE=LIVE_SANDBOX (both
-│                       #   MOCK by default). See docs/LIVE_FLIGHT_SEARCH.md and
+│                       #   TRALVANA_ACCOMMODATION_PROVIDER_MODE=LIVE_SANDBOX (code
+│                       #   defaults are MOCK; hosted flights are LIVE_SANDBOX).
+│                       #   See docs/LIVE_FLIGHT_SEARCH.md and
 │                       #   docs/LIVE_ACCOMMODATION_SEARCH.md (Stays access not yet
 │                       #   granted on this account — see the latter's Status section).
 ├── scripts/            # Operational scripts — e.g. verify_duffel_live_sandbox.py,
@@ -109,7 +110,7 @@ Run all tests from the project root:
 
 ```bash
 pytest
-# 1,535 tests across API, AI, and TravelOS platform layers
+# 1,548 tests across API, AI, and TravelOS platform layers
 ```
 
 Run by suite:

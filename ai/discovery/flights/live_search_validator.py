@@ -1,7 +1,9 @@
 """
 Pre-flight validation for a live Duffel sandbox search (T-038, section 3)
-— every check here runs before any provider call, so an invalid request
-never reaches Duffel. Deliberately scoped to LIVE_SANDBOX mode only
+— every request-shape and passenger check here runs before the offer
+request reaches Duffel. Human-readable places are resolved privately by
+the Duffel adapter through its Places API. Deliberately scoped to
+LIVE_SANDBOX mode only
 (services/api/app/domains/flights/service.py gates the call on
 `config.flight_provider_mode`): MockFlightProvider has never required
 IATA codes (its own tests and existing callers freely use city names
@@ -19,6 +21,7 @@ _IATA_RE = re.compile(r"^[A-Z]{3}$")
 _VALID_CABIN_CLASSES = ("economy", "business", "first")
 _MIN_ADULTS = 1
 _MAX_ADULTS = 9
+_MAX_PASSENGERS = 9
 
 
 class LiveFlightSearchValidationError(ValueError):
@@ -38,16 +41,18 @@ def validate_live_flight_search(
     return_date: str | None,
     adults: int,
     cabin_class: str,
+    minors: int = 0,
+    minor_ages: list[int] | None = None,
 ) -> None:
     errors: list[str] = []
 
     origin_iata = (origin or "").strip().upper()
     destination_iata = (destination or "").strip().upper()
 
-    if not _IATA_RE.match(origin_iata):
-        errors.append(f"origin must be a 3-letter IATA airport code, got {origin!r}")
-    if not _IATA_RE.match(destination_iata):
-        errors.append(f"destination must be a 3-letter IATA airport code, got {destination!r}")
+    if not _valid_place(origin):
+        errors.append("origin must be a city, airport name, or 3-letter IATA code")
+    if not _valid_place(destination):
+        errors.append("destination must be a city, airport name, or 3-letter IATA code")
     if origin_iata and destination_iata and origin_iata == destination_iata:
         errors.append("origin and destination must differ")
 
@@ -63,11 +68,34 @@ def validate_live_flight_search(
     if not (_MIN_ADULTS <= adults <= _MAX_ADULTS):
         errors.append(f"adults must be between {_MIN_ADULTS} and {_MAX_ADULTS}, got {adults}")
 
+    ages = list(minor_ages or [])
+    if minors < 0:
+        errors.append(f"minors must be zero or greater, got {minors}")
+    if minors != len(ages):
+        errors.append(
+            f"minor_ages must contain one age for each under-18 passenger "
+            f"({minors} expected, {len(ages)} supplied)"
+        )
+    invalid_ages = [age for age in ages if not isinstance(age, int) or not 0 <= age <= 17]
+    if invalid_ages:
+        errors.append(f"every minor age must be a whole number from 0 to 17, got {invalid_ages}")
+    if adults + minors > _MAX_PASSENGERS:
+        errors.append(
+            f"total passengers must be between 1 and {_MAX_PASSENGERS}, got {adults + minors}"
+        )
+
     if cabin_class not in _VALID_CABIN_CLASSES:
         errors.append(f"cabin_class must be one of {list(_VALID_CABIN_CLASSES)}, got {cabin_class!r}")
 
     if errors:
         raise LiveFlightSearchValidationError(errors)
+
+
+def _valid_place(value: str | None) -> bool:
+    place = (value or "").strip()
+    if _IATA_RE.fullmatch(place.upper()):
+        return True
+    return len(place) >= 2 and any(character.isalpha() for character in place)
 
 
 def _parse_date(value: str | None, field_name: str, required: bool, errors: list[str]) -> date | None:
