@@ -14,6 +14,11 @@ class PlanningAdapter:
         self._goal_service_override = goal_service
         self._trip_service_override = trip_planning_service
 
+    def get_traveller_profile(self, traveller_id: str) -> dict[str, Any] | None:
+        from app.domains.traveller.service import traveller_service
+
+        return traveller_service.get_profile(traveller_id)
+
     def create_goal(
         self,
         traveller_id: str | None,
