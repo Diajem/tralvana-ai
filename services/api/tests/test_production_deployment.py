@@ -146,6 +146,23 @@ def test_clerk_sso_callbacks_remain_public_until_session_is_created():
     assert "Tralvava" not in layout
 
 
+def test_flight_detail_uses_the_active_browser_session_instead_of_server_redirect():
+    flight_detail = (
+        ROOT / "apps/web/src/app/flights/[id]/page.tsx"
+    ).read_text(encoding="utf-8")
+    auth_context = (
+        ROOT / "apps/web/src/lib/auth-context.tsx"
+    ).read_text(encoding="utf-8")
+
+    assert flight_detail.startswith('"use client";')
+    assert "useTralvanaAuth" in flight_detail
+    assert "await getSessionToken()" in flight_detail
+    assert "getFlightOption(id, token ?? undefined)" in flight_detail
+    assert "serverSessionToken" not in flight_detail
+    assert "redirectToSignIn" not in flight_detail
+    assert "getSessionToken: () => Promise<string | null>" in auth_context
+
+
 def test_free_api_runs_migrations_and_seed_at_startup():
     startup = (ROOT / "services/api/scripts/start-production.sh").read_text(encoding="utf-8")
     dockerfile = (ROOT / "services/api/Dockerfile").read_text(encoding="utf-8")
