@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.domains.traveller.models import TravellerProfile
-from app.domains.traveller.repository import TravellerRepository
+from app.domains.traveller.repository import TravellerRepository, build_traveller_repository
 from app.domains.traveller.schemas import CreateProfileRequest
 
 
@@ -42,4 +42,4 @@ class TravellerService:
         return [profile.to_dict() for profile in self._repository.list_all()]
 
 
-traveller_service = TravellerService(TravellerRepository())
+traveller_service = TravellerService(build_traveller_repository())

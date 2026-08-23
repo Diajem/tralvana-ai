@@ -136,6 +136,39 @@ def test_conversation_cannot_be_resumed_by_another_account(client, clerk_auth):
     assert intruder.status_code == 403
 
 
+def test_planner_saves_restores_and_isolates_account_trips(client, clerk_auth):
+    owner_headers = _headers(clerk_auth("user_saved_trip_owner"))
+    owner = client.post(
+        "/planner/plan",
+        json={
+            "message": (
+                "Plan a 5 day trip to Lisbon from London in September 2026 "
+                "for 2 adults with a balanced budget."
+            )
+        },
+        headers=owner_headers,
+    )
+    assert owner.status_code == 200
+    conversation_id = owner.json()["conversation_id"]
+
+    latest = client.get("/planner/saved/latest", headers=owner_headers)
+    assert latest.status_code == 200
+    assert latest.json() == owner.json()
+
+    saved = client.get("/planner/saved", headers=owner_headers)
+    assert saved.status_code == 200
+    assert saved.json()[0]["conversation_id"] == conversation_id
+    assert saved.json()[0]["destination"] == "Lisbon"
+
+    intruder_headers = _headers(clerk_auth("user_saved_trip_intruder"))
+    assert client.get(
+        f"/planner/saved/{conversation_id}", headers=intruder_headers
+    ).status_code == 403
+    assert client.get(
+        "/planner/saved/latest", headers=intruder_headers
+    ).status_code == 404
+
+
 def test_invalid_authorized_party_is_rejected(client, clerk_auth):
     response = client.get(
         "/traveller/profile/user_owner",

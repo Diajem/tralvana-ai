@@ -9,8 +9,10 @@ from sqlalchemy import engine_from_config, pool
 from app.database.base import Base
 from app.database.session import normalize_database_url
 import app.domains.commercial.orm  # noqa: F401
+import app.domains.conversation.orm  # noqa: F401
 import app.domains.goals.orm  # noqa: F401
 import app.domains.trips.orm  # noqa: F401
+import app.domains.traveller.orm  # noqa: F401
 import travelos.persistence.knowledge_orm  # noqa: F401
 
 config = context.config

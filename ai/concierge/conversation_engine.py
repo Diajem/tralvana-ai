@@ -266,6 +266,18 @@ class ConversationEngine:
         — for callers that only have the trip, not the conversation."""
         return self._store.find_by_trip_id(trip_id)
 
+    def configure_store(self, store: Any) -> None:
+        """Inject the deployment-owned durable store at the composition root."""
+        self._store = store
+
+    def save_session(self, session: ConversationSession) -> None:
+        self._store.save(session)
+
+    def list_sessions_by_traveller(
+        self, traveller_id: str, limit: int = 50
+    ) -> list[ConversationSession]:
+        return self._store.list_by_traveller(traveller_id, limit)
+
     def _update_session(
         self, session: ConversationSession, intent: Intent, decision: Decision
     ) -> None:
@@ -414,6 +426,12 @@ class ConversationEngine:
     def _fetch_profile(self, traveller_id: str | None) -> dict[str, Any] | None:
         if not traveller_id:
             return None
+        try:
+            profile = self._port.get_traveller_profile(traveller_id)
+            if profile:
+                return profile
+        except Exception:
+            pass
         try:
             from ai.memory.traveller_intelligence_service import traveller_intelligence_service
             return traveller_intelligence_service.build_context_data(traveller_id)

@@ -123,6 +123,11 @@ def _full_session() -> ConversationSession:
         explanation={"confidence": 0.91, "drivers": ["travel dates"]},
         destination="New York",
     )
+    session.last_planner_response = {
+        "conversation_id": session.conversation_id,
+        "response": "Your saved New York plan",
+        "itinerary": {"trip_brief": {"destination": "New York"}},
+    }
     return session
 
 
@@ -137,6 +142,8 @@ def test_session_json_round_trip_preserves_complete_planner_state():
     assert restored.history[0].intent == "PLAN_TRIP"
     assert restored.last_recommendation is not None
     assert restored.last_recommendation.destination == "New York"
+    assert restored.last_planner_response is not None
+    assert restored.last_planner_response["itinerary"]["trip_brief"]["destination"] == "New York"
     result = restored.last_recommendation.results[0]
     assert result.status is AgentStatus.SUCCESS
     assert result.data["event_date"] == "2026-08-15"
@@ -168,6 +175,19 @@ def test_in_memory_store_keeps_existing_contract():
     assert restored.traveller_id == "traveller-2"
     assert store.find_by_trip_id("trip-2") is created
     assert store.get_or_create("unknown", "traveller-3").conversation_id != "unknown"
+
+
+def test_in_memory_store_lists_only_one_travellers_sessions_latest_first():
+    store = InMemorySessionStore()
+    older = store.create("traveller-1")
+    older.updated_at = "2026-08-20T10:00:00+00:00"
+    store.save(older)
+    newer = store.create("traveller-1")
+    newer.updated_at = "2026-08-21T10:00:00+00:00"
+    store.save(newer)
+    store.create("traveller-2")
+
+    assert store.list_by_traveller("traveller-1") == [newer, older]
 
 
 def test_redis_store_survives_adapter_recreation_and_sets_both_ttls():

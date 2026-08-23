@@ -21,7 +21,7 @@ import type {
 import type { CheckVisaRequest, VisaAssessment } from "@/types/visa";
 import type { AnalyseWeatherRequest, WeatherAssessment } from "@/types/weather";
 import type { Explanation, ExplainRequest } from "@/types/explain";
-import type { PlanTripRequest, PlanTripResponse } from "@/types/planner";
+import type { PlanTripRequest, PlanTripResponse, SavedPlanSummary } from "@/types/planner";
 import type { AffiliateProgramme, OutboundLink } from "@/types/commercial";
 
 /*
@@ -503,6 +503,47 @@ export async function planTrip(data: PlanTripRequest): Promise<PlanTripResponse>
     const detail =
       payload && typeof payload.detail === "string" ? payload.detail : null;
     throw new Error(detail ?? `Failed to plan trip: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function listSavedPlans(token?: string): Promise<SavedPlanSummary[]> {
+  const res = await apiFetch(
+    `${BASE_URL}/planner/saved`,
+    { cache: "no-store" },
+    token
+  );
+  if (!res.ok) {
+    throw new Error(`Failed to load saved trips: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function getSavedPlan(
+  conversationId: string,
+  token?: string
+): Promise<PlanTripResponse> {
+  const res = await apiFetch(
+    `${BASE_URL}/planner/saved/${encodeURIComponent(conversationId)}`,
+    { cache: "no-store" },
+    token
+  );
+  if (!res.ok) {
+    const payload = await res.json().catch(() => null);
+    throw new Error(payload?.detail ?? `Saved trip not found: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function getLatestSavedPlan(token?: string): Promise<PlanTripResponse | null> {
+  const res = await apiFetch(
+    `${BASE_URL}/planner/saved/latest`,
+    { cache: "no-store" },
+    token
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    throw new Error(`Failed to restore your latest trip: ${res.status}`);
   }
   return res.json();
 }

@@ -38,6 +38,10 @@ class ConversationSession:
     planning_entities: dict[str, str] = field(default_factory=dict)
     context_summary: str = ""
     last_recommendation: UnifiedRecommendation | None = None
+    # Exact API response last shown to the traveller.  Keeping this alongside
+    # the conversational memory lets the web app restore both unfinished
+    # clarification turns and fully assembled itineraries after a return.
+    last_planner_response: dict[str, Any] | None = None
 
     def add_message(self, role: str, content: str, intent: str | None = None) -> None:
         now = datetime.now(timezone.utc).isoformat()
@@ -71,6 +75,7 @@ def serialize_session(session: ConversationSession) -> str:
         "planning_entities": session.planning_entities,
         "context_summary": session.context_summary,
         "last_recommendation": _recommendation_to_dict(session.last_recommendation),
+        "last_planner_response": session.last_planner_response,
     }
     return json.dumps(
         payload,
@@ -119,6 +124,11 @@ def deserialize_session(payload: str | bytes) -> ConversationSession:
         last_recommendation=(
             _recommendation_from_dict(recommendation_data)
             if isinstance(recommendation_data, dict)
+            else None
+        ),
+        last_planner_response=(
+            _dict(data["last_planner_response"])
+            if isinstance(data.get("last_planner_response"), dict)
             else None
         ),
     )

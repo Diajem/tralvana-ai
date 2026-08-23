@@ -23,6 +23,8 @@ from ai.ports import configure_planning_port
 from app.adapters.planning_adapter import PlanningAdapter
 from app.auth.config import AuthSettings
 from app.auth.dependencies import require_authenticated_traveller
+from app.adapters.conversation_session_store import build_persistent_session_store
+from ai.concierge.conversation_engine import conversation_engine
 
 # Composition root (T-038, extended T-039) — the one place that decides
 # whether Duffel gets registered for real. A no-op in MOCK mode (the
@@ -34,6 +36,9 @@ configure_flight_provider()
 configure_accommodation_provider()
 configure_event_provider()
 configure_planning_port(PlanningAdapter())
+_persistent_session_store = build_persistent_session_store()
+if _persistent_session_store is not None:
+    conversation_engine.configure_store(_persistent_session_store)
 if config.is_production:
     # Fail closed before the server accepts traffic. Production must never
     # fall back to the zero-setup local/test authentication mode.

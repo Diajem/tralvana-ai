@@ -16,13 +16,14 @@ from __future__ import annotations
 import calendar
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.auth import AuthenticatedTraveller, require_authenticated_traveller
 from app.auth.dependencies import (
     authenticated_traveller_id,
     require_conversation_owner,
+    require_owner,
 )
 router = APIRouter(prefix="/planner", tags=["planner"])
 
@@ -50,6 +51,18 @@ class PlanTripResponse(BaseModel):
     itinerary: dict[str, Any] | None = None
 
 
+class SavedPlanSummary(BaseModel):
+    conversation_id: str
+    trip_id: str | None = None
+    title: str
+    origin: str
+    destination: str
+    travel_period: str
+    status: str
+    created_at: str
+    updated_at: str
+
+
 @router.post("/plan", response_model=PlanTripResponse)
 async def plan_trip(
     request: PlanTripRequest,
@@ -73,7 +86,87 @@ async def plan_trip(
     if session is not None and session.last_recommendation is not None:
         itinerary = _assemble_itinerary(session).to_dict()
 
-    return {**reply, "itinerary": itinerary}
+    response = {**reply, "itinerary": itinerary}
+    if session is not None:
+        session.last_planner_response = response
+        conversation_engine.save_session(session)
+    return response
+
+
+@router.get("/saved", response_model=list[SavedPlanSummary])
+async def list_saved_plans(
+    principal: AuthenticatedTraveller | None = Depends(require_authenticated_traveller),
+) -> list[dict[str, Any]]:
+    from ai.concierge.conversation_engine import conversation_engine
+
+    traveller_id = _authenticated_account_id(principal)
+    return [
+        _saved_plan_summary(session)
+        for session in conversation_engine.list_sessions_by_traveller(traveller_id)
+        if session.last_planner_response is not None
+    ]
+
+
+@router.get("/saved/latest", response_model=PlanTripResponse)
+async def latest_saved_plan(
+    principal: AuthenticatedTraveller | None = Depends(require_authenticated_traveller),
+) -> dict[str, Any]:
+    from ai.concierge.conversation_engine import conversation_engine
+
+    traveller_id = _authenticated_account_id(principal)
+    sessions = conversation_engine.list_sessions_by_traveller(traveller_id, limit=1)
+    if not sessions or sessions[0].last_planner_response is None:
+        raise HTTPException(status_code=404, detail="No saved trips yet")
+    return sessions[0].last_planner_response
+
+
+@router.get("/saved/{conversation_id}", response_model=PlanTripResponse)
+async def get_saved_plan(
+    conversation_id: str,
+    principal: AuthenticatedTraveller | None = Depends(require_authenticated_traveller),
+) -> dict[str, Any]:
+    from ai.concierge.conversation_engine import conversation_engine
+
+    session = conversation_engine.get_session(conversation_id)
+    if session is None or session.last_planner_response is None:
+        raise HTTPException(status_code=404, detail="Saved trip not found")
+    require_owner(principal, session.traveller_id)
+    return session.last_planner_response
+
+
+def _authenticated_account_id(
+    principal: AuthenticatedTraveller | None,
+) -> str:
+    if principal is None:
+        raise HTTPException(status_code=401, detail="Sign in to view saved trips")
+    return principal.user_id
+
+
+def _saved_plan_summary(session: Any) -> dict[str, Any]:
+    response = session.last_planner_response or {}
+    itinerary = response.get("itinerary") or {}
+    brief = itinerary.get("trip_brief") or {}
+    destination = str(
+        brief.get("destination")
+        or session.planning_entities.get("destination")
+        or "Trip in progress"
+    )
+    origin = str(
+        brief.get("origin")
+        or session.planning_entities.get("origin")
+        or "Origin not supplied"
+    )
+    return {
+        "conversation_id": session.conversation_id,
+        "trip_id": session.trip_id,
+        "title": f"{destination} trip" if destination != "Trip in progress" else destination,
+        "origin": origin,
+        "destination": destination,
+        "travel_period": str(brief.get("travel_period") or "Dates to confirm"),
+        "status": "Itinerary ready" if itinerary else "Planning in progress",
+        "created_at": session.created_at,
+        "updated_at": session.updated_at,
+    }
 
 
 def _assemble_itinerary(session: Any):

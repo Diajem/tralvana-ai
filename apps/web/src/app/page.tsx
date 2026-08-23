@@ -25,6 +25,7 @@ export default function Home() {
         <div className="hidden items-center gap-7 text-sm text-slate-300 sm:flex">
           <a href="#how-it-works" className="hover:text-white">How it works</a>
           <a href="#capabilities" className="hover:text-white">What it plans</a>
+          <Link href="/my-trips" className="hover:text-white">My Trips</Link>
           <Link href="/demo" className="hover:text-white">See the technology</Link>
         </div>
       </nav>
