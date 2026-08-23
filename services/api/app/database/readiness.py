@@ -8,7 +8,7 @@ from sqlalchemy import text
 from app.database.session import create_engine_from_url, create_session_factory, database_url
 from app.domains.commercial.repository import SqlAlchemyCommercialRepository
 
-EXPECTED_SCHEMA_VERSION = "0005"
+EXPECTED_SCHEMA_VERSION = "0006"
 COUNT_NAMES = ("partners", "programmes", "clicks", "conversions", "commissions")
 
 
