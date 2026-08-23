@@ -23,7 +23,7 @@ from travelos.intelligence_gateway.exceptions import (
 from travelos.intelligence_gateway.provider_contract import ProviderRequest
 from travelos.intelligence_gateway.provider_status import Capability, ProviderEnvironment, ProviderStatus
 from travelos.live_providers.adapters.duffel_flight_provider import DuffelFlightProvider
-from travelos.live_providers.transport import FakeTransport
+from travelos.live_providers.transport import FakeTransport, TransportResponse
 
 _ENV_VAR = "DUFFEL_API_TOKEN"
 
@@ -167,6 +167,50 @@ class TestRequestMapping:
             {"type": "adult"},
             {"type": "adult"},
         ]
+
+    def test_build_request_uses_ages_for_under_18_passengers(self, monkeypatch):
+        monkeypatch.setenv(_ENV_VAR, "duffel_test_abc123")
+        transport = FakeTransport.always_returning(
+            status_code=200,
+            body=_offer_request_body(_DIRECT_OFFER),
+        )
+        provider = DuffelFlightProvider(transport=transport)
+        provider.execute(_req(adults=2, minor_ages=[1, 9]))
+
+        assert transport.sent_requests[0].json_body["data"]["passengers"] == [
+            {"type": "adult"},
+            {"type": "adult"},
+            {"age": 1},
+            {"age": 9},
+        ]
+
+    def test_city_names_are_resolved_to_iata_city_codes(self, monkeypatch):
+        monkeypatch.setenv(_ENV_VAR, "duffel_test_abc123")
+
+        def responder(request):
+            if request.url.endswith("/places/suggestions"):
+                query = request.query_params["query"]
+                code = {"London": "LON", "New York": "NYC"}[query]
+                return TransportResponse(
+                    status_code=200,
+                    body={"data": [{"type": "city", "name": query, "iata_code": code}]},
+                )
+            return TransportResponse(
+                status_code=200,
+                body=_offer_request_body(_DIRECT_OFFER),
+            )
+
+        transport = FakeTransport(responder=responder)
+        provider = DuffelFlightProvider(transport=transport)
+        provider.execute(_req(origin="London", destination="New York"))
+
+        offer_request = transport.sent_requests[-1]
+        assert offer_request.json_body["data"]["slices"][0] == {
+            "origin": "LON",
+            "destination": "NYC",
+            "departure_date": "2026-10-01",
+        }
+        assert len(transport.sent_requests) == 3
 
     def test_auth_header_merged_as_bearer_token(self, monkeypatch):
         monkeypatch.setenv(_ENV_VAR, "duffel_test_my-secret-token")

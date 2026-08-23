@@ -44,12 +44,15 @@ class FlightIntelligenceService:
             # Validate before any Duffel call is made (T-038, section 3) —
             # MOCK mode is intentionally exempt; see live_search_validator's
             # module docstring for why.
+            minors = request.minors or len(request.minor_ages)
             validate_live_flight_search(
                 origin=origin,
                 destination=destination,
                 departure_date=request.departure_date,
                 return_date=request.return_date,
                 adults=request.adults,
+                minors=minors,
+                minor_ages=request.minor_ages,
                 cabin_class=request.cabin_class,
             )
 
@@ -60,6 +63,7 @@ class FlightIntelligenceService:
             return_date=request.return_date,
             cabin_class=request.cabin_class,
             adults=request.adults,
+            minor_ages=request.minor_ages,
             budget_style=request.budget_style,
             airline_preference=request.airline_preference,
             trip_duration_days=duration_days,
@@ -148,6 +152,18 @@ class FlightIntelligenceService:
 
         prefs = (profile or {}).get("preferences", {})
         travellers = (trip or {}).get("travellers", {})
+        minor_ages = _minor_ages_from_entities(entities, travellers)
+        declared_minors = int(
+            entities.get("children")
+            or travellers.get("children")
+            or 0
+        ) + int(
+            entities.get("infants")
+            or travellers.get("infants")
+            or 0
+        )
+        if declared_minors == 0 and minor_ages:
+            declared_minors = len(minor_ages)
         request = RecommendFlightsRequest(
             traveller_id=traveller_id,
             trip_id=trip_id,
@@ -158,6 +174,8 @@ class FlightIntelligenceService:
             cabin_class=prefs.get("cabin_class", "economy"),
             budget_style=prefs.get("budget_style", "balanced"),
             adults=int(entities.get("adults") or travellers.get("adults") or 1),
+            minors=declared_minors,
+            minor_ages=minor_ages,
             trip_duration_days=(trip or {}).get("duration_days", 7),
         )
         return self.recommend(request, trip=trip, goal=goal, profile=profile)
@@ -165,3 +183,16 @@ class FlightIntelligenceService:
 
 _repository = FlightRepository()
 flight_intelligence_service = FlightIntelligenceService(_repository)
+
+
+def _minor_ages_from_entities(
+    entities: dict[str, str], travellers: dict[str, Any]
+) -> list[int]:
+    raw = entities.get("minor_ages")
+    if raw is None:
+        raw = travellers.get("minor_ages") or travellers.get("child_ages")
+    if isinstance(raw, list):
+        return [int(age) for age in raw]
+    if not raw:
+        return []
+    return [int(age.strip()) for age in str(raw).split(",") if age.strip()]

@@ -146,6 +146,7 @@ def _build_trip_brief(
         "adults": entities.get("adults") or stored_travellers.get("adults") or 1,
         "children": entities.get("children") or stored_travellers.get("children") or 0,
         "infants": entities.get("infants") or stored_travellers.get("infants") or 0,
+        "minor_ages": entities.get("minor_ages") or stored_travellers.get("minor_ages") or [],
     }
     budget = goal.get("budget") or trip.get("budget") or {}
     start_date = entities.get("start_date") or timeframe.get("earliest")

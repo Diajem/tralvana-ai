@@ -132,6 +132,7 @@ class MockFlightProvider:
         return_date: str | None,
         cabin_class: str,
         adults: int = 1,
+        minor_ages: list[int] | None = None,
     ) -> list[dict[str, Any]]:
         seed = sum(ord(c) for c in f"{origin}{destination}".lower()) or 1
         base_flight_hours = 2.0 + (seed % 12)
@@ -159,7 +160,8 @@ class MockFlightProvider:
                 * route_price_factor
             )
             per_adult_price = round(per_adult_price / 5) * 5
-            price = per_adult_price * adults
+            minor_fare_units = sum(0.1 if age < 2 else 0.75 for age in (minor_ages or []))
+            price = round(per_adult_price * (adults + minor_fare_units) / 5) * 5
 
             candidates.append({
                 "airline": tpl["airline"],
@@ -222,6 +224,7 @@ class FlightIntelligence:
         return_date: str | None,
         cabin_class: str = "economy",
         adults: int = 1,
+        minor_ages: list[int] | None = None,
         budget_style: str = "balanced",
         airline_preference: str | None = None,
         trip_duration_days: int = 7,
@@ -245,6 +248,7 @@ class FlightIntelligence:
             airline_preference,
             profile,
             adults,
+            len(minor_ages or []),
         )
 
         dna: dict[str, Any] | None = None
@@ -266,6 +270,7 @@ class FlightIntelligence:
             return_date,
             cabin_class,
             adults,
+            minor_ages or [],
         )
 
         scored: list[dict[str, Any]] = []
@@ -317,7 +322,12 @@ class FlightIntelligence:
             assumptions.append("Prices and schedules are deterministic mock data — no live airline inventory was queried.")
         assumptions.append(f"Scoring assumes a {preferences['cabin_class']} cabin preference and '{budget_style}' budget style.")
         assumptions.append(
-            f"Flight availability and total fare were searched for {adults} adult passenger(s)."
+            f"Flight availability and total fare were searched for {adults} adult passenger(s)"
+            + (
+                f" and {len(minor_ages or [])} under-18 passenger(s), using their supplied ages."
+                if minor_ages
+                else "."
+            )
         )
 
         return {
@@ -364,11 +374,12 @@ class FlightIntelligence:
         airline_preference: str | None,
         profile: dict[str, Any] | None,
         adults: int = 1,
+        minors: int = 0,
     ) -> dict[str, Any]:
         prefs = (profile or {}).get("preferences", {})
         max_price = _CABIN_BASE_USD.get(cabin_class, _CABIN_BASE_USD["economy"]) * {
             "backpacker": 0.7, "budget": 0.85, "balanced": 1.15, "comfort": 1.5, "luxury": 2.2,
-        }.get(budget_style, 1.15) * adults
+        }.get(budget_style, 1.15) * (adults + minors)
 
         preferred_airlines: list[str] = []
         if airline_preference:

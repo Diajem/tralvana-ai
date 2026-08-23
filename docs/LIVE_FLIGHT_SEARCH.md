@@ -18,12 +18,13 @@ for the design decisions behind it.
 Flight Search UI (apps/web/src/app/flights/recommend)
   -> POST /flights/recommend (services/api/app/domains/flights/router.py)
     -> FlightIntelligenceService (services/api/app/domains/flights/service.py)
-      -> [LIVE_SANDBOX only] validate_live_flight_search() — before any provider call
+      -> [LIVE_SANDBOX only] validate_live_flight_search() — before the offer request
       -> FlightIntelligence.recommend() (ai/discovery/flights/flight_intelligence.py)
         -> GatewayFlightProvider.search() (travelos/intelligence_gateway/discovery_adapters.py)
           -> IntelligenceGateway.execute(FLIGHTS, ...) — per-capability environment resolution
             -> DuffelFlightProvider (SANDBOX) or mock_flight_provider (MOCK)
-              -> HttpxTransport -> Duffel SANDBOX API (live mode only)
+              -> [city names only] Duffel Places -> IATA city/airport codes
+              -> HttpxTransport -> Duffel SANDBOX offer request
         -> normalised flight-option dicts (unchanged shape, mock or live)
         -> FlightScorer -> FlightReasoner -> FlightRiskAssessor -> ranked, labelled results
       -> data_source / provider_status / retrieved_at / request_id attached
@@ -32,7 +33,8 @@ Flight Search UI (apps/web/src/app/flights/recommend)
 
 No new endpoint. `POST /flights/recommend` and `GET /flights/{id}` are
 unchanged in shape and continue to work exactly as before in `MOCK`
-mode (the default) — every existing test and caller is unaffected.
+mode (the code default) — every existing test and caller is unaffected.
+Tralvana's hosted Render API explicitly enables `LIVE_SANDBOX` from T-062.
 
 ## Switching Between MOCK and LIVE_SANDBOX
 
@@ -65,8 +67,8 @@ TRALVANA_FLIGHT_PROVIDER_MODE=LIVE_SANDBOX  # requires DUFFEL_API_TOKEN
 | | `MOCK` (default) | `LIVE_SANDBOX` |
 |---|---|---|
 | Startup | No Duffel provider constructed, no credential required | `DUFFEL_API_TOKEN` required — missing token **fails application startup** (`FlightProviderMisconfiguredError`), not a per-request error |
-| Request validation | None beyond existing Pydantic field types — city names like `"London"` still work | IATA codes, date sanity, passenger/cabin bounds enforced *before* any Duffel call (`ai/discovery/flights/live_search_validator.py`) |
-| Network calls | Zero, ever | One `HttpxTransport` call to Duffel's real SANDBOX API per search |
+| Request validation | None beyond existing Pydantic field types — city names like `"London"` still work | Place presence, date sanity, complete under-18 ages, total-passenger and cabin bounds enforced before the offer request |
+| Network calls | Zero, ever | One offer request for IATA inputs; city names add a private Duffel Places lookup per non-IATA origin/destination |
 | `data_source` in response | `"MOCK"` | `"DUFFEL_SANDBOX"` (or `"MOCK_FALLBACK"` — see below) |
 
 ## Manual Live Verification
@@ -92,20 +94,21 @@ for this feature use `FakeTransport`/`httpx.MockTransport` — see
 `ai/discovery/flights/live_search_validator.py`'s
 `validate_live_flight_search()`, called from
 `FlightIntelligenceService.recommend()` before `FlightIntelligence.recommend()`
-is ever reached — a validation failure never results in a Duffel call:
+is ever reached — a validation failure never results in a Duffel offer request:
 
-- `origin` / `destination`: 3-letter IATA code (case-insensitive), and must differ
+- `origin` / `destination`: city, airport name, or 3-letter IATA code; human-readable names are resolved privately through Duffel Places, and the two values must differ
 - `departure_date`: `YYYY-MM-DD`, required, not in the past
 - `return_date`: `YYYY-MM-DD` if given, must be after `departure_date`
 - `adults`: 1–9
+- `minors`: zero or greater; `minor_ages` must contain exactly one whole-number age from 0–17 for each under-18 passenger
+- total passengers: no more than 9
 - `cabin_class`: `economy` | `business` | `first`
 
 Every problem found is collected and returned together (not just the
 first) as a `422` with `{"detail": {"errors": [...]}}`.
 **Deliberately MOCK-mode-exempt** — `MockFlightProvider` has never
-required IATA codes, and existing city-name-based requests (the
-current default, `origin="London"`) must keep working exactly as
-before T-038.
+required live dates or complete passenger ages. Existing mock callers remain
+unchanged, while live city-name requests are resolved inside the Duffel adapter.
 
 ## Public API Additions
 
@@ -147,7 +150,7 @@ fallback response is 100% mock data, clearly labelled — never a blend.
 ## Frontend
 
 `apps/web/src/app/flights/recommend/page.tsx` — existing form fields
-(origin, destination, dates, adults, cabin class, budget style,
+(origin, destination, dates, adults, under-18 count and ages, cabin class, budget style,
 airline preference) unchanged; added:
 
 - A source badge next to the summary (`Test data` / `Duffel sandbox` / `Mock fallback`)
@@ -155,7 +158,8 @@ airline preference) unchanged; added:
   data — not available for purchase."* (live) or a fallback-specific
   message
 - Baggage/refundability/flexibility shown on every flight card
-- An IATA-code hint under the origin field
+- Under-18 passenger count and a comma-separated age field; the API refuses
+  a live search unless one age is supplied for every minor
 
 `apps/web/src/app/flights/[id]/page.tsx` — same sandbox banner, driven
 by the per-option `data_source` field (so a bookmarked single-flight
@@ -181,9 +185,9 @@ script above — never part of the automated suite.
 
 ## What Remains Before Production and Booking
 
-- **Application-startup wiring is opt-in only via the env var** —
-  nothing about default (`MOCK`) behaviour changed; `LIVE_SANDBOX` must
-  be deliberately configured per deployment.
+- **Application-startup wiring remains explicit via the env var** —
+  code/local default behaviour remains `MOCK`; the hosted Render API deliberately
+  enables `LIVE_SANDBOX` and declares `DUFFEL_API_TOKEN` as a dashboard-managed secret.
 - **The rest of `docs/PRODUCTION_READINESS.md`'s checklist** — most
   items remain open (monitoring integration, rate-limit tuning against
   Duffel's real documented limits, secret rotation drill, second-engineer
@@ -196,10 +200,7 @@ script above — never part of the automated suite.
   re-derive it, but no booking flow reads it yet.
 - **Duffel sandbox only** — no production Duffel token has been used or
   should be, anywhere in this repository.
-- **Child and infant ages are not yet supported** — T-061 now carries the
-  requested adult count through Flight Intelligence, the Gateway, and the
-  Duffel offer request, so group availability and total fares are no longer
-  searched as a single adult. Duffel requires the age of every passenger
-  under 18, however, and Tralvana's flight request does not yet collect those
-  ages. A booking flow must add age-aware child/infant passengers before it
-  can sell family itineraries.
+- **Passenger identity and booking are still separate work** — T-062 carries
+  adult counts and every supplied under-18 age through Flight Intelligence,
+  the Gateway, and Duffel's passenger array. It does not collect names,
+  birth dates, passports, contact details, or create an order.

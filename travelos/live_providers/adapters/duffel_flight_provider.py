@@ -105,10 +105,12 @@ class DuffelFlightProvider(BaseLiveProvider):
         passes through) -> Duffel's offer_requests request shape. Never
         includes an auth header — authenticate() supplies that."""
         params = request.params
+        origin = self._resolve_place(params["origin"])
+        destination = self._resolve_place(params["destination"])
         slices: list[dict[str, str]] = [
             {
-                "origin": params["origin"],
-                "destination": params["destination"],
+                "origin": origin,
+                "destination": destination,
                 "departure_date": params["departure_date"],
             }
         ]
@@ -116,8 +118,8 @@ class DuffelFlightProvider(BaseLiveProvider):
         if return_date:
             slices.append(
                 {
-                    "origin": params["destination"],
-                    "destination": params["origin"],
+                    "origin": destination,
+                    "destination": origin,
                     "departure_date": return_date,
                 }
             )
@@ -128,6 +130,7 @@ class DuffelFlightProvider(BaseLiveProvider):
         from travelos.config.configuration_manager import config
 
         adults = int(params.get("adults", 1))
+        minor_ages = [int(age) for age in params.get("minor_ages", [])]
 
         return TransportRequest(
             method="POST",
@@ -140,12 +143,79 @@ class DuffelFlightProvider(BaseLiveProvider):
             json_body={
                 "data": {
                     "slices": slices,
-                    "passengers": [{"type": "adult"} for _ in range(adults)],
+                    "passengers": (
+                        [{"type": "adult"} for _ in range(adults)]
+                        + [{"age": age} for age in minor_ages]
+                    ),
                     "cabin_class": duffel_cabin_class,
                 }
             },
             timeout_seconds=config.provider_http_timeout_seconds,
         )
+
+    def _resolve_place(self, value: str) -> str:
+        """Return an IATA city/airport code, resolving normal place names
+        through Duffel's Places API without leaking provider vocabulary into
+        Tralvana's planner or public request models."""
+        place = value.strip()
+        if re.fullmatch(r"[A-Za-z]{3}", place):
+            return place.upper()
+
+        request = TransportRequest(
+            method="GET",
+            url=f"{_DUFFEL_BASE_URL}/places/suggestions",
+            headers={
+                **self.authenticate(),
+                "Duffel-Version": _DUFFEL_API_VERSION,
+                "Accept": "application/json",
+            },
+            query_params={"query": place},
+            timeout_seconds=10.0,
+        )
+        response = self.send_request(request)
+        if response.status_code in (401, 403):
+            raise ProviderAuthenticationError(
+                f"{self.provider_name}: places lookup returned HTTP {response.status_code}"
+            )
+        if response.status_code == 429:
+            raise ProviderRateLimitError(
+                f"{self.provider_name}: places lookup returned HTTP 429"
+            )
+        if not 200 <= response.status_code < 300:
+            raise ProviderResponseError(
+                f"{self.provider_name}: places lookup returned HTTP {response.status_code}"
+            )
+
+        body = response.body
+        if not isinstance(body, dict) or not isinstance(body.get("data"), list):
+            raise ProviderResponseError(
+                f"{self.provider_name}: places lookup returned an unexpected shape"
+            )
+        places = [item for item in body["data"] if isinstance(item, dict)]
+        exact_city = next(
+            (
+                item
+                for item in places
+                if item.get("type") == "city"
+                and str(item.get("name", "")).casefold() == place.casefold()
+                and item.get("iata_code")
+            ),
+            None,
+        )
+        city = exact_city or next(
+            (item for item in places if item.get("type") == "city" and item.get("iata_code")),
+            None,
+        )
+        airport = next(
+            (item for item in places if item.get("type") == "airport" and item.get("iata_code")),
+            None,
+        )
+        match = city or airport
+        if not match:
+            raise ProviderValidationError(
+                f"{self.provider_name}: could not resolve {value!r} to a Duffel city or airport"
+            )
+        return str(match["iata_code"]).upper()
 
     def parse_response(self, response: TransportResponse) -> ProviderResult:
         """Duffel's offer_requests response -> ProviderResult whose `data`

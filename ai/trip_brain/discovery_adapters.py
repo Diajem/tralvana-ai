@@ -27,6 +27,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from ai.discovery.flights.live_search_validator import LiveFlightSearchValidationError
 from ai.ports import get_planning_port
 from ai.shared.agent_result import AgentResult
 from ai.shared.agent_status import AgentStatus
@@ -96,6 +97,17 @@ def run_flight_intelligence(context: TripBrainContext) -> AgentResult:
             trip_id=context.trip_id,
             entities=context.entities,
             profile=context.profile,
+        )
+    except LiveFlightSearchValidationError as exc:
+        return AgentResult(
+            agent_name="flight_intelligence",
+            status=AgentStatus.NEEDS_INFORMATION,
+            confidence=0.0,
+            missing_information=list(exc.errors),
+            risks=[
+                "Live flight availability was not searched until the missing passenger or route details are supplied."
+            ],
+            next_actions=["Provide the missing flight-search details and submit the plan again."],
         )
     except Exception as exc:
         return _failed("flight_intelligence", exc)

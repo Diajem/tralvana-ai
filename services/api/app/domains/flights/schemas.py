@@ -14,6 +14,8 @@ class RecommendFlightsRequest(BaseModel):
     budget_style: str = "balanced"           # backpacker | budget | balanced | comfort | luxury
     airline_preference: str | None = None
     adults: int = Field(default=1, ge=1)
+    minors: int = Field(default=0, ge=0)
+    minor_ages: list[int] = Field(default_factory=list)
     trip_duration_days: int = Field(default=7, ge=1, le=90)
 
 

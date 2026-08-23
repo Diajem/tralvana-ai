@@ -161,6 +161,8 @@ export default function RecommendFlightsPage() {
     budget_style: string;
     airline_preference: string;
     adults: number;
+    minors: number;
+    minor_ages: string;
     trip_duration_days: number;
   }>({
     traveller_id: "",
@@ -173,6 +175,8 @@ export default function RecommendFlightsPage() {
     budget_style: "balanced",
     airline_preference: "",
     adults: 1,
+    minors: 0,
+    minor_ages: "",
     trip_duration_days: 7,
   });
 
@@ -192,6 +196,12 @@ export default function RecommendFlightsPage() {
       budget_style: form.budget_style,
       ...(form.airline_preference ? { airline_preference: form.airline_preference } : {}),
       adults: form.adults,
+      minors: form.minors,
+      minor_ages: form.minor_ages
+        .split(",")
+        .map((age) => age.trim())
+        .filter(Boolean)
+        .map(Number),
       trip_duration_days: form.trip_duration_days,
     };
 
@@ -343,7 +353,7 @@ export default function RecommendFlightsPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Preferred Airline <span className="text-gray-400">(optional)</span>
@@ -354,6 +364,30 @@ export default function RecommendFlightsPage() {
                 value={form.airline_preference}
                 onChange={(e) => setForm({ ...form, airline_preference: e.target.value })}
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Under-18 passengers</label>
+              <input
+                type="number"
+                min={0}
+                max={8}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={form.minors}
+                onChange={(e) => setForm({ ...form, minors: Math.max(0, parseInt(e.target.value) || 0) })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Ages of under-18 passengers
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. 6, 9"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={form.minor_ages}
+                onChange={(e) => setForm({ ...form, minor_ages: e.target.value })}
+              />
+              <p className="mt-1 text-xs text-gray-500">One age from 0–17 for each passenger.</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Adults</label>

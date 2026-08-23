@@ -381,6 +381,17 @@ class IntentClassifier:
                 else _NUMBER_WORDS[raw_infants]
             )
 
+        minor_ages = self._extract_minor_ages(text)
+        if minor_ages:
+            entities["minor_ages"] = ",".join(str(age) for age in minor_ages)
+            inferred_infants = sum(age < 2 for age in minor_ages)
+            inferred_children = len(minor_ages) - inferred_infants
+            # Explicit ages are stronger than a generic child/infant label:
+            # Duffel applies airline passenger rules from age, so keep the
+            # two descriptive counts consistent with the supplied ages.
+            entities["children"] = str(inferred_children)
+            entities["infants"] = str(inferred_infants)
+
         family_size_match = re.search(
             rf"\b(?:family|group|party)\s+of\s+"
             rf"(\d+|{'|'.join(_NUMBER_WORDS)})\b",
@@ -1086,3 +1097,31 @@ class IntentClassifier:
                 break
 
         return entities
+
+    @staticmethod
+    def _extract_minor_ages(text: str) -> list[int]:
+        """Extract explicitly supplied under-18 ages without guessing.
+
+        Covers natural planner wording ("children aged 6 and 9"), a
+        clarification reply ("their ages are 6 and 9"), and individual
+        descriptions ("a 6-year-old and a 10-year-old"). Adult ages are
+        never inferred from unrelated numbers.
+        """
+        age_values: list[int] = []
+        labelled = re.search(
+            r"\b(?:(?:children|child|kids?|infants?|bab(?:y|ies)|their|children'?s|kids'?)\s+)"
+            r"(?:are\s+)?(?:aged?|ages?)\s*(?:are|is|:)?\s*"
+            r"([0-9,\sand-]{1,60})(?=[.!?;]|$)",
+            text,
+        )
+        if labelled:
+            age_values.extend(
+                int(value)
+                for value in re.findall(r"\b\d{1,2}\b", labelled.group(1))
+            )
+
+        if not age_values:
+            for match in re.finditer(r"\b(\d{1,2})[- ]year[- ]old\b", text):
+                age_values.append(int(match.group(1)))
+
+        return [age for age in age_values if 0 <= age <= 17]

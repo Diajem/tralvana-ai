@@ -48,7 +48,8 @@ def test_render_blueprint_uses_dedicated_app_domain_and_safe_provider_modes():
         if "key" in item
     }
     assert api_environment["TRALVANA_PROVIDER_ENVIRONMENT"] == "MOCK"
-    assert api_environment["TRALVANA_FLIGHT_PROVIDER_MODE"] == "MOCK"
+    assert api_environment["TRALVANA_FLIGHT_PROVIDER_MODE"] == "LIVE_SANDBOX"
+    assert api_environment["TRALVANA_FLIGHT_MOCK_FALLBACK_ENABLED"] == "false"
     assert api_environment["TRALVANA_ACCOMMODATION_PROVIDER_MODE"] == "MOCK"
     assert api_environment["TRALVANA_EVENT_PROVIDER_MODE"] == "MOCK"
     assert api_environment["TRALVANA_AUTH_MODE"] == "CLERK"
@@ -70,14 +71,14 @@ def test_render_blueprint_uses_dedicated_app_domain_and_safe_provider_modes():
     api_secrets = {
         item["key"]: item.get("sync")
         for item in services["tralvana-api"]["envVars"]
-        if item["key"] == "CLERK_JWT_KEY"
+        if item["key"] in {"CLERK_JWT_KEY", "DUFFEL_API_TOKEN"}
     }
     web_secrets = {
         item["key"]: item.get("sync")
         for item in services["tralvana-web"]["envVars"]
         if item["key"] in {"NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "CLERK_SECRET_KEY"}
     }
-    assert api_secrets == {"CLERK_JWT_KEY": False}
+    assert api_secrets == {"CLERK_JWT_KEY": False, "DUFFEL_API_TOKEN": False}
     assert web_secrets == {
         "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": False,
         "CLERK_SECRET_KEY": False,
@@ -92,7 +93,8 @@ def test_render_production_uses_paid_instances_private_database_and_no_secret_is
     assert database["plan"] == "basic-256mb"
     assert database["ipAllowList"] == []
     assert all(service["plan"] == "starter" for service in blueprint["services"])
-    assert "DUFFEL_API_TOKEN" not in blueprint_text
+    assert "duffel_test_" not in blueprint_text
+    assert "duffel_live_" not in blueprint_text
     assert "OPENAI_API_KEY" not in blueprint_text
     assert "pk_test_" not in blueprint_text
     assert "pk_live_" not in blueprint_text

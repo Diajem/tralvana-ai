@@ -65,11 +65,13 @@ CI or as part of `pytest`.** It requires a real, working
   shaped like real data but not booking-grade. Never present sandbox
   results as available for purchase (enforced in the frontend — see
   `docs/LIVE_FLIGHT_SEARCH.md`'s Frontend section).
-- **Adults are preserved; child ages are not yet supported.** T-061 passes
-  the requested adult count through Flight Intelligence and the Gateway into
-  Duffel's `passengers` array, and both mock and Duffel prices now represent
-  the complete adult party. Duffel requires ages for passengers under 18;
-  Tralvana must collect those ages before enabling family booking.
+- **Passenger counts and ages are preserved.** T-061 passes adult counts and
+  T-062 requires one age for every passenger under 18, forwarding both into
+  Duffel's `passengers` array. A family search with missing ages is stopped
+  before the offer request and asks for the missing information.
+- **City names are resolved safely.** Inputs such as `London` and `New York`
+  are resolved through Duffel Places to IATA city/airport codes. Explicit
+  IATA inputs skip this lookup.
 - **No booking.** Every offer's `provider_offer_id` is preserved
   internally (`FlightOption.provider_offer_id`) for a possible future
   booking task, but nothing in this repository ever calls Duffel's
