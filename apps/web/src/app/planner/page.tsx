@@ -335,6 +335,15 @@ function ItineraryView({
     ? itinerary.daily_outline
     : itinerary.daily_outline.slice(0, 4);
   const brief = itinerary.trip_brief;
+  const travellerSummary = [
+    `${brief.travellers.adults} adult${brief.travellers.adults === 1 ? "" : "s"}`,
+    brief.travellers.children
+      ? `${brief.travellers.children} child${brief.travellers.children === 1 ? "" : "ren"}`
+      : "",
+    brief.travellers.infants
+      ? `${brief.travellers.infants} infant${brief.travellers.infants === 1 ? "" : "s"}`
+      : "",
+  ].filter(Boolean).join(", ");
 
   return (
     <div className="space-y-8 pb-16">
@@ -346,7 +355,7 @@ function ItineraryView({
               {brief.origin ? `${brief.origin} → ` : ""}{brief.destination}
             </h2>
             <p className="mt-2 text-sm text-indigo-100">
-              {brief.travel_period} · {brief.duration_days} days · {brief.travellers.adults} adult{brief.travellers.adults === 1 ? "" : "s"}
+              {brief.travel_period} · {brief.duration_days} days · {travellerSummary}
             </p>
           </div>
           <ReadinessBadge score={itinerary.booking_readiness.score} />

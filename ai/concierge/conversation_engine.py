@@ -319,11 +319,11 @@ class ConversationEngine:
         if classified.intent != Intent.PLAN_TRIP and not continuing_plan:
             return classified
 
-        merged = {
-            **session.planning_entities,
-            **classified.entities,
-            **clarification_entities,
-        }
+        merged = self._merge_planning_entities(
+            session.planning_entities,
+            classified.entities,
+            clarification_entities,
+        )
         self._resolve_explicit_follow_up_date(merged)
         session.planning_entities = merged
         return ClassifiedIntent(
@@ -335,6 +335,36 @@ class ConversationEngine:
             ),
             entities=merged,
         )
+
+    @staticmethod
+    def _merge_planning_entities(
+        existing: dict[str, str],
+        *updates: dict[str, str],
+    ) -> dict[str, str]:
+        """Merge follow-up facts without discarding additive trip interests.
+
+        A traveller asking to add live events on a later turn is refining the
+        active plan, not withdrawing previously requested attractions, food,
+        culture, or sport. Scalar facts still use the newest explicit value.
+        """
+        merged = dict(existing)
+        for update in updates:
+            previous_interests = [
+                value.strip()
+                for value in merged.get("interests", "").split(",")
+                if value.strip()
+            ]
+            merged.update(update)
+            if update.get("interests"):
+                new_interests = [
+                    value.strip()
+                    for value in update["interests"].split(",")
+                    if value.strip()
+                ]
+                merged["interests"] = ",".join(
+                    dict.fromkeys([*previous_interests, *new_interests])
+                )
+        return merged
 
     def _clarification_entities(
         self,

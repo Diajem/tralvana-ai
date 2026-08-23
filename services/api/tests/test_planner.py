@@ -156,7 +156,8 @@ def test_exact_family_new_york_request_keeps_every_input_and_builds_seven_specif
     assert set(brief["interests"]) == {"major attractions", "live events"}
     assert brief["accommodation_preferences"] == ["Child-friendly hotel"]
     assert "events" in itinerary["modules_used"]
-    assert itinerary["accommodation_recommendation"]["data_source"] == "MOCK"
+    assert itinerary["accommodation_recommendation"] is None
+    assert "New York Guesthouse" not in itinerary["executive_summary"]
     assert len(itinerary["event_recommendations"]) > 0
     assert len(itinerary["daily_outline"]) == 7
     assert [day["title"] for day in itinerary["daily_outline"]] == [
@@ -168,6 +169,37 @@ def test_exact_family_new_york_request_keeps_every_input_and_builds_seven_specif
         "Day 6: Brooklyn Bridge & family Brooklyn",
         "Day 7: Final New York stop & departure",
     ]
+
+
+def test_family_trip_follow_up_adds_interests_without_forgetting_existing_ones(client):
+    first = client.post("/planner/plan", json={
+        "message": (
+            "Plan a 7-day trip from London to New York for 2 adults and 2 children "
+            "aged 6 and 9, departing 10 October 2026 and returning 17 October 2026. "
+            "We want economy flights, a family-friendly hotel and attractions."
+        ),
+    })
+    conversation_id = first.json()["conversation_id"]
+
+    second = client.post("/planner/plan", json={
+        "conversation_id": conversation_id,
+        "message": (
+            "All four travellers are British passport holders. "
+            "Please show family-friendly live events during our dates."
+        ),
+    })
+
+    assert second.status_code == 200
+    itinerary = second.json()["itinerary"]
+    assert itinerary is not None
+    assert set(itinerary["trip_brief"]["interests"]) == {
+        "major attractions",
+        "live events",
+    }
+    assert itinerary["trip_brief"]["nationality"] == "British"
+    assert itinerary["visa_summary"]["visa_type"] == "ESTA"
+
+
 def test_city_clarification_reply_completes_country_level_plan(client):
     first = client.post("/planner/plan", json={
         "message": (
@@ -647,11 +679,12 @@ def test_dublin_family_request_preserves_five_days_and_every_requested_activity(
     assert "Add the travel year" not in needed
     assert "Confirm the trip length" not in needed
     assert itinerary["flight_recommendation"] is None
-    assert itinerary["accommodation_recommendation"]["data_source"] == "MOCK"
+    assert itinerary["accommodation_recommendation"] is None
     accommodation_notice = next(
         notice
         for notice in itinerary["grounding_notices"]
         if notice["domain"] == "accommodation"
     )
-    assert accommodation_notice["level"] == "ESTIMATE"
+    assert accommodation_notice["level"] == "GUIDANCE"
     assert accommodation_notice["is_current"] is False
+    assert accommodation_notice["title"] == "Current accommodation search pending"

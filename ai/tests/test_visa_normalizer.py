@@ -99,6 +99,7 @@ class TestVisaNormalizer:
             transit_status=[], travel_purpose="TOURISM", intended_length_of_stay=14,
             passport_expiry_date=None,
         )
+        assert result["visa_required"] is None
         assert any("not determined" in r.lower() for r in result["entry_requirements"])
 
     def test_travel_purpose_uppercased(self):

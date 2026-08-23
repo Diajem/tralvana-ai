@@ -129,10 +129,20 @@ class TicketmasterEventProvider(BaseLiveProvider):
             "includeTBD": "no",
             "includeTest": "no",
         }
-        if start_date:
-            query["startDateTime"] = f"{start_date.isoformat()}T00:00:00Z"
-        if end_date:
-            query["endDateTime"] = f"{end_date.isoformat()}T23:59:59Z"
+        if start_date and end_date:
+            # Ticketmaster supports a destination-local date-time range. Use
+            # it for an exact trip window so New York evening listings are not
+            # shifted to the previous/next date by UTC boundaries before the
+            # provider-neutral local-date filter runs.
+            query["localStartDateTime"] = (
+                f"{start_date.isoformat()}T00:00:00,"
+                f"{end_date.isoformat()}T23:59:59"
+            )
+        else:
+            if start_date:
+                query["startDateTime"] = f"{start_date.isoformat()}T00:00:00Z"
+            if end_date:
+                query["endDateTime"] = f"{end_date.isoformat()}T23:59:59Z"
 
         interests = [
             str(value).strip()

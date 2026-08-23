@@ -28,7 +28,7 @@ export interface VisaAssessment {
   passport_expiry_date: string | null;
   passport_validity_months: number | null;
   visa_status: VisaStatus;
-  visa_required: boolean;
+  visa_required: boolean | null;
   visa_type: string;
   entry_requirements: string[];
   supporting_documents: string[];
