@@ -146,6 +146,7 @@ def test_live_response_maps_to_canonical_event_shape(monkeypatch):
     assert option["category"] == "SPORT"
     assert option["starts_at"] == "2026-08-15T23:30:00Z"
     assert option["_local_date"] == "2026-08-15"
+    assert option["_local_time"] == "19:30:00"
     assert option["availability_status"] == "ON_SALE"
     assert option["ticket_url"].startswith("https://")
     assert option["source_name"] == "Ticketmaster Discovery API"

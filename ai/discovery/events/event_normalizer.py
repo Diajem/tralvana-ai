@@ -16,6 +16,8 @@ class EventNormalizer:
             "description": raw.get("description", ""),
             "starts_at": starts_at,
             "ends_at": raw.get("ends_at"),
+            "local_date": raw.get("_local_date"),
+            "local_time": raw.get("_local_time"),
             "date_status": "CONFIRMED" if starts_at else "UNVERIFIED",
             "availability_status": raw.get("availability_status", "UNKNOWN"),
             "ticket_url": raw.get("ticket_url"),
