@@ -31,6 +31,8 @@ class EventOptionResponse(BaseModel):
     description: str
     starts_at: str | None
     ends_at: str | None
+    local_date: str | None
+    local_time: str | None
     date_status: str
     availability_status: str
     ticket_url: str | None

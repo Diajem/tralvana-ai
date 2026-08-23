@@ -16,6 +16,8 @@ class EventOption:
     description: str
     starts_at: str | None
     ends_at: str | None
+    local_date: str | None
+    local_time: str | None
     date_status: str
     availability_status: str
     ticket_url: str | None
@@ -44,6 +46,8 @@ class EventOption:
             "description": self.description,
             "starts_at": self.starts_at,
             "ends_at": self.ends_at,
+            "local_date": self.local_date,
+            "local_time": self.local_time,
             "date_status": self.date_status,
             "availability_status": self.availability_status,
             "ticket_url": self.ticket_url,

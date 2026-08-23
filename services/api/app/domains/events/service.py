@@ -53,6 +53,8 @@ class EventIntelligenceService:
                 description=option["description"],
                 starts_at=option["starts_at"],
                 ends_at=option["ends_at"],
+                local_date=option.get("local_date"),
+                local_time=option.get("local_time"),
                 date_status=option["date_status"],
                 availability_status=option["availability_status"],
                 ticket_url=option["ticket_url"],
