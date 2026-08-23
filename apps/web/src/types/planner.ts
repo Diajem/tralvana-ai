@@ -152,3 +152,15 @@ export interface PlanTripResponse {
   trip_id: string | null;
   itinerary: TripItinerary | null;
 }
+
+export interface SavedPlanSummary {
+  conversation_id: string;
+  trip_id: string | null;
+  title: string;
+  origin: string;
+  destination: string;
+  travel_period: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
