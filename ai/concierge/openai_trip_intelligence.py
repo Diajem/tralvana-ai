@@ -72,6 +72,9 @@ class TripInterpretation(BaseModel):
     dining_out_count: int | None = Field(ge=0, le=100)
     baggage_information_requested: bool
     accessibility_needs: list[str]
+    dietary_requirements: list[str] = Field(default_factory=list)
+    negative_constraints: list[str] = Field(default_factory=list)
+    fields_to_clear: list[str] = Field(default_factory=list)
     special_occasion: str | None
     special_occasion_date: str | None
     special_occasion_notes: str | None
@@ -117,6 +120,8 @@ class TripInterpretation(BaseModel):
             "interests": self.interests,
             "requested_activities": self.requested_activities,
             "accessibility_needs": self.accessibility_needs,
+            "dietary_requirements": self.dietary_requirements,
+            "negative_constraints": self.negative_constraints,
         }
         for key, values in list_values.items():
             cleaned = _clean_list(values)
@@ -161,6 +166,13 @@ class TripInterpretation(BaseModel):
             entities["requested_event_status"] = "REQUESTED_NOT_CONFIRMED"
         if self.baggage_information_requested:
             entities["baggage_information_requested"] = "true"
+        cleared = [
+            field
+            for field in _clean_list(self.fields_to_clear)
+            if field in _CLEARABLE_TRIP_FIELDS
+        ]
+        if cleared:
+            entities["clear_fields"] = ",".join(cleared)
 
         # A relationship mention alone (for example, "my wife is interested
         # in shopping") does not describe a separate journey.  Only surface a
@@ -210,7 +222,8 @@ Rules:
   destination_region (for example Disney World can establish Orlando as the
   base for a Florida trip). Otherwise keep the requested destination unchanged.
 - Treat follow-up messages as updates to the existing plan. Keep earlier facts
-  unless the customer clearly corrects or replaces them.
+  unless the customer clearly corrects, replaces, or removes them. Put fields
+  the customer explicitly removes in fields_to_clear.
 - If a day and month are supplied without a year, use the supplied current
   calendar year and set year_explicit to false. If the year is stated, set it
   true. Compute end_date from start_date plus duration when possible.
@@ -218,7 +231,15 @@ Rules:
   start_date. A return date takes priority when both dates are explicit.
 - Separate activities from interests. Capture named attractions, shops, parks,
   historical places, dining frequency, events, cabin, hotel needs, children's
-  ages, baggage questions, and accessibility needs.
+  ages, every stated nationality, baggage questions, dietary requirements,
+  accessibility needs, and negative constraints such as no alcohol.
+- A business meeting is an activity or purpose, not business-class airfare.
+  Set cabin_class to business only when the customer explicitly requests a
+  business-class seat or cabin.
+- Do not infer trip duration from phrases such as "two day trips" or "drive in
+  one day". Duration must describe the whole trip/stay or come from travel dates.
+- A request that includes visa or entry questions remains PLAN_TRIP when the
+  customer is asking for a complete journey; preserve all mixed nationalities.
 - Set companion_relationship and companion_origin only when the customer
   explicitly says that person is travelling separately from a different
   origin. Merely mentioning a wife, husband, partner, friend, or children does
@@ -239,7 +260,9 @@ Rules:
 - Return exactly duration_days entries numbered consecutively from 1.
 - Honour the full party composition, children's ages, pace, accessibility,
   requested activities, dining count, interests, hotel preferences, special
-  occasions, dates, and separate arrivals.
+  occasions, dates, separate arrivals, dietary needs and negative constraints.
+- Never schedule or recommend something the customer excluded. For example,
+  an alcohol-free request must not include bars, wine tastings or cocktails.
 - Make arrival and departure days realistic. Balance major days with rest and
   avoid sending a family across distant areas repeatedly.
 - Named attractions may be proposed as itinerary ideas, but must be worded as
@@ -279,12 +302,12 @@ class OpenAITripIntelligence:
             return None
 
         try:
-            timeout = float(os.environ.get("TRALVANA_OPENAI_TIMEOUT_SECONDS", "30"))
+            timeout = float(os.environ.get("TRALVANA_OPENAI_TIMEOUT_SECONDS", "15"))
             model = os.environ.get("TRALVANA_OPENAI_MODEL", "gpt-5.6").strip()
             client = AsyncOpenAI(
                 api_key=api_key,
                 timeout=timeout,
-                max_retries=1,
+                max_retries=0,
             )
         except Exception as exc:
             logger.warning(
@@ -319,6 +342,7 @@ class OpenAITripIntelligence:
                     {"role": "user", "content": json.dumps(payload)},
                 ],
                 text_format=TripInterpretation,
+                prompt_cache_key="tralvana-trip-interpretation-v2",
                 reasoning={"effort": "low"},
                 store=False,
             )
@@ -356,6 +380,7 @@ class OpenAITripIntelligence:
                     {"role": "user", "content": json.dumps(payload)},
                 ],
                 text_format=PersonalisedItinerary,
+                prompt_cache_key="tralvana-itinerary-adaptation-v2",
                 reasoning={"effort": "low"},
                 store=False,
             )
@@ -397,13 +422,43 @@ def should_use_openai_interpretation(
 def merge_interpretations(
     rule_result: ClassifiedIntent,
     ai_result: ClassifiedIntent | None,
+    message: str = "",
 ) -> ClassifiedIntent:
     """Prefer explicit structured extraction while retaining proven rules."""
     if ai_result is None:
         return rule_result
 
     entities = dict(rule_result.entities)
-    entities.update(ai_result.entities)
+    ai_entities = dict(ai_result.entities)
+    clear_fields = _clean_list(ai_entities.pop("clear_fields", "").split(","))
+    entities.update(ai_entities)
+    for field in clear_fields:
+        if field in _CLEARABLE_TRIP_FIELDS:
+            entities.pop(field, None)
+
+    rule_nationalities = _clean_list(
+        rule_result.entities.get("nationalities", "").split(",")
+    )
+    ai_nationalities = _clean_list(
+        ai_result.entities.get("nationalities", "").split(",")
+    )
+    combined_nationalities = _clean_list([*rule_nationalities, *ai_nationalities])
+    if combined_nationalities:
+        entities["nationalities"] = ",".join(combined_nationalities)
+        entities["nationality"] = combined_nationalities[0]
+
+    lowered = message.casefold()
+    if (
+        entities.get("cabin_class", "").casefold() == "business"
+        and not _explicit_business_cabin(lowered)
+        and rule_result.entities.get("cabin_class", "").casefold() != "business"
+    ):
+        entities.pop("cabin_class", None)
+    if "no alcohol" in lowered or "alcohol-free" in lowered:
+        constraints = _clean_list(
+            [*entities.get("negative_constraints", "").split(","), "No alcohol"]
+        )
+        entities["negative_constraints"] = ",".join(constraints)
     _normalise_dates(entities)
 
     intent = ai_result.intent
@@ -445,5 +500,38 @@ def _clean_list(values: list[Any]) -> list[str]:
             str(value).strip()
             for value in values
             if str(value).strip()
+        )
+    )
+
+
+_CLEARABLE_TRIP_FIELDS = {
+    "destination",
+    "destination_region",
+    "local_areas",
+    "origin",
+    "departure_options",
+    "start_date",
+    "end_date",
+    "date_hint",
+    "duration_days",
+    "budget_amount",
+    "budget_currency",
+    "requested_event",
+    "requested_event_type",
+    "requested_activities",
+    "interests",
+    "accommodation_preference",
+}
+
+
+def _explicit_business_cabin(message: str) -> bool:
+    return any(
+        phrase in message
+        for phrase in (
+            "business class",
+            "business-class",
+            "business cabin",
+            "fly business",
+            "flying business",
         )
     )

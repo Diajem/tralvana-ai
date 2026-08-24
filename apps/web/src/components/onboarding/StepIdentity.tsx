@@ -75,6 +75,34 @@ export default function StepIdentity({ value, onChange }: Props) {
           />
         </div>
       </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Passport nationality
+          </label>
+          <input
+            type="text"
+            value={value.nationality}
+            onChange={update("nationality")}
+            placeholder="British"
+            className={inputClass}
+          />
+          <p className="mt-1 text-xs text-gray-400">Used for entry guidance; never your passport number.</p>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Country of residence
+          </label>
+          <input
+            type="text"
+            value={value.country_of_residence}
+            onChange={update("country_of_residence")}
+            placeholder="United Kingdom"
+            className={inputClass}
+          />
+        </div>
+      </div>
     </div>
   );
 }

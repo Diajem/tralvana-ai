@@ -22,6 +22,13 @@ def _response() -> dict:
                     "id": "evt-1",
                     "name": "New York City FC Match",
                     "url": "https://www.ticketmaster.com/event/evt-1",
+                    "images": [
+                        {
+                            "url": "https://s1.ticketm.net/event/evt-1-wide.jpg",
+                            "ratio": "16_9",
+                            "width": 1024,
+                        }
+                    ],
                     "dates": {
                         "start": {"dateTime": "2026-08-15T23:30:00Z"},
                         "status": {"code": "onsale"},
@@ -77,6 +84,10 @@ def test_event_intelligence_exposes_live_provenance(monkeypatch):
     assert option["date_status"] == "CONFIRMED"
     assert option["availability_status"] == "ON_SALE"
     assert option["ticket_url"].startswith("https://")
+    assert option["image_url"] == (
+        "https://s1.ticketm.net/event/evt-1-wide.jpg"
+    )
+    assert option["image_source"] == "Ticketmaster Discovery API"
     assert "live" in option["reasoning"].lower()
     assert "no live event calendar" not in " ".join(option["risks"]).lower()
 

@@ -50,6 +50,7 @@ _DIRECT_RESULT = {
         "rating": 4,
         "review_score": 8.7,
         "review_count": 340,
+        "photos": [{"url": "https://assets.duffel.com/img/stays/test-hotel.jpg"}],
         "amenities": ["pool", "wheelchair_accessible", "workspace"],
         "location": {
             "geographic_coordinates": {"latitude": 35.68, "longitude": 139.65},
@@ -265,6 +266,9 @@ class TestResponseMapping:
         assert raw["duffel_rating"] == 4
         assert raw["duffel_review_score"] == 8.7
         assert raw["duffel_amenities"] == ["pool", "wheelchair_accessible", "workspace"]
+        assert raw["duffel_photos"] == [
+            {"url": "https://assets.duffel.com/img/stays/test-hotel.jpg"}
+        ]
         assert raw["duffel_latitude"] == 35.68
         assert raw["duffel_longitude"] == 139.65
         assert raw["duffel_city_name"] == "Tokyo"

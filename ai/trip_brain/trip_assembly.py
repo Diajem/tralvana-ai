@@ -323,7 +323,10 @@ class TripAssemblyEngine:
         flight_rec = self._displayable_provider_option(raw_flight_rec)
         accommodation_rec = self._displayable_provider_option(raw_accommodation_rec)
         budget_rec = self._declared_budget_summary(brief)
-        visa_rec = self._assessment(by_module.get("visa_intelligence"))
+        visa_rec = self._scope_visa_assessment(
+            self._assessment(by_module.get("visa_intelligence")),
+            brief,
+        )
         weather_rec = self._assessment(by_module.get("weather_intelligence"))
         event_result = by_module.get("event_intelligence")
         event_recs = self._options(event_result)
@@ -531,10 +534,14 @@ class TripAssemblyEngine:
         )
         value.setdefault("budget", {})
         value.setdefault("nationality", None)
+        value.setdefault("nationalities", [])
+        value.setdefault("country_of_residence", None)
         value.setdefault("cabin_class", None)
         value.setdefault("dining_out_count", None)
         value.setdefault("baggage_information_requested", False)
         value.setdefault("accessibility_needs", [])
+        value.setdefault("dietary_requirements", [])
+        value.setdefault("negative_constraints", [])
         value.setdefault("interests", list(interests))
         value.setdefault("accommodation_preferences", [])
         value.setdefault("requested_events", [])
@@ -779,6 +786,10 @@ class TripAssemblyEngine:
             needed.append(
                 "Add each traveller's passport nationality for official entry checks."
             )
+        elif len(brief.get("nationalities") or []) > 1:
+            needed.append(
+                "Complete a separate official entry-requirements check for each passport nationality."
+            )
         if not current_flight or not current_accommodation:
             needed.append(
                 "Replace sandbox or indicative flight and accommodation results with current bookable searches, then reconcile the prices."
@@ -981,6 +992,42 @@ class TripAssemblyEngine:
         if result is None or result.status == AgentStatus.FAILED:
             return None
         return result.data or None
+
+    @staticmethod
+    def _scope_visa_assessment(
+        assessment: dict[str, Any] | None,
+        brief: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """Never imply that one passport check covers a mixed-nationality party."""
+        if assessment is None:
+            return None
+        nationalities = list(dict.fromkeys(brief.get("nationalities") or []))
+        if not nationalities and brief.get("nationality"):
+            nationalities = [str(brief["nationality"])]
+        scoped = dict(assessment)
+        assessed = str(scoped.get("nationality") or "").strip()
+        considered = [assessed] if assessed else nationalities[:1]
+        pending = [value for value in nationalities if value not in considered]
+        scoped["nationalities_considered"] = considered
+        scoped["nationalities_pending"] = pending
+        scoped["assessment_scope"] = "PARTIAL" if pending else "COMPLETE"
+        if pending:
+            scoped["confidence"] = min(float(scoped.get("confidence") or 0), 0.45)
+            scoped["risks"] = list(
+                dict.fromkeys(
+                    [
+                        *scoped.get("risks", []),
+                        "Entry requirements have not yet been assessed for: "
+                        + ", ".join(pending)
+                        + ".",
+                    ]
+                )
+            )
+            scoped["recommendation"] = (
+                "Run a separate official entry-requirements check for every "
+                "passport nationality before travel."
+            )
+        return scoped
 
     def _options(self, result: AgentResult | None) -> list[dict[str, Any]]:
         """A ranked module's already-computed public options, unchanged."""

@@ -177,7 +177,24 @@ class AccommodationNormalizer:
             "_amenities": list(amenities),
             "_provider_property_id": raw.get("_provider_property_id"),
             "_provider_rate_id": raw.get("_provider_rate_id"),
+            "image_url": self._duffel_image_url(raw.get("duffel_photos")),
+            "image_alt": f"{raw['property_name']} accommodation",
+            "image_source": "Duffel Stays",
         }
+
+    @staticmethod
+    def _duffel_image_url(photos: Any) -> str | None:
+        from urllib.parse import urlparse
+
+        if not isinstance(photos, list):
+            return None
+        for photo in photos:
+            if not isinstance(photo, dict) or not isinstance(photo.get("url"), str):
+                continue
+            parsed = urlparse(photo["url"])
+            if parsed.scheme == "https" and parsed.hostname:
+                return photo["url"]
+        return None
 
     def _duffel_distance_to_centre(self, raw: dict[str, Any]) -> float:
         lat, lng = raw.get("duffel_latitude"), raw.get("duffel_longitude")

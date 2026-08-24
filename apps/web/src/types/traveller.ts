@@ -3,6 +3,8 @@ export interface TravellerIdentity {
   email: string;
   locale: string;
   timezone: string;
+  nationality: string;
+  country_of_residence: string;
 }
 
 export interface TravellerPreferences {
