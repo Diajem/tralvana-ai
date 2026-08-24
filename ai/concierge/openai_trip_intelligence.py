@@ -104,8 +104,6 @@ class TripInterpretation(BaseModel):
             "special_occasion": self.special_occasion,
             "special_occasion_date": self.special_occasion_date,
             "special_occasion_notes": self.special_occasion_notes,
-            "companion_relationship": self.companion_relationship,
-            "companion_origin": self.companion_origin,
         }
         for key, value in scalar_values.items():
             if value is not None and str(value).strip():
@@ -164,6 +162,14 @@ class TripInterpretation(BaseModel):
         if self.baggage_information_requested:
             entities["baggage_information_requested"] = "true"
 
+        # A relationship mention alone (for example, "my wife is interested
+        # in shopping") does not describe a separate journey.  Only surface a
+        # companion plan when the customer has also supplied that companion's
+        # distinct origin.  The deterministic parser follows the same rule.
+        if self.companion_relationship and self.companion_origin:
+            entities["companion_relationship"] = self.companion_relationship
+            entities["companion_origin"] = self.companion_origin
+
         return ClassifiedIntent(
             intent=Intent(self.intent),
             confidence=self.confidence,
@@ -213,6 +219,10 @@ Rules:
 - Separate activities from interests. Capture named attractions, shops, parks,
   historical places, dining frequency, events, cabin, hotel needs, children's
   ages, baggage questions, and accessibility needs.
+- Set companion_relationship and companion_origin only when the customer
+  explicitly says that person is travelling separately from a different
+  origin. Merely mentioning a wife, husband, partner, friend, or children does
+  not create a separate journey.
 - Do not invent event dates, fashion shows, flight availability, hotel names,
   prices, baggage allowances, visa rules, or reservations.
 - Use GENERAL_CONVERSATION with empty travel fields when the input is not a
