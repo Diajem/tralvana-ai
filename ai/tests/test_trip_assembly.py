@@ -295,6 +295,24 @@ class TestDailyOutline:
         ):
             assert expected in outline
 
+    def test_aquaventure_replaces_a_duplicate_generic_water_park_day(self):
+        itinerary = engine.assemble(
+            _unified([_flight_result()]),
+            destination="Dubai",
+            duration_days=6,
+            goal_type="FAMILY_TRIP",
+            trip_brief=_brief(
+                destination="Dubai",
+                duration_days=6,
+                requested_activities=["Aquaventure Waterpark", "Water parks"],
+            ),
+        )
+        outline = " ".join(
+            str(value) for day in itinerary.daily_outline for value in day.values()
+        )
+        assert "Aquaventure Waterpark" in outline
+        assert "requested Water parks" not in outline
+
 
 class TestExecutiveSummary:
     def test_no_succeeded_modules_produces_a_clear_not_ready_message(self):
@@ -373,6 +391,36 @@ class TestExecutiveSummary:
         )
         assert "no visa is required" not in itinerary.executive_summary.lower()
         assert "could not be determined" in itinerary.executive_summary.lower()
+
+    def test_summary_explains_mixed_passports_without_broken_authorisation_copy(self):
+        visa = AgentResult(
+            agent_name="visa_intelligence",
+            status=AgentStatus.SUCCESS,
+            confidence=0.9,
+            data={
+                "visa_status": "ETA_REQUIRED",
+                "visa_type": "ESTA",
+                "travel_authorisation_required": True,
+                "individual_assessments": [
+                    {"nationality": "Polish", "visa_type": "ESTA"},
+                    {"nationality": "Nigerian", "visa_type": "B1/B2 Visa"},
+                ],
+            },
+        )
+        itinerary = engine.assemble(
+            _unified([visa]),
+            destination="New York",
+            duration_days=5,
+            trip_brief=_brief(
+                destination="New York",
+                nationality="Polish",
+                nationalities=["Polish", "Nigerian"],
+            ),
+        )
+        summary = itinerary.executive_summary
+        assert "Polish: ESTA" in summary
+        assert "Nigerian: B1/B2 Visa" in summary
+        assert "Mixed requirements" not in summary
 
     def test_conflicting_mock_budget_breakdown_is_not_presented_as_reconciled(self):
         explanation = {"recommendation_drivers": [{"module": "budget_intelligence", "driver": "Flights USD 900, accommodation USD 472."}]}
