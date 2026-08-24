@@ -4,6 +4,11 @@ from typing import Any
 from ai.concierge.conversation_session import ConversationSession
 from ai.concierge.decision_engine import Decision, DecisionEngine
 from ai.concierge.intent_classifier import ClassifiedIntent, Intent, IntentClassifier
+from ai.concierge.openai_trip_intelligence import (
+    OpenAITripIntelligence,
+    merge_interpretations,
+    should_use_openai_interpretation,
+)
 from ai.concierge.response_composer import ResponseComposer
 from ai.concierge.session_store import SessionStore, build_session_store
 from ai.explainability.explainability_engine import explainability_engine
@@ -36,6 +41,7 @@ class ConversationEngine:
         store: SessionStore | None = None,
         planning_port: PlanningPort | None = None,
         brain: TripBrain | None = None,
+        trip_intelligence: OpenAITripIntelligence | None = None,
     ) -> None:
         self._store = store if store is not None else build_session_store()
         self._planning_port = planning_port
@@ -43,6 +49,11 @@ class ConversationEngine:
         self._classifier = IntentClassifier()
         self._decision = DecisionEngine()
         self._composer = ResponseComposer()
+        self._trip_intelligence = (
+            trip_intelligence
+            if trip_intelligence is not None
+            else OpenAITripIntelligence.from_environment()
+        )
 
     async def process(
         self,
@@ -53,9 +64,13 @@ class ConversationEngine:
         session = self._store.get_or_create(conversation_id, traveller_id)
         session.add_message("user", message)
 
-        classified = self._continue_plan_if_needed(
-            session, self._classifier.classify(message), message
+        rule_classified = self._classifier.classify(message)
+        classified = await self._interpret_trip_turn(
+            session=session,
+            message=message,
+            rule_classified=rule_classified,
         )
+        classified = self._continue_plan_if_needed(session, classified, message)
         classified = self._add_active_trip_context(session, classified, message)
         profile = self._fetch_profile(session.traveller_id)
         traveller_name = profile.get("identity", {}).get("name") if profile else None
@@ -277,6 +292,73 @@ class ConversationEngine:
         self, traveller_id: str, limit: int = 50
     ) -> list[ConversationSession]:
         return self._store.list_by_traveller(traveller_id, limit)
+
+    async def personalise_itinerary(self, itinerary: Any) -> Any:
+        """Adapt a grounded itinerary without changing supplier decisions."""
+        if self._trip_intelligence is None:
+            return itinerary
+
+        itinerary_data = itinerary.to_dict()
+        provider_evidence = {
+            "destination": itinerary_data.get("destination_recommendation"),
+            "flight": itinerary_data.get("flight_recommendation"),
+            "accommodation": itinerary_data.get("accommodation_recommendation"),
+            "visa": itinerary_data.get("visa_summary"),
+            "weather": itinerary_data.get("weather_expectations"),
+            "events": itinerary_data.get("event_recommendations", []),
+            "grounding_notices": itinerary_data.get("grounding_notices", []),
+        }
+        personalised = await self._trip_intelligence.personalise_itinerary(
+            trip_brief=itinerary.trip_brief,
+            provider_evidence=provider_evidence,
+            fallback_outline=itinerary.daily_outline,
+        )
+        if personalised is None:
+            return itinerary
+
+        itinerary.daily_outline = [
+            day.model_dump() for day in personalised.daily_outline
+        ]
+        itinerary.assumptions = list(
+            dict.fromkeys([*itinerary.assumptions, *personalised.planning_notes])
+        )
+        if "openai_trip_intelligence" not in itinerary.modules_used:
+            itinerary.modules_used.append("openai_trip_intelligence")
+        return itinerary
+
+    async def _interpret_trip_turn(
+        self,
+        *,
+        session: ConversationSession,
+        message: str,
+        rule_classified: ClassifiedIntent,
+    ) -> ClassifiedIntent:
+        if self._trip_intelligence is None or not should_use_openai_interpretation(
+            rule_intent=rule_classified.intent,
+            active_goal=session.active_goal,
+            message=message,
+        ):
+            return rule_classified
+
+        ai_classified = await self._trip_intelligence.interpret(
+            message=message,
+            existing_entities=session.planning_entities,
+            history=session.history[:-1],
+        )
+        merged = merge_interpretations(rule_classified, ai_classified)
+        if (
+            session.active_goal == Intent.PLAN_TRIP.value
+            and merged.intent == Intent.MODIFY_TRIP
+        ):
+            # A refinement inside the planner updates and re-runs the current
+            # plan.  Keeping it as standalone MODIFY_TRIP would bypass
+            # _continue_plan_if_needed() and leave the new facts unpersisted.
+            return ClassifiedIntent(
+                intent=Intent.PLAN_TRIP,
+                confidence=merged.confidence,
+                entities=merged.entities,
+            )
+        return merged
 
     def _update_session(
         self, session: ConversationSession, intent: Intent, decision: Decision

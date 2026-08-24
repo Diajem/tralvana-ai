@@ -31,6 +31,7 @@ export interface TripBrief {
   departure_options: string[];
   airport_preference: string | null;
   destination: string;
+  destination_region: string | null;
   local_areas: string[];
   duration_days: number;
   start_date: string | null;
@@ -54,6 +55,10 @@ export interface TripBrief {
     source?: string;
   };
   nationality: string | null;
+  cabin_class: string | null;
+  dining_out_count: number | null;
+  baggage_information_requested: boolean;
+  accessibility_needs: string[];
   interests: string[];
   accommodation_preferences: string[];
   requested_events: RequestedEvent[];
