@@ -84,7 +84,8 @@ async def plan_trip(
     itinerary: dict[str, Any] | None = None
     session = conversation_engine.get_session(reply["conversation_id"])
     if session is not None and session.last_recommendation is not None:
-        itinerary = _assemble_itinerary(session).to_dict()
+        assembled = await _assemble_itinerary(session)
+        itinerary = assembled.to_dict()
 
     response = {**reply, "itinerary": itinerary}
     if session is not None:
@@ -169,7 +170,7 @@ def _saved_plan_summary(session: Any) -> dict[str, Any]:
     }
 
 
-def _assemble_itinerary(session: Any):
+async def _assemble_itinerary(session: Any):
     from ai.trip_brain.trip_assembly import trip_assembly_engine
 
     goal: dict[str, Any] | None = None
@@ -204,7 +205,7 @@ def _assemble_itinerary(session: Any):
         or (goal or {}).get("interests", [])
     )
 
-    return trip_assembly_engine.assemble(
+    itinerary = trip_assembly_engine.assemble(
         unified,
         destination=destination,
         duration_days=duration_days,
@@ -220,6 +221,9 @@ def _assemble_itinerary(session: Any):
             interests=interests,
         ),
     )
+    from ai.concierge.conversation_engine import conversation_engine
+
+    return await conversation_engine.personalise_itinerary(itinerary)
 
 
 def _build_trip_brief(
@@ -359,12 +363,18 @@ def _build_trip_brief(
         for value in entities.get("requested_activities", "").split(",")
         if value
     ]
+    accessibility_needs = [
+        value
+        for value in entities.get("accessibility_needs", "").split(",")
+        if value
+    ]
 
     return {
         "origin": entities.get("origin") or trip.get("origin") or "",
         "departure_options": departure_options,
         "airport_preference": entities.get("airport_preference"),
         "destination": destination or trip.get("destination") or "",
+        "destination_region": entities.get("destination_region"),
         "local_areas": local_areas,
         "duration_days": int(duration_days),
         "start_date": start_date,
@@ -392,6 +402,16 @@ def _build_trip_brief(
         },
         "budget": budget,
         "nationality": entities.get("nationality"),
+        "cabin_class": entities.get("cabin_class"),
+        "dining_out_count": (
+            int(entities["dining_out_count"])
+            if entities.get("dining_out_count")
+            else None
+        ),
+        "baggage_information_requested": (
+            entities.get("baggage_information_requested") == "true"
+        ),
+        "accessibility_needs": accessibility_needs,
         "interests": list(interests),
         "accommodation_preferences": accommodation_preferences,
         "requested_events": requested_events,
