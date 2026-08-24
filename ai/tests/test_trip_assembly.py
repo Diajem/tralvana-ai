@@ -313,6 +313,42 @@ class TestDailyOutline:
         assert "Aquaventure Waterpark" in outline
         assert "requested Water parks" not in outline
 
+    def test_requested_activity_rethemes_an_unrelated_generic_day(self):
+        itinerary = engine.assemble(
+            _unified([_flight_result()]),
+            destination="Ronda",
+            duration_days=6,
+            goal_type="RELAXATION",
+            trip_brief=_brief(
+                destination="Ronda",
+                duration_days=6,
+                requested_activities=["Visit El Tajo gorge"],
+            ),
+        )
+        scheduled = next(
+            day for day in itinerary.daily_outline
+            if "el tajo" in " ".join(str(value) for value in day.values()).casefold()
+        )
+        text = " ".join(str(value) for value in scheduled.values()).casefold()
+        assert "el tajo" in scheduled["theme"].casefold()
+        assert "spa" not in text
+
+    def test_dining_count_is_planned_exactly_and_preferences_are_preserved(self):
+        itinerary = engine.assemble(
+            _unified([_flight_result()]),
+            destination="Castelmezzano",
+            duration_days=8,
+            trip_brief=_brief(
+                destination="Castelmezzano",
+                duration_days=8,
+                dining_out_count=3,
+                dining_preferences=["Family-run trattoria"],
+            ),
+        )
+        evenings = [day["evening"] for day in itinerary.daily_outline]
+        assert sum("Planned restaurant meal" in value for value in evenings) == 3
+        assert any("Family-run trattoria" in value for value in evenings)
+
 
 class TestExecutiveSummary:
     def test_no_succeeded_modules_produces_a_clear_not_ready_message(self):

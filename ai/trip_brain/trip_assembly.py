@@ -538,8 +538,10 @@ class TripAssemblyEngine:
         value.setdefault("nationality", None)
         value.setdefault("nationalities", [])
         value.setdefault("country_of_residence", None)
+        value.setdefault("residency_documents", [])
         value.setdefault("cabin_class", None)
         value.setdefault("dining_out_count", None)
+        value.setdefault("dining_preferences", [])
         value.setdefault("baggage_information_requested", False)
         value.setdefault("accessibility_needs", [])
         value.setdefault("dietary_requirements", [])
@@ -709,10 +711,15 @@ class TripAssemblyEngine:
                 "no date or ticket has been invented."
             ).strip()
 
-        return self._schedule_requested_activities(
-            outline,
-            requested_activities,
-        )
+        # These destination-specific outlines already place every supported
+        # requested activity deliberately; a second generic scheduling pass
+        # would overwrite their carefully ordered days.
+        if not (is_amsterdam or is_dublin_family or is_new_york_family):
+            outline = self._schedule_requested_activities(
+                outline,
+                requested_activities,
+            )
+        return self._apply_dining_plan(outline, brief)
 
     @staticmethod
     def _schedule_requested_activities(
@@ -733,6 +740,18 @@ class TripAssemblyEngine:
                 value.strip() for value in requested_activities if value.strip()
             )
         )
+        activities = [
+            activity
+            for activity in activities
+            if not any(
+                term in activity.casefold()
+                for term in (
+                    "connect through", "connecting through", "airport", "airline",
+                    "flight", "baggage", "package allowance", "restaurant",
+                    "trattoria", "tapas bar", "seafood meal", "dine at",
+                )
+            )
+        ]
         if any("aquaventure" in activity.casefold() for activity in activities):
             generic_water_park_labels = {
                 "water park", "water parks", "waterpark", "waterparks"
@@ -746,6 +765,7 @@ class TripAssemblyEngine:
             (("statue of liberty", "ellis island"), "Statue of Liberty and Ellis Island"),
             (("camp nou", "fc barcelona museum"), "Camp Nou and the FC Barcelona museum"),
             (("harajuku", "shibuya"), "Harajuku and Shibuya"),
+            (("puente nuevo", "el tajo"), "Puente Nuevo and El Tajo gorge"),
         )
         grouped: list[str] = []
         used: set[int] = set()
@@ -768,6 +788,7 @@ class TripAssemblyEngine:
         full_day_terms = (
             "disney", "portaventura", "aquaventure", "water park", "waterpark",
             "mount fuji", "kyoto", "safari", "robben island", "cape of good hope",
+            "day trip", "horseback riding day", "blue ridge parkway",
         )
         grouped.sort(
             key=lambda activity: not any(
@@ -805,7 +826,13 @@ class TripAssemblyEngine:
                 entry["notes"] = guidance
                 remaining_capacity[selected] = 0
             elif remaining_capacity[selected] == 2:
+                entry["title"] = f"Day {entry['day']}: {activity}"
+                entry["theme"] = activity
                 entry["morning"] = f"Include the requested {activity}"
+                entry["afternoon"] = (
+                    "Continue with nearby sights or allow recovery time, "
+                    "keeping travel distances realistic"
+                )
                 entry["notes"] = guidance
                 remaining_capacity[selected] = 1
             else:
@@ -813,6 +840,71 @@ class TripAssemblyEngine:
                 entry["notes"] = guidance
                 remaining_capacity[selected] = 0
             day_index = (selected + 1) % len(days)
+        return outline
+
+    @staticmethod
+    def _apply_dining_plan(
+        outline: list[dict[str, Any]],
+        brief: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """Make the requested restaurant count visible and non-fabricated."""
+        requested = brief.get("dining_out_count")
+        if requested is None or not outline:
+            return outline
+        meal_count = min(max(int(requested), 0), len(outline))
+        preferences = [
+            str(value).strip()
+            for value in (brief.get("dining_preferences") or [])
+            if str(value).strip()
+        ]
+        protected_terms = (
+            "official dated listing", "ticket availability", "requested event",
+            "match", "show", "concert", "performance",
+        )
+        eligible = [
+            index
+            for index, entry in enumerate(outline)
+            if not any(
+                term in str(entry.get("evening") or "").casefold()
+                for term in protected_terms
+            )
+        ]
+        selected: list[int] = []
+        if meal_count and eligible:
+            for slot in range(meal_count):
+                position = round(slot * (len(eligible) - 1) / max(meal_count - 1, 1))
+                candidate = eligible[position]
+                if candidate not in selected:
+                    selected.append(candidate)
+            for candidate in eligible:
+                if len(selected) >= meal_count:
+                    break
+                if candidate not in selected:
+                    selected.append(candidate)
+
+        dining_terms = (
+            "dinner", "restaurant", "trattoria", "tapas", "barbecue",
+            "seafood", "food", "cuisine", "meal",
+        )
+        for index, entry in enumerate(outline):
+            if index in selected:
+                meal_number = selected.index(index) + 1
+                preference = preferences[meal_number - 1] if meal_number <= len(preferences) else None
+                entry["evening"] = (
+                    f"Planned restaurant meal {meal_number} of {meal_count}: {preference}; "
+                    "choose and reserve a verified venue"
+                    if preference
+                    else f"Planned restaurant meal {meal_number} of {meal_count}; "
+                    "choose and reserve a verified local venue"
+                )
+            elif any(
+                term in str(entry.get("evening") or "").casefold()
+                for term in dining_terms
+            ):
+                entry["evening"] = (
+                    "Flexible evening near the accommodation; no additional "
+                    "restaurant meal is assumed"
+                )
         return outline
 
     def _declared_budget_summary(

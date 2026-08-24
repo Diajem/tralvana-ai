@@ -13,6 +13,7 @@ class CheckVisaRequest(BaseModel):
     travel_purpose: str = "TOURISM"          # TOURISM | BUSINESS | TRANSIT | STUDY | WORK | FAMILY_VISIT | OTHER
     intended_length_of_stay: int = Field(default=14, ge=1, le=365)
     passport_expiry_date: str | None = None  # ISO date, e.g. "2027-06-01"
+    residency_document: str | None = None
 
 
 class VisaAssessmentResponse(BaseModel):

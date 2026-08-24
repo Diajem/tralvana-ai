@@ -11,6 +11,7 @@ from typing import Any
 _PASSPORT_TIER: dict[str, str] = {
     "UK": "strong", "IRELAND": "strong", "USA": "strong", "CANADA": "strong",
     "JAPAN": "strong", "EU": "strong", "POLAND": "strong", "GERMANY": "strong",
+    "ITALY": "strong",
     "NIGERIA": "developing", "GHANA": "developing",
     "SOUTH AFRICA": "developing", "JAMAICA": "developing",
 }
@@ -29,6 +30,7 @@ _ALIASES: dict[str, str] = {
     "US": "USA", "UNITED STATES": "USA", "UNITED STATES OF AMERICA": "USA", "AMERICAN": "USA",
     "NEW YORK": "USA", "NEW YORK CITY": "USA", "NYC": "USA",
     "FLORIDA": "USA", "ORLANDO": "USA", "MIAMI": "USA", "TAMPA": "USA",
+    "NORTH CAROLINA": "USA", "BLOWING ROCK": "USA", "BEAUFORT": "USA",
     "CA": "CANADA", "CANADIAN": "CANADA",
     "NG": "NIGERIA", "NIGERIAN": "NIGERIA", "LAGOS": "NIGERIA", "ABUJA": "NIGERIA",
     "GH": "GHANA", "GHANAIAN": "GHANA", "ACCRA": "GHANA",
@@ -37,14 +39,20 @@ _ALIASES: dict[str, str] = {
     "JP": "JAPAN", "JAPANESE": "JAPAN", "TOKYO": "JAPAN", "OSAKA": "JAPAN",
     "PL": "POLAND", "POLISH": "POLAND", "WARSAW": "POLAND",
     "DE": "GERMANY", "GERMAN": "GERMANY",
+    "IT": "ITALY", "ITA": "ITALY", "ITALIAN": "ITALY",
+    "ROME": "ITALY", "NAPLES": "ITALY", "CASTELMEZZANO": "ITALY",
     "FR": "FRANCE", "FRENCH": "FRANCE", "PARIS": "FRANCE",
     "ES": "SPAIN", "SPANISH": "SPAIN", "BARCELONA": "SPAIN", "MADRID": "SPAIN",
+    "RONDA": "SPAIN",
     "AE": "UAE", "UNITED ARAB EMIRATES": "UAE", "EMIRATI": "UAE",
     "DUBAI": "UAE", "ABU DHABI": "UAE",
     "CAPE TOWN": "SOUTH AFRICA",
 }
 
-_DESTINATIONS = {"JAPAN", "USA", "UK", "IRELAND", "FRANCE", "SPAIN", "NIGERIA", "UAE", "SOUTH AFRICA"}
+_DESTINATIONS = {"JAPAN", "USA", "UK", "IRELAND", "FRANCE", "SPAIN", "ITALY", "NIGERIA", "UAE", "SOUTH AFRICA"}
+
+_EU_MEMBER_PASSPORTS = {"POLAND", "GERMANY", "ITALY"}
+_SCHENGEN_DESTINATIONS = {"FRANCE", "SPAIN", "ITALY"}
 
 # Canonical key -> display name, for countries where straight .title() would
 # be wrong (acronyms) or where the mock dataset uses a generic label.
@@ -115,6 +123,16 @@ _DESTINATION_POLICY: dict[str, dict[str, dict[str, Any]]] = {
         },
     },
     "SPAIN": {
+        "strong": {
+            "status": "VISA_NOT_REQUIRED", "visa_type": "None", "max_stay_days": 90,
+            "processing_time": "Not applicable",
+        },
+        "developing": {
+            "status": "VISA_REQUIRED", "visa_type": "Schengen Short-Stay Visa", "max_stay_days": 90,
+            "processing_time": "Around 15 business days",
+        },
+    },
+    "ITALY": {
         "strong": {
             "status": "VISA_NOT_REQUIRED", "visa_type": "None", "max_stay_days": 90,
             "processing_time": "Not applicable",
@@ -228,6 +246,13 @@ class MockVisaProvider:
                 max_stay_days=None, processing_time="Not applicable",
             )
 
+        if passport in _EU_MEMBER_PASSPORTS and destination in _SCHENGEN_DESTINATIONS:
+            return self._result(
+                passport, destination, "eu_free_movement",
+                status="VISA_NOT_REQUIRED", visa_type="None (EU free movement)",
+                max_stay_days=None, processing_time="Not applicable",
+            )
+
         if passport and destination and (passport, destination) in _OVERRIDES:
             rule = _OVERRIDES[(passport, destination)]
             return self._result(passport, destination, "override", **rule)
@@ -268,7 +293,18 @@ class MockVisaProvider:
         if not country:
             return None
         key = country.strip().upper()
-        return _ALIASES.get(key, key)
+        exact = _ALIASES.get(key)
+        if exact:
+            return exact
+        # OpenAI deliberately preserves useful labels such as
+        # "Ronda, Spain" and "Beaufort, North Carolina". Visa rules are
+        # country-level, so resolve a recognised comma-delimited country or
+        # region without throwing away the customer-facing destination.
+        for part in reversed([value.strip() for value in key.split(",")]):
+            canonical = _ALIASES.get(part, part)
+            if canonical in _PASSPORT_TIER or canonical in _DESTINATION_POLICY:
+                return canonical
+        return key
 
     def _display(self, key: str) -> str:
         return _DISPLAY_NAME.get(key, key.title())

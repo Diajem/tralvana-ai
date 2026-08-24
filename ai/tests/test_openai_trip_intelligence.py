@@ -135,6 +135,43 @@ def test_relationship_mention_without_distinct_origin_is_not_a_separate_trip():
     assert "companion_origin" not in result.entities
 
 
+def test_transport_and_dining_do_not_leak_into_requested_activities():
+    result = merge_interpretations(
+        ClassifiedIntent(Intent.PLAN_TRIP, 0.9, {}),
+        _florida_interpretation(
+            requested_activities=[
+                "connect through a major European hub",
+                "hike along the Dolomiti Lucane trails",
+                "dine at an authentic family-run trattoria",
+            ],
+        ).to_classified_intent(),
+    )
+
+    assert result.entities["requested_activities"] == (
+        "hike along the Dolomiti Lucane trails"
+    )
+    assert "family-run trattoria" in result.entities["dining_preferences"]
+
+
+def test_mixed_party_long_stay_visa_is_preserved_per_nationality():
+    message = (
+        "One Italian national and one Nigerian national currently residing "
+        "in Milan on a long-term visa are travelling to Ronda."
+    )
+    result = merge_interpretations(
+        ClassifiedIntent(Intent.PLAN_TRIP, 0.9, {}),
+        _florida_interpretation(
+            nationalities=["Italian", "Nigerian"],
+            country_of_residence="Italy",
+        ).to_classified_intent(),
+        message=message,
+    )
+
+    assert result.entities["residency_documents"] == (
+        "Nigerian: Italian long term visa"
+    )
+
+
 def test_explicit_companion_origin_is_preserved_as_a_separate_trip():
     result = _florida_interpretation(
         companion_relationship="Wife",
