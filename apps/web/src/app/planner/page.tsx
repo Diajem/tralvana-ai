@@ -209,6 +209,33 @@ function RecommendationFacts({ data }: { data: Record<string, unknown> }) {
   );
 }
 
+function PassportAssessments({ data }: { data: Record<string, unknown> }) {
+  const assessments = Array.isArray(data.individual_assessments)
+    ? data.individual_assessments.filter(
+        (item): item is Record<string, unknown> => Boolean(item) && typeof item === "object",
+      )
+    : [];
+  if (assessments.length <= 1) return null;
+
+  return (
+    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      {assessments.map((assessment, index) => (
+        <div key={`${String(assessment.nationality || "passport")}-${index}`} className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-3">
+          <p className="text-xs font-bold uppercase tracking-wide text-indigo-600">
+            {String(assessment.nationality || assessment.passport_country || "Passport")}
+          </p>
+          <p className="mt-1 font-semibold text-slate-950">
+            {String(assessment.visa_type || assessment.visa_status || "Check required")}
+          </p>
+          <p className="mt-1 text-xs leading-5 text-slate-600">
+            {String(assessment.recommendation || "Confirm the current official entry requirements before travel.")}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ProviderStatus({ data, domain }: { data: Record<string, unknown>; domain: "flight" | "hotel" }) {
   const source = String(data.data_source || "").toUpperCase();
   if (source.includes("SANDBOX")) {
@@ -251,6 +278,7 @@ function TripBriefCard({ itinerary }: { itinerary: TripItinerary }) {
         {[
           ["Fly from", departure],
           ["Airport preference", brief.airport_preference || "Not supplied"],
+          ["Preferred airlines", brief.airline_preferences?.length ? brief.airline_preferences.join(", ") : "Not supplied"],
           ["To", brief.destination_region ? `${brief.destination}, ${brief.destination_region}` : brief.destination],
           ["Stay areas", brief.local_areas?.length ? brief.local_areas.join(", ") : "Not supplied"],
           ["Duration", `${brief.duration_days} days`],
@@ -260,7 +288,7 @@ function TripBriefCard({ itinerary }: { itinerary: TripItinerary }) {
           ["Country of residence", brief.country_of_residence || "Not supplied"],
           ["Flight cabin", brief.cabin_class || "Not supplied"],
           ["Hotel arrangement", brief.accommodation_preferences?.length ? brief.accommodation_preferences.join(", ") : "Not supplied"],
-          ["Dining out", brief.dining_out_count !== null ? `${brief.dining_out_count} planned family meal${brief.dining_out_count === 1 ? "" : "s"}` : "Not supplied"],
+          ["Dining out", brief.dining_out_count !== null ? `${brief.dining_out_count} planned restaurant meal${brief.dining_out_count === 1 ? "" : "s"}` : "Not supplied"],
           ["Baggage guidance", brief.baggage_information_requested ? "Requested — confirm against the selected live fare" : "Not requested"],
           ["Accessibility", brief.accessibility_needs?.length ? brief.accessibility_needs.join(", ") : "Not supplied"],
           ["Dietary needs", brief.dietary_requirements?.length ? brief.dietary_requirements.join(", ") : "Not supplied"],
@@ -568,7 +596,12 @@ function ItineraryView({
         </div>
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <SectionCard title="Passport & entry guidance">
-            {itinerary.visa_summary ? <RecommendationFacts data={itinerary.visa_summary} /> : <p className="text-sm text-slate-600">Add passport nationality for entry guidance.</p>}
+            {itinerary.visa_summary ? (
+              <>
+                <RecommendationFacts data={itinerary.visa_summary} />
+                <PassportAssessments data={itinerary.visa_summary} />
+              </>
+            ) : <p className="text-sm text-slate-600">Add passport nationality for entry guidance.</p>}
           </SectionCard>
           <SectionCard title="Weather expectations">
             {itinerary.weather_expectations ? <RecommendationFacts data={itinerary.weather_expectations} /> : <p className="text-sm text-slate-600">Seasonal guidance is not available for this destination yet.</p>}

@@ -10,7 +10,7 @@ from typing import Any
 # two-tier split — this is a deterministic demo dataset, not legal advice.
 _PASSPORT_TIER: dict[str, str] = {
     "UK": "strong", "IRELAND": "strong", "USA": "strong", "CANADA": "strong",
-    "JAPAN": "strong", "EU": "strong",
+    "JAPAN": "strong", "EU": "strong", "POLAND": "strong", "GERMANY": "strong",
     "NIGERIA": "developing", "GHANA": "developing",
     "SOUTH AFRICA": "developing", "JAMAICA": "developing",
 }
@@ -35,13 +35,16 @@ _ALIASES: dict[str, str] = {
     "ZA": "SOUTH AFRICA", "RSA": "SOUTH AFRICA", "SOUTH AFRICAN": "SOUTH AFRICA",
     "JM": "JAMAICA", "JAMAICAN": "JAMAICA", "KINGSTON": "JAMAICA", "MONTEGO BAY": "JAMAICA",
     "JP": "JAPAN", "JAPANESE": "JAPAN", "TOKYO": "JAPAN", "OSAKA": "JAPAN",
+    "PL": "POLAND", "POLISH": "POLAND", "WARSAW": "POLAND",
+    "DE": "GERMANY", "GERMAN": "GERMANY",
     "FR": "FRANCE", "FRENCH": "FRANCE", "PARIS": "FRANCE",
     "ES": "SPAIN", "SPANISH": "SPAIN", "BARCELONA": "SPAIN", "MADRID": "SPAIN",
     "AE": "UAE", "UNITED ARAB EMIRATES": "UAE", "EMIRATI": "UAE",
     "DUBAI": "UAE", "ABU DHABI": "UAE",
+    "CAPE TOWN": "SOUTH AFRICA",
 }
 
-_DESTINATIONS = {"JAPAN", "USA", "UK", "IRELAND", "FRANCE", "SPAIN", "NIGERIA", "UAE"}
+_DESTINATIONS = {"JAPAN", "USA", "UK", "IRELAND", "FRANCE", "SPAIN", "NIGERIA", "UAE", "SOUTH AFRICA"}
 
 # Canonical key -> display name, for countries where straight .title() would
 # be wrong (acronyms) or where the mock dataset uses a generic label.
@@ -141,6 +144,16 @@ _DESTINATION_POLICY: dict[str, dict[str, dict[str, Any]]] = {
             "processing_time": "3-5 business days",
         },
     },
+    "SOUTH AFRICA": {
+        "strong": {
+            "status": "VISA_NOT_REQUIRED", "visa_type": "None", "max_stay_days": 90,
+            "processing_time": "Not applicable",
+        },
+        "developing": {
+            "status": "VISA_REQUIRED", "visa_type": "Visitor Visa", "max_stay_days": 90,
+            "processing_time": "Consulate assessment required",
+        },
+    },
 }
 
 # Specific (passport, destination) overrides checked before the tier lookup
@@ -159,6 +172,22 @@ _OVERRIDES: dict[tuple[str, str], dict[str, Any]] = {
     ("GHANA", "NIGERIA"): {
         "status": "VISA_NOT_REQUIRED", "visa_type": "None (ECOWAS free movement)",
         "max_stay_days": None, "processing_time": "Not applicable",
+    },
+    ("POLAND", "SPAIN"): {
+        "status": "VISA_NOT_REQUIRED", "visa_type": "None (EU free movement)",
+        "max_stay_days": None, "processing_time": "Not applicable",
+    },
+    ("GERMANY", "SPAIN"): {
+        "status": "VISA_NOT_REQUIRED", "visa_type": "None (EU free movement)",
+        "max_stay_days": None, "processing_time": "Not applicable",
+    },
+    ("POLAND", "UAE"): {
+        "status": "VISA_NOT_REQUIRED", "visa_type": "None (short visit)",
+        "max_stay_days": 90, "processing_time": "Not applicable",
+    },
+    ("POLAND", "SOUTH AFRICA"): {
+        "status": "VISA_NOT_REQUIRED", "visa_type": "None (short visit)",
+        "max_stay_days": 90, "processing_time": "Not applicable",
     },
 }
 

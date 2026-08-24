@@ -27,7 +27,7 @@ def _builder_with_city() -> tuple[ItineraryBuilder, KnowledgeGraph]:
     return ItineraryBuilder(KnowledgeService(graph)), graph
 
 
-def test_build_queries_current_attractions_museums_and_restaurants() -> None:
+def test_build_queries_attractions_and_museums_without_inventing_restaurant_currency() -> None:
     builder, graph = _builder_with_city()
     graph.add_node(
         Attraction("attr_landmark", "Living Landmark", "city_test"),
@@ -78,7 +78,7 @@ def test_build_queries_current_attractions_museums_and_restaurants() -> None:
 
     assert day_two["morning"] == "Explore Living Landmark"
     assert day_two["afternoon"] == "Visit Current History Museum"
-    assert day_two["evening"] == "Dinner at Local Table"
+    assert day_two["evening"] == "Welcome dinner at a celebrated local restaurant"
 
 
 def test_builder_reflects_graph_mutation_after_construction() -> None:

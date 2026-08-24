@@ -30,6 +30,7 @@ export interface TripBrief {
   origin: string;
   departure_options: string[];
   airport_preference: string | null;
+  airline_preferences: string[];
   destination: string;
   destination_region: string | null;
   local_areas: string[];

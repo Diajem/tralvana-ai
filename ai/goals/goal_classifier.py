@@ -9,16 +9,21 @@ from __future__ import annotations
 # Priority-ordered: first match wins
 _TEXT_PATTERNS: list[tuple[str, list[str]]] = [
     ("PILGRIMAGE",      ["pilgrimage", "hajj", "umrah", "holy", "shrine", "sacred", "jerusalem", "mecca", "medina"]),
-    ("FOOTBALL_TRAVEL", ["football", "soccer", "match", "stadium", "premier league", "la liga", "serie a", "bundesliga", "champions league", "world cup"]),
-    ("DIASPORA_TRAVEL", ["diaspora", "heritage", "homeland", "roots", "ancestral", "ancestry", "home country", "visit family", "back home"]),
-    ("ROMANTIC_TRIP",   ["honeymoon", "romantic", "anniversary", "couple", "partner", "valentine", "propose", "engagement"]),
     # "family" by itself can describe people at the destination ("stay near
     # family") rather than children travelling in the party.  Use explicit
     # party language or child-related terms before selecting child-oriented
-    # itinerary templates.
+    # itinerary templates. Family composition takes priority over a football
+    # or adventure interest so one adult's hobby does not reshape every day.
     ("FAMILY_TRIP",     ["family trip", "family holiday", "family vacation", "with my family", "with our family", "with my parents", "kids", "children", "baby", "toddler", "school holiday", "half term"]),
+    ("FOOTBALL_TRAVEL", ["football", "soccer", "match", "stadium", "premier league", "la liga", "serie a", "bundesliga", "champions league", "world cup"]),
+    ("DIASPORA_TRAVEL", ["diaspora", "heritage", "homeland", "roots", "ancestral", "ancestry", "home country", "visit family", "back home"]),
+    # Travelling as a couple is party composition, not proof that the entire
+    # trip should use a romance template.
+    ("ROMANTIC_TRIP",   ["honeymoon", "romantic", "anniversary", "valentine", "propose", "proposal trip", "engagement trip"]),
     ("ADVENTURE",       ["adventure", "hiking", "trekking", "safari", "extreme", "bungee", "skydive", "rafting", "climbing", "kayak", "scuba", "dive"]),
-    ("FOOD_TOUR",       ["food", "cuisine", "restaurant", "culinary", "wine", "gastronomy", "michelin", "street food", "eat", "tasting"]),
+    # Ordinary trips frequently mention restaurants. Select FOOD_TOUR only
+    # when food is explicitly the focus of the journey.
+    ("FOOD_TOUR",       ["food tour", "culinary trip", "culinary holiday", "gastronomy trip", "food-focused", "street food tour", "wine tour", "tasting tour"]),
     ("PHOTOGRAPHY",     ["photography", "photo", "camera", "shoot", "landscape", "wildlife photography", "portrait"]),
     # A social phrase such as "meeting my girlfriend" is not business travel.
     # Require a business/work/client qualifier instead of the bare word

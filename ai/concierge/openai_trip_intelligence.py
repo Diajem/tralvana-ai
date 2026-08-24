@@ -11,7 +11,8 @@ from __future__ import annotations
 import json
 import logging
 import os
-from datetime import date, datetime
+import re
+from datetime import date, datetime, timedelta
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -47,6 +48,9 @@ class TripInterpretation(BaseModel):
     destination_region: str | None
     origin: str | None
     departure_options: list[str]
+    airport_preference: str | None = None
+    airline_preferences: list[str] = Field(default_factory=list)
+    country_of_residence: str | None = None
     local_areas: list[str]
     start_date: str | None
     end_date: str | None
@@ -89,6 +93,8 @@ class TripInterpretation(BaseModel):
             "destination": self.destination,
             "destination_region": self.destination_region,
             "origin": self.origin,
+            "airport_preference": self.airport_preference,
+            "country_of_residence": self.country_of_residence,
             "start_date": self.start_date,
             "end_date": self.end_date,
             "duration_days": self.duration_days,
@@ -114,6 +120,7 @@ class TripInterpretation(BaseModel):
 
         list_values = {
             "departure_options": self.departure_options,
+            "airline_preferences": self.airline_preferences,
             "local_areas": self.local_areas,
             "minor_ages": self.minor_ages,
             "nationalities": self.nationalities,
@@ -158,7 +165,7 @@ class TripInterpretation(BaseModel):
         elif self.start_date and self.travel_year:
             entities["date_year_inferred"] = "true"
             entities["date_inference_note"] = (
-                f"Year not supplied; using {self.travel_year}."
+                f"Year not supplied; using the next occurrence in {self.travel_year}."
             )
 
         if self.ticket_requested:
@@ -224,15 +231,20 @@ Rules:
 - Treat follow-up messages as updates to the existing plan. Keep earlier facts
   unless the customer clearly corrects, replaces, or removes them. Put fields
   the customer explicitly removes in fields_to_clear.
-- If a day and month are supplied without a year, use the supplied current
-  calendar year and set year_explicit to false. If the year is stated, set it
-  true. Compute end_date from start_date plus duration when possible.
+- If a day and month are supplied without a year, use the next occurrence of
+  that date on or after the supplied current date and set year_explicit to
+  false. If the year is stated, set it true. Compute end_date from start_date
+  plus duration when possible.
 - A request for N full days means duration_days=N and end_date is N days after
   start_date. A return date takes priority when both dates are explicit.
 - Separate activities from interests. Capture named attractions, shops, parks,
   historical places, dining frequency, events, cabin, hotel needs, children's
   ages, every stated nationality, baggage questions, dietary requirements,
   accessibility needs, and negative constraints such as no alcohol.
+- Keep home city, country of residence, flexible airport choice, and preferred
+  airlines as separate facts. An airline must never appear as a departure city.
+- Treat "package allowance" as a likely baggage-allowance request in a flight
+  context. Do not invent an allowance; only mark that guidance was requested.
 - A business meeting is an activity or purpose, not business-class airfare.
   Set cabin_class to business only when the customer explicitly requests a
   business-class seat or cabin.
@@ -442,7 +454,9 @@ def merge_interpretations(
     ai_nationalities = _clean_list(
         ai_result.entities.get("nationalities", "").split(",")
     )
-    combined_nationalities = _clean_list([*rule_nationalities, *ai_nationalities])
+    combined_nationalities = _normalise_nationalities(
+        [*rule_nationalities, *ai_nationalities]
+    )
     if combined_nationalities:
         entities["nationalities"] = ",".join(combined_nationalities)
         entities["nationality"] = combined_nationalities[0]
@@ -484,6 +498,19 @@ def _normalise_dates(entities: dict[str, str]) -> None:
         end = date.fromisoformat(end_raw) if end_raw else None
     except ValueError:
         return
+    if entities.get("date_year_inferred") == "true" and start < date.today():
+        duration = (end - start).days if end and end > start else None
+        try:
+            start = start.replace(year=start.year + 1)
+        except ValueError:
+            start = start.replace(year=start.year + 1, day=28)
+        end = start + timedelta(days=duration) if duration is not None else None
+        entities["start_date"] = start.isoformat()
+        if end:
+            entities["end_date"] = end.isoformat()
+        entities["date_inference_note"] = (
+            f"Year not supplied; using the next occurrence in {start.year}."
+        )
     entities["month"] = str(start.month)
     entities["travel_year"] = str(start.year)
     entities["departure_day"] = str(start.day)
@@ -504,12 +531,27 @@ def _clean_list(values: list[Any]) -> list[str]:
     )
 
 
+def _normalise_nationalities(values: list[Any]) -> list[str]:
+    """Expand dual labels and deduplicate nationality adjectives."""
+    expanded: list[str] = []
+    for value in values:
+        cleaned = str(value).strip()
+        if not cleaned:
+            continue
+        cleaned = cleaned.removeprefix("Dual ").removeprefix("dual ")
+        parts = re.split(r"\s*[-/]\s*", cleaned)
+        expanded.extend(part for part in parts if part)
+    return _clean_list(expanded)
+
+
 _CLEARABLE_TRIP_FIELDS = {
     "destination",
     "destination_region",
     "local_areas",
     "origin",
     "departure_options",
+    "airport_preference",
+    "airline_preferences",
     "start_date",
     "end_date",
     "date_hint",

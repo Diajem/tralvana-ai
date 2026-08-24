@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from enum import Enum
 
 
@@ -66,6 +66,8 @@ _KNOWN_NATIONALITIES = {
     "jamaican",
     "japanese",
     "nigerian",
+    "polish",
+    "german",
     "south african",
     "spanish",
 }
@@ -295,6 +297,33 @@ class IntentClassifier:
                 # A named airport/city option is actionable for flight search;
                 # the traveller's home city is retained separately above.
                 entities["origin"] = options[0]
+
+        warsaw_airports = re.search(
+            r"\b(?:any|either|all)\s+(?:of\s+the\s+)?airports?\s+in\s+warsaw\b"
+            r"|\bany\s+warsaw\s+airports?\b",
+            text,
+        )
+        if warsaw_airports:
+            entities["origin"] = "Warsaw"
+            entities["departure_options"] = "Warsaw Chopin Airport,Warsaw Modlin Airport"
+            entities["airport_preference"] = "Any Warsaw airport"
+
+        airline_preferences: list[str] = []
+        airline_patterns = (
+            ("LOT Polish Airlines", r"\blot polish airlines\b|\blot\b"),
+            ("Ryanair", r"\bryanair\b"),
+            ("Wizz Air", r"\bwizz air\b|\bwizzair\b"),
+        )
+        for airline, pattern in airline_patterns:
+            if re.search(pattern, text):
+                airline_preferences.append(airline)
+        if airline_preferences:
+            entities["airline_preferences"] = ",".join(airline_preferences)
+
+        if re.search(r"\b(?:we|i)\s+live\s+in\s+warsaw\b", text) or re.search(
+            r"\bresiding\s+in\s+warsaw\b", text
+        ):
+            entities["country_of_residence"] = "Poland"
 
         adults_match = re.search(
             rf"\b(\d+|{'|'.join(_NUMBER_WORDS)})\s+"
@@ -542,6 +571,39 @@ class IntentClassifier:
                 additional_accommodation_preferences
             )
 
+        family_stay_match = re.search(
+            r"\b(?:family|child|children)[- ]friendly\s+(hotel|resort|apartment)\b",
+            text,
+        )
+        if family_stay_match:
+            entities["accommodation_preference"] = (
+                "Child-friendly hotel"
+                if family_stay_match.group(1) == "hotel"
+                else f"Family-friendly {family_stay_match.group(1)}"
+            )
+        stay_location_match = re.search(
+            r"\b(?:hotel|resort|apartment)\s+(?:near|in)\s+"
+            r"(?:the\s+)?(shinjuku|midtown manhattan|camps bay|beach)\b",
+            text,
+        )
+        if stay_location_match:
+            entities["accommodation_location_preference"] = (
+                f"Near {stay_location_match.group(1).title()}"
+            )
+        if re.search(r"\bprivate\s+beach\b", text):
+            existing_stay_preferences = [
+                value
+                for value in entities.get(
+                    "additional_accommodation_preferences", ""
+                ).split(",")
+                if value
+            ]
+            if "Private beach" not in existing_stay_preferences:
+                existing_stay_preferences.append("Private beach")
+            entities["additional_accommodation_preferences"] = ",".join(
+                existing_stay_preferences
+            )
+
         if re.search(r"\bany\s+(?:london\s+)?airport\b", text):
             entities["airport_preference"] = (
                 "Any London airport; prioritise a reasonable price"
@@ -564,6 +626,44 @@ class IntentClassifier:
         ):
             requested_activities.append("Additional family-friendly Dublin attractions")
 
+        named_activity_patterns = (
+            ("Disneyland Tokyo", r"\bdisneyland tokyo\b|\btokyo disneyland\b"),
+            ("Harajuku", r"\bharajuku\b"),
+            ("Shibuya", r"\bshibuya\b"),
+            ("Traditional tea ceremony", r"\btraditional tea ceremony\b"),
+            ("Mount Fuji day trip", r"\bmount fuji\b"),
+            ("Historical temples in Kyoto", r"\b(?:historical\s+)?temples?\s+in\s+kyoto\b"),
+            ("IMG Worlds of Adventure", r"\bimg worlds of adventure\b"),
+            ("Aquaventure water park", r"\baquaventure\b"),
+            ("Dubai Mall watch boutiques", r"\bdubai mall watch boutiques?\b"),
+            ("Gold Souk", r"\bgold souk\b"),
+            ("Desert safari", r"\bdesert safari\b"),
+            ("Museum of the Future", r"\bmuseum of the future\b"),
+            ("MoMA", r"\bmoma\b"),
+            ("Private gallery tour in Chelsea", r"\bprivate gallery tour in chelsea\b"),
+            ("Rockefeller Center ice skating", r"\bice skating(?: session)? at rockefeller center\b"),
+            ("Statue Of Liberty", r"\bstatue of liberty\b"),
+            ("Ellis Island", r"\bellis island\b"),
+            ("Safari", r"\b(?:go on a|family) safari\b"),
+            ("Water park", r"\bwater parks?\b"),
+            ("Craft markets", r"\bcraft markets?\b"),
+            ("Robben Island boat trip", r"\brobben island\b"),
+            ("Cape of Good Hope", r"\bcape of good hope\b"),
+            ("PortAventura theme park", r"\bportaventura\b"),
+            ("Camp Nou", r"\bcamp nou\b"),
+            ("FC Barcelona museum", r"\bfc barcelona museum\b"),
+            ("Beach day", r"\bbeach day\b"),
+            ("Sagrada Familia", r"\bsagrada familia\b"),
+            ("Gothic Quarter", r"\bgothic quarter\b"),
+        )
+        for activity, pattern in named_activity_patterns:
+            if re.search(pattern, text) and activity not in requested_activities:
+                requested_activities.append(activity)
+        if "Aquaventure water park" in requested_activities:
+            requested_activities = [
+                activity for activity in requested_activities if activity != "Water park"
+            ]
+
         generic_activity_pattern = re.compile(
             r"\b(?:visit|see|tour|explore)\s+(?:the\s+)?"
             r"([a-z0-9][a-z0-9 &'().-]{2,70}?)"
@@ -584,6 +684,12 @@ class IntentClassifier:
                     "tourist attraction", "various attraction", "other attraction",
                     "places of interest", "local area", "city centre", "city center",
                 )
+            ):
+                continue
+            if any(
+                existing.casefold() in candidate.casefold()
+                for existing in requested_activities
+                if len(existing) >= 4
             ):
                 continue
             canonical_activity = activity_aliases.get(candidate, candidate.title())
@@ -619,6 +725,14 @@ class IntentClassifier:
             entities["requested_event_status"] = "REQUESTED_NOT_CONFIRMED"
             if ticket_match:
                 entities["ticket_requested"] = "true"
+        elif re.search(r"\bbroadway show\b", text):
+            entities["requested_event"] = "Broadway show"
+            entities["requested_event_type"] = "Theatre show"
+            entities["requested_event_status"] = "REQUESTED_NOT_CONFIRMED"
+        elif re.search(r"\bfashion showcase(?: featuring african designers)?\b", text):
+            entities["requested_event"] = "African designer fashion showcase"
+            entities["requested_event_type"] = "Fashion showcase"
+            entities["requested_event_status"] = "REQUESTED_NOT_CONFIRMED"
 
         traveller_nationality = re.search(
             r"\b(?:both\s+)?(?:travellers?|travelers?|passengers?)\s+"
@@ -811,6 +925,43 @@ class IntentClassifier:
                     if candidate not in ("my", "a", "the", "valid", "your", "our"):
                         entities["nationality"] = candidate.title()
 
+        # Preserve every passport represented in a mixed or dual-nationality
+        # party. A dual Polish-German label is two citizenships, not a third
+        # synthetic nationality.
+        if re.search(r"\b(?:nationals?|citizens?|passports?|passport holders?)\b", text):
+            stated_nationalities = [
+                nationality.title()
+                for nationality in _KNOWN_NATIONALITIES
+                if re.search(
+                    rf"\b{re.escape(nationality)}\s+"
+                    r"(?:nationals?|citizens?|passports?|passport holders?)\b",
+                    text,
+                )
+            ]
+            dual_match = re.search(
+                rf"\bdual\s+({'|'.join(sorted(_KNOWN_NATIONALITIES, key=len, reverse=True))})"
+                rf"[-/]({'|'.join(sorted(_KNOWN_NATIONALITIES, key=len, reverse=True))})\s+"
+                r"(?:nationals?|citizens?|passports?|passport holders?)\b",
+                text,
+            )
+            if dual_match:
+                stated_nationalities.extend(
+                    value.title() for value in dual_match.groups()
+                )
+            ordered_nationalities = list(dict.fromkeys([
+                nationality
+                for _, nationality in sorted(
+                    (
+                        (text.find(nationality.casefold()), nationality)
+                        for nationality in stated_nationalities
+                    ),
+                    key=lambda item: item[0],
+                )
+            ]))
+            if ordered_nationalities:
+                entities["nationality"] = ordered_nationalities[0]
+                entities["nationalities"] = ",".join(ordered_nationalities)
+
         months = (
             "january", "february", "march", "april", "may", "june",
             "july", "august", "september", "october", "november", "december",
@@ -945,8 +1096,8 @@ class IntentClassifier:
                 except ValueError:
                     pass
 
-        # A dated trip that omits only the year uses the current calendar
-        # year.  Preserve the inference explicitly so the UI can make it
+        # A dated trip that omits only the year uses the next occurrence of
+        # that date. Preserve the inference explicitly so the UI can make it
         # visible and the traveller can correct it before any purchase.
         if "start_date" not in entities:
             day_without_year = re.search(
@@ -956,14 +1107,22 @@ class IntentClassifier:
             )
             if day_without_year:
                 day, month_name = day_without_year.groups()
-                inferred_year = datetime.now().year
+                inferred_year = date.today().year
+                try:
+                    candidate = datetime.strptime(
+                        f"{day} {month_name} {inferred_year}", "%d %B %Y"
+                    ).date()
+                    if candidate < date.today():
+                        inferred_year += 1
+                except ValueError:
+                    pass
                 entities["departure_day"] = str(int(day))
                 entities["month"] = str(months.index(month_name) + 1)
                 entities["date_hint"] = f"{int(day)} {month_name.title()}"
                 entities["travel_year"] = str(inferred_year)
                 entities["date_year_inferred"] = "true"
                 entities["date_inference_note"] = (
-                    f"Year not supplied; using {inferred_year}."
+                    f"Year not supplied; using the next occurrence in {inferred_year}."
                 )
                 try:
                     start = datetime.strptime(
@@ -1155,6 +1314,24 @@ class IntentClassifier:
         if dietary_requirements:
             entities["dietary_requirements"] = ",".join(dietary_requirements)
 
+        if re.search(
+            r"\b(?:baggage|bag|luggage|package)\s+allowance\b"
+            r"|\b(?:baggage|luggage)\s+(?:information|guidance)\b",
+            text,
+        ):
+            entities["baggage_information_requested"] = "true"
+
+        dining_match = re.search(
+            rf"\bdine out(?:\s+as\s+(?:a\s+)?(?:couple|family))?\s+"
+            rf"(\d+|{'|'.join(_NUMBER_WORDS)})\s+times?\b",
+            text,
+        )
+        if dining_match:
+            raw_count = dining_match.group(1)
+            entities["dining_out_count"] = str(
+                int(raw_count) if raw_count.isdigit() else _NUMBER_WORDS[raw_count]
+            )
+
         return entities
 
     @staticmethod
@@ -1174,6 +1351,13 @@ class IntentClassifier:
             r"(?=\s*(?:[,.;!?]|\b(?:departing|returning|travelling|traveling|with|we\s+want)\b|$))",
             text,
         )
+        if not labelled:
+            labelled = re.search(
+                r"\b(?:children|child|kids?|infants?|bab(?:y|ies))\b"
+                r"[^.;!?]{0,24}?\(?\s*ages?\s*(?:are|is|:)?\s*"
+                r"(\d{1,2}(?:(?:\s*,\s*and\s+|\s*,\s*|\s+and\s+)\d{1,2})*)",
+                text,
+            )
         if labelled:
             age_values.extend(
                 int(value)

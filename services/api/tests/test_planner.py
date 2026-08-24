@@ -557,13 +557,15 @@ def test_amsterdam_friends_request_preserves_party_hotel_match_and_15_days(clien
     assert brief["travellers"]["adults"] == 3
     assert brief["duration_days"] == 15
     assert brief["departure_day"] == 10
-    inferred_year = datetime.now().year
+    inferred_year = datetime.now().year + (
+        datetime.now().date() > datetime(datetime.now().year, 8, 10).date()
+    )
     assert brief["travel_period"] == (
         f"{inferred_year}-08-10 to {inferred_year}-08-25"
     )
     assert brief["date_precision"] == "EXACT"
     assert brief["date_inference_note"] == (
-        f"Year not supplied; using {inferred_year}."
+        f"Year not supplied; using the next occurrence in {inferred_year}."
     )
     assert brief["accommodation_preferences"] == [
         "Same hotel for all travellers"
@@ -638,7 +640,9 @@ def test_dublin_family_request_preserves_five_days_and_every_requested_activity(
     assert brief["duration_note"] is None
     assert brief["travellers"] == {"adults": 2, "children": 2, "infants": 0}
     assert brief["departure_day"] == 18
-    inferred_year = datetime.now().year
+    inferred_year = datetime.now().year + (
+        datetime.now().date() > datetime(datetime.now().year, 8, 18).date()
+    )
     assert brief["start_date"] == f"{inferred_year}-08-18"
     assert brief["end_date"] == f"{inferred_year}-08-23"
     assert brief["travel_period"] == (
@@ -646,7 +650,7 @@ def test_dublin_family_request_preserves_five_days_and_every_requested_activity(
     )
     assert brief["date_precision"] == "EXACT"
     assert brief["date_inference_note"] == (
-        f"Year not supplied; using {inferred_year}."
+        f"Year not supplied; using the next occurrence in {inferred_year}."
     )
     assert brief["airport_preference"] == (
         "Any London airport; prioritise a reasonable price"

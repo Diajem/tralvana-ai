@@ -244,6 +244,57 @@ class TestDailyOutline:
         itinerary = engine.assemble(unified, destination="Tokyo", duration_days=0)
         assert len(itinerary.daily_outline) >= 1
 
+    def test_non_amsterdam_event_never_uses_ajax_or_amsterdam_copy(self):
+        itinerary = engine.assemble(
+            _unified([_flight_result()]),
+            destination="New York",
+            duration_days=5,
+            trip_brief=_brief(
+                destination="New York",
+                requested_events=[{
+                    "name": "Broadway show",
+                    "type": "Theatre show",
+                    "status": "REQUESTED_NOT_CONFIRMED",
+                }],
+            ),
+        )
+        outline = " ".join(
+            str(value) for day in itinerary.daily_outline for value in day.values()
+        )
+        assert "Broadway show" in outline
+        assert "Ajax" not in outline
+        assert "Amsterdam" not in outline
+
+    def test_every_requested_activity_is_scheduled_or_explicitly_unscheduled(self):
+        activities = [
+            "Disneyland Tokyo",
+            "Harajuku",
+            "Shibuya",
+            "traditional tea ceremony",
+            "Mount Fuji day trip",
+            "historical temples in Kyoto",
+        ]
+        itinerary = engine.assemble(
+            _unified([_flight_result()]),
+            destination="Tokyo",
+            duration_days=7,
+            trip_brief=_brief(
+                duration_days=7,
+                requested_activities=activities,
+            ),
+        )
+        outline = " ".join(
+            str(value) for day in itinerary.daily_outline for value in day.values()
+        ).casefold()
+        for expected in (
+            "disneyland tokyo",
+            "harajuku and shibuya",
+            "traditional tea ceremony",
+            "mount fuji day trip",
+            "historical temples in kyoto",
+        ):
+            assert expected in outline
+
 
 class TestExecutiveSummary:
     def test_no_succeeded_modules_produces_a_clear_not_ready_message(self):
