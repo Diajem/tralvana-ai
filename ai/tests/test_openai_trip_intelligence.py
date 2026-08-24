@@ -125,6 +125,26 @@ def test_florida_brief_becomes_complete_planner_entities():
     assert "Walt Disney World" in result.entities["requested_activities"]
 
 
+def test_relationship_mention_without_distinct_origin_is_not_a_separate_trip():
+    result = _florida_interpretation(
+        companion_relationship="Wife and three children",
+        companion_origin=None,
+    ).to_classified_intent()
+
+    assert "companion_relationship" not in result.entities
+    assert "companion_origin" not in result.entities
+
+
+def test_explicit_companion_origin_is_preserved_as_a_separate_trip():
+    result = _florida_interpretation(
+        companion_relationship="Wife",
+        companion_origin="Manchester",
+    ).to_classified_intent()
+
+    assert result.entities["companion_relationship"] == "Wife"
+    assert result.entities["companion_origin"] == "Manchester"
+
+
 def test_responses_api_parses_trip_brief_without_storing_provider_response():
     client = _FakeClient(_florida_interpretation())
     intelligence = OpenAITripIntelligence(client=client, model="gpt-5.6")
