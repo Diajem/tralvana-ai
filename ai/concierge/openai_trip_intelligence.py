@@ -478,9 +478,9 @@ def merge_interpretations(
         entities["nationalities"] = ",".join(combined_nationalities)
         entities["nationality"] = combined_nationalities[0]
 
-    residency_documents = _clean_list([
-        *rule_result.entities.get("residency_documents", "").split(","),
+    residency_documents = _dedupe_residency_documents([
         *ai_result.entities.get("residency_documents", "").split(","),
+        *rule_result.entities.get("residency_documents", "").split(","),
         *_residency_documents_from_message(message),
     ])
     if residency_documents:
@@ -502,8 +502,17 @@ def merge_interpretations(
         entities["requested_activities"] = ",".join(_clean_list(filtered_activities))
     else:
         entities.pop("requested_activities", None)
+    dining_preferences = [
+        value
+        for value in _clean_list(dining_preferences)
+        if value.casefold().strip() not in {
+            "dining together", "dine out together", "dine out together as a family",
+        }
+    ]
     if dining_preferences:
-        entities["dining_preferences"] = ",".join(_clean_list(dining_preferences))
+        entities["dining_preferences"] = ",".join(dining_preferences)
+    else:
+        entities.pop("dining_preferences", None)
 
     lowered = message.casefold()
     if (
@@ -586,6 +595,18 @@ def _normalise_nationalities(values: list[Any]) -> list[str]:
         parts = re.split(r"\s*[-/]\s*", cleaned)
         expanded.extend(part for part in parts if part)
     return _clean_list(expanded)
+
+
+def _dedupe_residency_documents(values: list[Any]) -> list[str]:
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for value in _clean_list(values):
+        key = re.sub(r"[-\s]+", " ", value.casefold()).replace("long term", "long stay")
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(value)
+    return deduped
 
 
 def _is_transport_instruction(value: str) -> bool:

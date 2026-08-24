@@ -271,6 +271,9 @@ function TripBriefCard({ itinerary }: { itinerary: TripItinerary }) {
   const companion = brief.companion_plan
     ? `${brief.companion_plan.relationship || "Companion"}${brief.companion_plan.origin ? ` travelling separately from ${brief.companion_plan.origin}` : ""}`
     : "Not supplied";
+  const destination = brief.destination_region
+    ? `${brief.destination.split(",")[0]}, ${brief.destination_region}`
+    : brief.destination;
 
   return (
     <SectionCard title="Trip Details We Are Using">
@@ -279,7 +282,7 @@ function TripBriefCard({ itinerary }: { itinerary: TripItinerary }) {
           ["Fly from", departure],
           ["Airport preference", brief.airport_preference || "Not supplied"],
           ["Preferred airlines", brief.airline_preferences?.length ? brief.airline_preferences.join(", ") : "Not supplied"],
-          ["To", brief.destination_region ? `${brief.destination}, ${brief.destination_region}` : brief.destination],
+          ["To", destination],
           ["Stay areas", brief.local_areas?.length ? brief.local_areas.join(", ") : "Not supplied"],
           ["Duration", `${brief.duration_days} days`],
           ["Travel period", brief.travel_period],
