@@ -1,0 +1,439 @@
+"""OpenAI-backed interpretation and itinerary adaptation for Tralvana.
+
+The model is deliberately kept behind the existing deterministic planning
+boundary.  It extracts and organises what the traveller said, then adapts the
+day-by-day outline.  Supplier availability, prices, visa rules, weather data,
+and booking claims remain owned by the existing grounded modules.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+from datetime import date, datetime
+from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from ai.concierge.conversation_session import ConversationMessage
+from ai.concierge.intent_classifier import ClassifiedIntent, Intent
+
+
+logger = logging.getLogger(__name__)
+
+
+class TripInterpretation(BaseModel):
+    """Strict, typed result of interpreting one conversational trip turn."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    intent: Literal[
+        "PLAN_TRIP",
+        "MODIFY_TRIP",
+        "FLIGHT_SEARCH",
+        "ACCOMMODATION_SEARCH",
+        "DESTINATION_DISCOVERY",
+        "BUDGET_ANALYSIS",
+        "VISA_CHECK",
+        "WEATHER_ANALYSIS",
+        "DESTINATION_QUESTION",
+        "TRAVEL_ADVICE",
+        "BUDGET_ADVICE",
+        "GENERAL_CONVERSATION",
+    ]
+    confidence: float = Field(ge=0, le=1)
+    destination: str | None
+    destination_region: str | None
+    origin: str | None
+    departure_options: list[str]
+    local_areas: list[str]
+    start_date: str | None
+    end_date: str | None
+    duration_days: int | None = Field(ge=1, le=180)
+    month: int | None = Field(ge=1, le=12)
+    travel_year: int | None = Field(ge=2020, le=2100)
+    departure_day: int | None = Field(ge=1, le=31)
+    year_explicit: bool
+    adults: int | None = Field(ge=1, le=50)
+    children: int | None = Field(ge=0, le=50)
+    infants: int | None = Field(ge=0, le=20)
+    minor_ages: list[int]
+    nationalities: list[str]
+    budget_amount: float | None = Field(ge=0)
+    budget_currency: str | None
+    cabin_class: str | None
+    accommodation_preferences: list[str]
+    interests: list[str]
+    requested_activities: list[str]
+    requested_event: str | None
+    requested_event_type: str | None
+    ticket_requested: bool
+    dining_out_count: int | None = Field(ge=0, le=100)
+    baggage_information_requested: bool
+    accessibility_needs: list[str]
+    special_occasion: str | None
+    special_occasion_date: str | None
+    special_occasion_notes: str | None
+    companion_relationship: str | None
+    companion_origin: str | None
+    clarification_notes: list[str]
+
+    def to_classified_intent(self) -> ClassifiedIntent:
+        entities: dict[str, str] = {}
+
+        scalar_values: dict[str, Any] = {
+            "destination": self.destination,
+            "destination_region": self.destination_region,
+            "origin": self.origin,
+            "start_date": self.start_date,
+            "end_date": self.end_date,
+            "duration_days": self.duration_days,
+            "month": self.month,
+            "travel_year": self.travel_year,
+            "departure_day": self.departure_day,
+            "adults": self.adults,
+            "children": self.children,
+            "infants": self.infants,
+            "budget_amount": self.budget_amount,
+            "budget_currency": self.budget_currency,
+            "cabin_class": self.cabin_class,
+            "requested_event": self.requested_event,
+            "requested_event_type": self.requested_event_type,
+            "dining_out_count": self.dining_out_count,
+            "special_occasion": self.special_occasion,
+            "special_occasion_date": self.special_occasion_date,
+            "special_occasion_notes": self.special_occasion_notes,
+            "companion_relationship": self.companion_relationship,
+            "companion_origin": self.companion_origin,
+        }
+        for key, value in scalar_values.items():
+            if value is not None and str(value).strip():
+                entities[key] = str(value)
+
+        list_values = {
+            "departure_options": self.departure_options,
+            "local_areas": self.local_areas,
+            "minor_ages": self.minor_ages,
+            "nationalities": self.nationalities,
+            "interests": self.interests,
+            "requested_activities": self.requested_activities,
+            "accessibility_needs": self.accessibility_needs,
+        }
+        for key, values in list_values.items():
+            cleaned = _clean_list(values)
+            if cleaned:
+                entities[key] = ",".join(cleaned)
+
+        if self.nationalities:
+            entities["nationality"] = str(self.nationalities[0]).strip()
+
+        accommodation = _clean_list(self.accommodation_preferences)
+        if accommodation:
+            entities["accommodation_preference"] = accommodation[0]
+            if len(accommodation) > 1:
+                entities["additional_accommodation_preferences"] = ",".join(
+                    accommodation[1:]
+                )
+
+        if self.start_date:
+            entities["date_hint"] = self.start_date
+            entities["date_precision"] = "EXACT" if self.end_date else "DAY"
+            try:
+                parsed_start = date.fromisoformat(self.start_date)
+                entities.setdefault("month", str(parsed_start.month))
+                entities.setdefault("travel_year", str(parsed_start.year))
+                entities.setdefault("departure_day", str(parsed_start.day))
+            except ValueError:
+                pass
+        elif self.month:
+            entities["date_hint"] = str(self.month)
+            entities["date_precision"] = "MONTH"
+
+        if self.year_explicit:
+            entities["year_explicit"] = "true"
+        elif self.start_date and self.travel_year:
+            entities["date_year_inferred"] = "true"
+            entities["date_inference_note"] = (
+                f"Year not supplied; using {self.travel_year}."
+            )
+
+        if self.ticket_requested:
+            entities["ticket_requested"] = "true"
+            entities["requested_event_status"] = "REQUESTED_NOT_CONFIRMED"
+        if self.baggage_information_requested:
+            entities["baggage_information_requested"] = "true"
+
+        return ClassifiedIntent(
+            intent=Intent(self.intent),
+            confidence=self.confidence,
+            entities=entities,
+        )
+
+
+class PersonalisedDay(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    day: int = Field(ge=1, le=180)
+    title: str
+    theme: str
+    morning: str
+    afternoon: str
+    evening: str
+    accommodation: str
+    notes: str
+
+
+class PersonalisedItinerary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    daily_outline: list[PersonalisedDay]
+    planning_notes: list[str]
+
+
+_INTERPRETATION_INSTRUCTIONS = """
+You are Tralvana's travel-request interpretation engine. Convert the current
+customer message and the supplied conversation state into structured facts.
+
+Rules:
+- Preserve every explicit customer fact. Never replace a real origin, date,
+  party count, age, nationality, preference, activity, or event with a guess.
+- Resolve spelling mistakes and ordinary place aliases. For a broad region
+  whose named activities clearly establish the practical base, use that city
+  as destination and preserve the customer's broader place in
+  destination_region (for example Disney World can establish Orlando as the
+  base for a Florida trip). Otherwise keep the requested destination unchanged.
+- Treat follow-up messages as updates to the existing plan. Keep earlier facts
+  unless the customer clearly corrects or replaces them.
+- If a day and month are supplied without a year, use the supplied current
+  calendar year and set year_explicit to false. If the year is stated, set it
+  true. Compute end_date from start_date plus duration when possible.
+- A request for N full days means duration_days=N and end_date is N days after
+  start_date. A return date takes priority when both dates are explicit.
+- Separate activities from interests. Capture named attractions, shops, parks,
+  historical places, dining frequency, events, cabin, hotel needs, children's
+  ages, baggage questions, and accessibility needs.
+- Do not invent event dates, fashion shows, flight availability, hotel names,
+  prices, baggage allowances, visa rules, or reservations.
+- Use GENERAL_CONVERSATION with empty travel fields when the input is not a
+  travel request. Put only short factual ambiguities in clarification_notes;
+  do not include private reasoning.
+""".strip()
+
+
+_ITINERARY_INSTRUCTIONS = """
+You are Tralvana's itinerary adaptation engine. Build a practical day-by-day
+outline from the grounded trip brief and provider evidence supplied.
+
+Rules:
+- Return exactly duration_days entries numbered consecutively from 1.
+- Honour the full party composition, children's ages, pace, accessibility,
+  requested activities, dining count, interests, hotel preferences, special
+  occasions, dates, and separate arrivals.
+- Make arrival and departure days realistic. Balance major days with rest and
+  avoid sending a family across distant areas repeatedly.
+- Named attractions may be proposed as itinerary ideas, but must be worded as
+  needing official opening-time and ticket confirmation unless current
+  provider evidence explicitly confirms them.
+- Never invent an airline, fare, hotel, room, price, availability, booking,
+  event date, ticket, baggage allowance, visa rule, or weather forecast.
+- Use only provider events supplied in the evidence as current listings.
+  Customer-requested events without provider confirmation must remain checks,
+  not scheduled claims.
+- If baggage information was requested, state that allowance depends on the
+  selected live fare and must be checked before payment.
+- A requested fashion show must not be treated as scheduled unless provider
+  evidence confirms it. A retail shop visit may remain a flexible suggestion.
+- Keep each field concise and customer-facing. planning_notes must contain only
+  short caveats or unresolved choices, never hidden reasoning.
+""".strip()
+
+
+class OpenAITripIntelligence:
+    """Thin, failure-safe OpenAI Responses API boundary."""
+
+    def __init__(self, client: Any, model: str) -> None:
+        self._client = client
+        self.model = model
+
+    @classmethod
+    def from_environment(cls) -> OpenAITripIntelligence | None:
+        api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+        enabled = os.environ.get("TRALVANA_OPENAI_ENABLED", "true").strip().lower()
+        if not api_key or enabled not in {"1", "true", "yes", "on"}:
+            return None
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            logger.warning("OpenAI trip intelligence is configured but the SDK is unavailable")
+            return None
+
+        try:
+            timeout = float(os.environ.get("TRALVANA_OPENAI_TIMEOUT_SECONDS", "30"))
+            model = os.environ.get("TRALVANA_OPENAI_MODEL", "gpt-5.6").strip()
+            client = AsyncOpenAI(
+                api_key=api_key,
+                timeout=timeout,
+                max_retries=1,
+            )
+        except Exception as exc:
+            logger.warning(
+                "OpenAI trip intelligence could not initialise (%s)",
+                type(exc).__name__,
+            )
+            return None
+        return cls(client=client, model=model)
+
+    async def interpret(
+        self,
+        *,
+        message: str,
+        existing_entities: dict[str, str],
+        history: list[ConversationMessage],
+        current_date: date | None = None,
+    ) -> ClassifiedIntent | None:
+        payload = {
+            "current_date": (current_date or datetime.now().date()).isoformat(),
+            "existing_confirmed_trip_facts": existing_entities,
+            "recent_conversation": [
+                {"role": item.role, "content": item.content}
+                for item in history[-8:]
+            ],
+            "current_customer_message": message,
+        }
+        try:
+            response = await self._client.responses.parse(
+                model=self.model,
+                input=[
+                    {"role": "system", "content": _INTERPRETATION_INSTRUCTIONS},
+                    {"role": "user", "content": json.dumps(payload)},
+                ],
+                text_format=TripInterpretation,
+                reasoning={"effort": "low"},
+                store=False,
+            )
+            parsed = response.output_parsed
+            if not isinstance(parsed, TripInterpretation):
+                return None
+            return parsed.to_classified_intent()
+        except Exception as exc:  # provider failure must not break trip planning
+            logger.warning(
+                "OpenAI trip interpretation failed (%s); using deterministic fallback",
+                type(exc).__name__,
+            )
+            return None
+
+    async def personalise_itinerary(
+        self,
+        *,
+        trip_brief: dict[str, Any],
+        provider_evidence: dict[str, Any],
+        fallback_outline: list[dict[str, Any]],
+    ) -> PersonalisedItinerary | None:
+        duration = int(trip_brief.get("duration_days") or 0)
+        if duration <= 0:
+            return None
+        payload = {
+            "trip_brief": trip_brief,
+            "provider_evidence": provider_evidence,
+            "fallback_outline": fallback_outline,
+        }
+        try:
+            response = await self._client.responses.parse(
+                model=self.model,
+                input=[
+                    {"role": "system", "content": _ITINERARY_INSTRUCTIONS},
+                    {"role": "user", "content": json.dumps(payload)},
+                ],
+                text_format=PersonalisedItinerary,
+                reasoning={"effort": "low"},
+                store=False,
+            )
+            parsed = response.output_parsed
+            if not isinstance(parsed, PersonalisedItinerary):
+                return None
+            expected_days = list(range(1, duration + 1))
+            if [entry.day for entry in parsed.daily_outline] != expected_days:
+                logger.warning(
+                    "OpenAI itinerary returned an invalid day sequence; using fallback"
+                )
+                return None
+            return parsed
+        except Exception as exc:  # grounded deterministic itinerary remains available
+            logger.warning(
+                "OpenAI itinerary adaptation failed (%s); using deterministic fallback",
+                type(exc).__name__,
+            )
+            return None
+
+
+def should_use_openai_interpretation(
+    *,
+    rule_intent: Intent,
+    active_goal: str | None,
+    message: str,
+) -> bool:
+    """Avoid API cost for greetings while covering plans and refinements."""
+    if active_goal == Intent.PLAN_TRIP.value:
+        return True
+    if rule_intent in {Intent.PLAN_TRIP, Intent.MODIFY_TRIP}:
+        return True
+    return len(message.split()) >= 18 and any(
+        term in message.casefold()
+        for term in ("trip", "holiday", "travel", "flight", "hotel", "visit")
+    )
+
+
+def merge_interpretations(
+    rule_result: ClassifiedIntent,
+    ai_result: ClassifiedIntent | None,
+) -> ClassifiedIntent:
+    """Prefer explicit structured extraction while retaining proven rules."""
+    if ai_result is None:
+        return rule_result
+
+    entities = dict(rule_result.entities)
+    entities.update(ai_result.entities)
+    _normalise_dates(entities)
+
+    intent = ai_result.intent
+    if rule_result.intent == Intent.PLAN_TRIP:
+        intent = Intent.PLAN_TRIP
+    elif rule_result.intent == Intent.MODIFY_TRIP:
+        intent = Intent.MODIFY_TRIP
+
+    return ClassifiedIntent(
+        intent=intent,
+        confidence=max(rule_result.confidence, ai_result.confidence),
+        entities=entities,
+    )
+
+
+def _normalise_dates(entities: dict[str, str]) -> None:
+    start_raw = entities.get("start_date")
+    end_raw = entities.get("end_date")
+    if not start_raw:
+        return
+    try:
+        start = date.fromisoformat(start_raw)
+        end = date.fromisoformat(end_raw) if end_raw else None
+    except ValueError:
+        return
+    entities["month"] = str(start.month)
+    entities["travel_year"] = str(start.year)
+    entities["departure_day"] = str(start.day)
+    entities["date_hint"] = start.strftime("%-d %B %Y")
+    if end and end > start:
+        entities["end_date"] = end.isoformat()
+        entities["duration_days"] = str((end - start).days)
+        entities["date_precision"] = "EXACT"
+
+
+def _clean_list(values: list[Any]) -> list[str]:
+    return list(
+        dict.fromkeys(
+            str(value).strip()
+            for value in values
+            if str(value).strip()
+        )
+    )
