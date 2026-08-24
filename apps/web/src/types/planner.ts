@@ -58,8 +58,10 @@ export interface TripBrief {
   nationality: string | null;
   nationalities: string[];
   country_of_residence: string | null;
+  residency_documents: string[];
   cabin_class: string | null;
   dining_out_count: number | null;
+  dining_preferences: string[];
   baggage_information_requested: boolean;
   accessibility_needs: string[];
   dietary_requirements: string[];

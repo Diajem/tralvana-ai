@@ -2,7 +2,7 @@ from ai.discovery.weather.mock_weather_provider import MockWeatherProvider
 
 _EXPECTED_DESTINATIONS = {
     "JAPAN", "SPAIN", "FRANCE", "UK", "IRELAND",
-    "USA", "NEW YORK", "NIGERIA", "GHANA", "JAMAICA", "UAE",
+    "USA", "NEW YORK", "ITALY", "NIGERIA", "GHANA", "JAMAICA", "UAE",
 }
 
 
@@ -103,6 +103,13 @@ class TestMockWeatherProvider:
         short = provider.month("UK", 3)
         long_form = provider.month("United Kingdom", 3)
         assert short["avg_temp_c"] == long_form["avg_temp_c"]
+
+    def test_city_country_labels_resolve_to_country_profiles(self):
+        provider = MockWeatherProvider()
+        assert provider.month("Manchester, UK", 9)["matched"] is True
+        assert provider.month("Castelmezzano, Italy", 5)["matched"] is True
+        assert provider.month("Ronda, Spain", 6)["matched"] is True
+        assert provider.month("Beaufort, North Carolina", 6)["matched"] is True
 
     def test_display_name_used_for_acronym_destinations(self):
         provider = MockWeatherProvider()

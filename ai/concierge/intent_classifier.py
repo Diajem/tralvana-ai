@@ -63,6 +63,7 @@ _KNOWN_NATIONALITIES = {
     "french",
     "ghanaian",
     "irish",
+    "italian",
     "jamaican",
     "japanese",
     "nigerian",
@@ -324,6 +325,43 @@ class IntentClassifier:
             r"\bresiding\s+in\s+warsaw\b", text
         ):
             entities["country_of_residence"] = "Poland"
+
+        residence_cities = {
+            "milan": "Italy", "rome": "Italy", "naples": "Italy",
+            "north carolina": "United States", "lagos": "Nigeria",
+        }
+        for city, country in residence_cities.items():
+            if re.search(
+                rf"\b(?:we|i|two of us)\s+live\s+(?:in|near)\s+{re.escape(city)}\b"
+                rf"|\bresiding\s+in\s+{re.escape(city)}\b",
+                text,
+            ):
+                entities["country_of_residence"] = country
+                break
+
+        residency_match = re.search(
+            r"\b(?:residing|living)\s+in\s+"
+            r"(milan|rome|naples|warsaw|barcelona|madrid|paris|berlin)\b.{0,50}?\b"
+            r"(long[- ](?:term|stay) visa|residence permit|work visa)\b",
+            text,
+        )
+        if residency_match:
+            nationality_matches = list(re.finditer(
+                rf"\b({'|'.join(sorted(_KNOWN_NATIONALITIES, key=len, reverse=True))})\s+national\b",
+                text[:residency_match.start()],
+            ))
+            nationality = nationality_matches[-1].group(1) if nationality_matches else ""
+            city, document = residency_match.groups()
+            country_by_city = {
+                "milan": "Italian", "rome": "Italian", "naples": "Italian",
+                "warsaw": "Polish", "barcelona": "Spanish", "madrid": "Spanish",
+                "paris": "French", "berlin": "German",
+            }
+            if nationality:
+                entities["residency_documents"] = (
+                    f"{nationality.title()}: {country_by_city[city]} "
+                    f"{document.replace('-', ' ')}"
+                )
 
         adults_match = re.search(
             rf"\b(\d+|{'|'.join(_NUMBER_WORDS)})\s+"
@@ -655,6 +693,23 @@ class IntentClassifier:
             ("Beach day", r"\bbeach day\b"),
             ("Sagrada Familia", r"\bsagrada familia\b"),
             ("Gothic Quarter", r"\bgothic quarter\b"),
+            ("Old Trafford stadium tour", r"\bold trafford\b"),
+            ("Etihad Stadium tour", r"\betihad stadium\b"),
+            ("Manchester museums", r"\bmuseums?\b"),
+            ("Trafford Centre shopping", r"\btrafford centre\b"),
+            ("Lake District or Peak District day trip", r"\blake district or peak district\b"),
+            ("Basilicata artisan workshops", r"\bartisan workshops?\b"),
+            ("Dolomiti Lucane hike", r"\bdolomiti lucane\b"),
+            ("Pietrapertosa day trip", r"\bpietrapertosa\b"),
+            ("Blue Ridge Parkway", r"\bblue ridge parkway\b"),
+            ("Hiking", r"\bgo hiking\b|\bhiking\b"),
+            ("Horseback riding day", r"\bhorseback riding day\b"),
+            ("Appalachian heritage site", r"\bappalachian heritage\b"),
+            ("Puente Nuevo and El Tajo gorge", r"\bpuente nuevo\b|\bel tajo gorge\b"),
+            ("White village day trip", r"\bday trip to a nearby white village\b"),
+            ("Crystal Coast sailing or boat tour", r"\bsailing or boat tour\b"),
+            ("Cape Lookout National Seashore day trip", r"\bcape lookout national seashore\b"),
+            ("Maritime history museum", r"\bmaritime history museum\b"),
         )
         for activity, pattern in named_activity_patterns:
             if re.search(pattern, text) and activity not in requested_activities:
@@ -697,6 +752,19 @@ class IntentClassifier:
                 requested_activities.append(canonical_activity)
         if requested_activities:
             entities["requested_activities"] = ",".join(requested_activities)
+
+        dining_preferences: list[str] = []
+        dining_patterns = (
+            ("Family-run trattoria", r"\bfamily[- ]run trattoria\b"),
+            ("Southern barbecue restaurant", r"\bsouthern barbecue restaurant\b"),
+            ("Traditional tapas bar", r"\btraditional tapas bar\b"),
+            ("Waterfront seafood restaurant", r"\b(?:fresh )?seafood restaurant by the waterfront\b"),
+        )
+        for preference, pattern in dining_patterns:
+            if re.search(pattern, text):
+                dining_preferences.append(preference)
+        if dining_preferences:
+            entities["dining_preferences"] = ",".join(dining_preferences)
 
         ticket_match = re.search(
             r"\b(?:a\s+)?tickets?\s+(?:to|for)\s+"

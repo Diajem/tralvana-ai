@@ -110,3 +110,19 @@ def test_check_visa_unknown_pair_still_returns_201(client):
     })
     assert res.status_code == 201
     assert res.json()["visa_status"] == "CHECK_MANUALLY"
+
+
+def test_valid_italian_long_stay_document_avoids_second_schengen_visa(client):
+    res = client.post("/visa/check", json={
+        "passport_country": "Nigeria",
+        "destination_country": "Ronda, Spain",
+        "intended_length_of_stay": 6,
+        "residency_document": "Nigerian: Italian long-term visa",
+    })
+
+    assert res.status_code == 201
+    body = res.json()
+    assert body["visa_status"] == "VISA_NOT_REQUIRED"
+    assert body["visa_required"] is False
+    assert "residence permit" in body["visa_type"]
+    assert "90-days-in-180" in body["recommendation"]

@@ -413,6 +413,16 @@ def _build_trip_brief(
         ).split(",")
         if value
     ]
+    residency_documents = [
+        value
+        for value in entities.get("residency_documents", "").split(",")
+        if value
+    ]
+    dining_preferences = [
+        value
+        for value in entities.get("dining_preferences", "").split(",")
+        if value
+    ]
 
     return {
         "origin": entities.get("origin") or trip.get("origin") or "",
@@ -450,12 +460,14 @@ def _build_trip_brief(
         "nationality": entities.get("nationality"),
         "nationalities": nationalities,
         "country_of_residence": entities.get("country_of_residence"),
+        "residency_documents": residency_documents,
         "cabin_class": entities.get("cabin_class"),
         "dining_out_count": (
             int(entities["dining_out_count"])
             if entities.get("dining_out_count")
             else None
         ),
+        "dining_preferences": dining_preferences,
         "baggage_information_requested": (
             entities.get("baggage_information_requested") == "true"
         ),

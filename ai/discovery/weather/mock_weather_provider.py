@@ -30,6 +30,16 @@ _CLIMATE_PROFILES: dict[str, list[dict[str, Any]]] = {
         {"months": [9, 10, 11], "season": "AUTUMN", "avg_temp_c": 19, "rainfall": "MODERATE",
          "humidity": "MODERATE", "daylight_hours": 10.8, "hazards": []},
     ],
+    "ITALY": [
+        {"months": [12, 1, 2], "season": "WINTER", "avg_temp_c": 8, "rainfall": "MODERATE",
+         "humidity": "MODERATE", "daylight_hours": 9.4, "hazards": []},
+        {"months": [3, 4, 5], "season": "SPRING", "avg_temp_c": 17, "rainfall": "MODERATE",
+         "humidity": "MODERATE", "daylight_hours": 13.0, "hazards": []},
+        {"months": [6, 7, 8], "season": "SUMMER", "avg_temp_c": 28, "rainfall": "LOW",
+         "humidity": "MODERATE", "daylight_hours": 14.8, "hazards": ["extreme_heat", "wildfire"]},
+        {"months": [9, 10, 11], "season": "AUTUMN", "avg_temp_c": 18, "rainfall": "MODERATE",
+         "humidity": "MODERATE", "daylight_hours": 10.8, "hazards": []},
+    ],
     "FRANCE": [
         {"months": [12, 1, 2], "season": "WINTER", "avg_temp_c": 6, "rainfall": "MODERATE",
          "humidity": "HIGH", "daylight_hours": 8.8, "hazards": []},
@@ -139,12 +149,15 @@ _ALIASES: dict[str, str] = {
     "ORLANDO": "FLORIDA", "MIAMI": "FLORIDA", "TAMPA": "FLORIDA",
     "PARIS": "FRANCE",
     "BARCELONA": "SPAIN", "MADRID": "SPAIN",
+    "RONDA": "SPAIN",
+    "ITALY": "ITALY", "ROME": "ITALY", "NAPLES": "ITALY", "CASTELMEZZANO": "ITALY",
     "TOKYO": "JAPAN", "OSAKA": "JAPAN",
     "LAGOS": "NIGERIA", "ABUJA": "NIGERIA",
     "ACCRA": "GHANA",
     "KINGSTON": "JAMAICA", "MONTEGO BAY": "JAMAICA",
     "DUBAI": "UAE", "ABU DHABI": "UAE",
     "UNITED ARAB EMIRATES": "UAE",
+    "NORTH CAROLINA": "USA", "BLOWING ROCK": "USA", "BEAUFORT": "USA",
 }
 
 
@@ -194,7 +207,14 @@ class MockWeatherProvider:
 
     def _normalize(self, destination: str) -> str:
         key = destination.strip().upper()
-        return _ALIASES.get(key, key)
+        exact = _ALIASES.get(key)
+        if exact:
+            return exact
+        for part in reversed([value.strip() for value in key.split(",")]):
+            canonical = _ALIASES.get(part, part)
+            if canonical in _CLIMATE_PROFILES:
+                return canonical
+        return key
 
     def _display(self, key: str) -> str:
         return _DISPLAY_NAME.get(key, key.title())

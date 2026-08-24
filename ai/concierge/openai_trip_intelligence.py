@@ -51,6 +51,7 @@ class TripInterpretation(BaseModel):
     airport_preference: str | None = None
     airline_preferences: list[str] = Field(default_factory=list)
     country_of_residence: str | None = None
+    residency_documents: list[str] = Field(default_factory=list)
     local_areas: list[str]
     start_date: str | None
     end_date: str | None
@@ -70,6 +71,7 @@ class TripInterpretation(BaseModel):
     accommodation_preferences: list[str]
     interests: list[str]
     requested_activities: list[str]
+    dining_preferences: list[str] = Field(default_factory=list)
     requested_event: str | None
     requested_event_type: str | None
     ticket_requested: bool
@@ -124,8 +126,10 @@ class TripInterpretation(BaseModel):
             "local_areas": self.local_areas,
             "minor_ages": self.minor_ages,
             "nationalities": self.nationalities,
+            "residency_documents": self.residency_documents,
             "interests": self.interests,
             "requested_activities": self.requested_activities,
+            "dining_preferences": self.dining_preferences,
             "accessibility_needs": self.accessibility_needs,
             "dietary_requirements": self.dietary_requirements,
             "negative_constraints": self.negative_constraints,
@@ -237,12 +241,19 @@ Rules:
   plus duration when possible.
 - A request for N full days means duration_days=N and end_date is N days after
   start_date. A return date takes priority when both dates are explicit.
-- Separate activities from interests. Capture named attractions, shops, parks,
-  historical places, dining frequency, events, cabin, hotel needs, children's
-  ages, every stated nationality, baggage questions, dietary requirements,
-  accessibility needs, and negative constraints such as no alcohol.
+- Separate activities, transport logistics, and dining. Capture attractions,
+  shops, parks and historical places in requested_activities. Put requested
+  restaurant styles or meal experiences in dining_preferences. Never put a
+  flight connection, airport, airline, baggage request, restaurant, meal,
+  trattoria, tapas bar or dining instruction in requested_activities.
+- Capture dining frequency, events, cabin, hotel needs, children's ages, every
+  stated nationality, baggage questions, dietary requirements, accessibility
+  needs, and negative constraints such as no alcohol.
 - Keep home city, country of residence, flexible airport choice, and preferred
   airlines as separate facts. An airline must never appear as a departure city.
+- Preserve traveller-specific immigration context in residency_documents using
+  concise labels such as "Nigerian: Italian long-stay visa". Do not infer that
+  residence alone is a visa or permit.
 - Treat "package allowance" as a likely baggage-allowance request in a flight
   context. Do not invent an allowance; only mark that guidance was requested.
 - A business meeting is an activity or purpose, not business-class airfare.
@@ -271,12 +282,18 @@ outline from the grounded trip brief and provider evidence supplied.
 Rules:
 - Return exactly duration_days entries numbered consecutively from 1.
 - Honour the full party composition, children's ages, pace, accessibility,
-  requested activities, dining count, interests, hotel preferences, special
+  requested activities, dining count and dining preferences, interests, hotel preferences, special
   occasions, dates, separate arrivals, dietary needs and negative constraints.
 - Never schedule or recommend something the customer excluded. For example,
   an alcohol-free request must not include bars, wine tastings or cocktails.
 - Make arrival and departure days realistic. Balance major days with rest and
   avoid sending a family across distant areas repeatedly.
+- Match the theme and the rest of each day to its scheduled requested activity.
+  Do not place a museum inside a football day, a gorge inside a spa day, or a
+  remote day trip inside a generic city-orientation template.
+- Do not treat transport connections or dining requests as daytime attractions.
+  If the traveller requested N restaurant meals, clearly plan N restaurant
+  evenings rather than silently turning every evening into dining out.
 - Named attractions may be proposed as itinerary ideas, but must be worded as
   needing official opening-time and ticket confirmation unless current
   provider evidence explicitly confirms them.
@@ -461,6 +478,33 @@ def merge_interpretations(
         entities["nationalities"] = ",".join(combined_nationalities)
         entities["nationality"] = combined_nationalities[0]
 
+    residency_documents = _clean_list([
+        *rule_result.entities.get("residency_documents", "").split(","),
+        *ai_result.entities.get("residency_documents", "").split(","),
+        *_residency_documents_from_message(message),
+    ])
+    if residency_documents:
+        entities["residency_documents"] = ",".join(residency_documents)
+
+    activities = _clean_list(entities.get("requested_activities", "").split(","))
+    dining_preferences = _clean_list(
+        entities.get("dining_preferences", "").split(",")
+    )
+    filtered_activities: list[str] = []
+    for activity in activities:
+        if _is_transport_instruction(activity):
+            continue
+        if _is_dining_instruction(activity):
+            dining_preferences.append(activity)
+            continue
+        filtered_activities.append(activity)
+    if filtered_activities:
+        entities["requested_activities"] = ",".join(_clean_list(filtered_activities))
+    else:
+        entities.pop("requested_activities", None)
+    if dining_preferences:
+        entities["dining_preferences"] = ",".join(_clean_list(dining_preferences))
+
     lowered = message.casefold()
     if (
         entities.get("cabin_class", "").casefold() == "business"
@@ -544,6 +588,54 @@ def _normalise_nationalities(values: list[Any]) -> list[str]:
     return _clean_list(expanded)
 
 
+def _is_transport_instruction(value: str) -> bool:
+    lowered = value.casefold()
+    return any(
+        term in lowered
+        for term in (
+            "connect through", "connection through", "connecting through",
+            "airport", "airline", "flight", "baggage", "package allowance",
+        )
+    )
+
+
+def _is_dining_instruction(value: str) -> bool:
+    lowered = value.casefold()
+    return any(
+        term in lowered
+        for term in (
+            "dine", "dining", "restaurant", "trattoria", "tapas bar",
+            "barbecue meal", "seafood meal", "dinner", "lunch at",
+        )
+    )
+
+
+def _residency_documents_from_message(message: str) -> list[str]:
+    """Preserve explicit traveller-specific Schengen document context."""
+    lowered = message.casefold()
+    status_match = re.search(
+        r"\b(?:residing|living)\s+in\s+"
+        r"(milan|rome|naples|warsaw|barcelona|madrid|paris|berlin)\b.{0,50}?\b"
+        r"(long[- ](?:term|stay) visa|residence permit|work visa)\b",
+        lowered,
+    )
+    if not status_match:
+        return []
+    nationality_matches = list(re.finditer(r"\b([a-z]+)\s+national\b", lowered[:status_match.start()]))
+    if not nationality_matches:
+        return []
+    nationality = nationality_matches[-1].group(1)
+    city, document = status_match.groups()
+    country_by_city = {
+        "milan": "Italian", "rome": "Italian", "naples": "Italian",
+        "warsaw": "Polish", "barcelona": "Spanish", "madrid": "Spanish",
+        "paris": "French", "berlin": "German",
+    }
+    return [
+        f"{nationality.title()}: {country_by_city[city]} {document.replace('-', ' ')}"
+    ]
+
+
 _CLEARABLE_TRIP_FIELDS = {
     "destination",
     "destination_region",
@@ -552,6 +644,7 @@ _CLEARABLE_TRIP_FIELDS = {
     "departure_options",
     "airport_preference",
     "airline_preferences",
+    "residency_documents",
     "start_date",
     "end_date",
     "date_hint",
@@ -561,6 +654,7 @@ _CLEARABLE_TRIP_FIELDS = {
     "requested_event",
     "requested_event_type",
     "requested_activities",
+    "dining_preferences",
     "interests",
     "accommodation_preference",
 }

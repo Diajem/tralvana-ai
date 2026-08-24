@@ -71,6 +71,18 @@ class TestMockVisaProvider:
         by_name = provider.lookup("Nigeria", "Spain")
         assert by_adjective["status"] == by_name["status"]
 
+    def test_city_country_labels_resolve_for_remote_towns(self):
+        provider = MockVisaProvider()
+        assert provider.lookup("Nigerian", "Manchester, UK")["visa_type"] == "Standard Visitor Visa"
+        assert provider.lookup("American", "Castelmezzano, Italy")["status"] == "VISA_NOT_REQUIRED"
+        assert provider.lookup("Italian", "Blowing Rock, North Carolina")["visa_type"] == "ESTA"
+        assert provider.lookup("Italian", "Beaufort, North Carolina")["visa_type"] == "ESTA"
+
+    def test_italian_passport_has_eu_free_movement_in_spain(self):
+        result = MockVisaProvider().lookup("Italian", "Ronda, Spain")
+        assert result["status"] == "VISA_NOT_REQUIRED"
+        assert result["visa_type"] == "None (EU free movement)"
+
     def test_study_purpose_escalates_visa_free_to_required(self):
         provider = MockVisaProvider()
         tourism = provider.lookup("UK", "Japan", travel_purpose="TOURISM")
@@ -105,5 +117,5 @@ class TestMockVisaProvider:
         nationalities = set(provider.known_nationalities())
         destinations = set(provider.known_destinations())
         assert {"UK", "IRELAND", "USA", "CANADA", "NIGERIA", "GHANA",
-                "SOUTH AFRICA", "JAMAICA", "EU", "JAPAN", "POLAND", "GERMANY"} == nationalities
-        assert {"JAPAN", "USA", "UK", "IRELAND", "FRANCE", "SPAIN", "NIGERIA", "UAE", "SOUTH AFRICA"} == destinations
+                "SOUTH AFRICA", "JAMAICA", "EU", "JAPAN", "POLAND", "GERMANY", "ITALY"} == nationalities
+        assert {"JAPAN", "USA", "UK", "IRELAND", "FRANCE", "SPAIN", "ITALY", "NIGERIA", "UAE", "SOUTH AFRICA"} == destinations
