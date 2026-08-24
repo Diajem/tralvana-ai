@@ -213,7 +213,6 @@ class ItineraryBuilder:
         queries = {
             "landmarks": ("Attraction", RelationshipType.NEAR),
             "museums": ("Museum", RelationshipType.LOCATED_IN),
-            "restaurants": ("Restaurant", RelationshipType.BELONGS_TO),
         }
         enrich: dict[str, list[str]] = {}
         for key, (entity_type, relationship_type) in queries.items():
@@ -282,7 +281,6 @@ class ItineraryBuilder:
     ) -> tuple[str, str, str]:
         landmarks = enrich.get("landmarks", [])
         museums = enrich.get("museums", [])
-        restaurants = enrich.get("restaurants", [])
 
         # Pick a landmark or museum for the day (rotate by day index)
         enrichment_index = day - 2
@@ -295,10 +293,6 @@ class ItineraryBuilder:
         if landmarks and enrichment_index < len(landmarks):
             pick = landmarks[enrichment_index]
             morning = f"Explore {pick}"
-
-        if restaurants and enrichment_index < len(restaurants):
-            pick = restaurants[enrichment_index]
-            evening = f"Dinner at {pick}"
 
         return morning, afternoon, evening
 

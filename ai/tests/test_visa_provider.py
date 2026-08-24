@@ -105,5 +105,5 @@ class TestMockVisaProvider:
         nationalities = set(provider.known_nationalities())
         destinations = set(provider.known_destinations())
         assert {"UK", "IRELAND", "USA", "CANADA", "NIGERIA", "GHANA",
-                "SOUTH AFRICA", "JAMAICA", "EU", "JAPAN"} == nationalities
-        assert {"JAPAN", "USA", "UK", "IRELAND", "FRANCE", "SPAIN", "NIGERIA", "UAE"} == destinations
+                "SOUTH AFRICA", "JAMAICA", "EU", "JAPAN", "POLAND", "GERMANY"} == nationalities
+        assert {"JAPAN", "USA", "UK", "IRELAND", "FRANCE", "SPAIN", "NIGERIA", "UAE", "SOUTH AFRICA"} == destinations

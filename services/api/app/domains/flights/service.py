@@ -173,6 +173,10 @@ class FlightIntelligenceService:
             return_date=entities.get("end_date"),
             cabin_class=entities.get("cabin_class") or prefs.get("cabin_class", "economy"),
             budget_style=prefs.get("budget_style", "balanced"),
+            airline_preference=(
+                entities.get("airline_preferences", "").split(",")[0]
+                or prefs.get("preferred_airline")
+            ),
             adults=int(entities.get("adults") or travellers.get("adults") or 1),
             minors=declared_minors,
             minor_ages=minor_ages,

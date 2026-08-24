@@ -175,8 +175,9 @@ def test_mixed_nationalities_remain_part_of_a_full_trip_plan(client):
     ]
     visa = body["itinerary"]["visa_summary"]
     assert visa["assessment_scope"] == "PARTIAL"
-    assert visa["nationalities_considered"] == ["British"]
-    assert visa["nationalities_pending"] == ["Nigerian"]
+    assert visa["nationalities_considered"] == ["British", "Nigerian"]
+    assert visa["nationalities_pending"] == ["British", "Nigerian"]
+    assert len(visa["individual_assessments"]) == 2
     assert "each passport nationality" in " ".join(
         body["itinerary"]["booking_readiness"]["items_needed"]
     )

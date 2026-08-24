@@ -351,6 +351,7 @@ class TripAssemblyEngine:
             flight=flight_rec,
             accommodation=accommodation_rec,
             events=event_recs,
+            visa=visa_rec,
         )
 
         executive_summary = self._executive_summary(
@@ -510,6 +511,7 @@ class TripAssemblyEngine:
         value = dict(brief or {})
         value.setdefault("origin", "")
         value.setdefault("departure_options", [])
+        value.setdefault("airline_preferences", [])
         value.setdefault("airport_preference", None)
         value.setdefault("destination", destination)
         value.setdefault("destination_region", None)
@@ -628,7 +630,7 @@ class TripAssemblyEngine:
                 entry["afternoon"] = "Check and book an official Ajax stadium tour"
                 entry["evening"] = "Dinner in Amsterdam after the stadium visit"
                 entry["notes"] = "Confirm the stadium-tour date and entry time on the official Ajax site."
-            elif entry["day"] == 3 and requested_event:
+            elif is_amsterdam and entry["day"] == 3 and requested_event:
                 event_name = str(requested_event.get("name") or "Requested match")
                 entry["title"] = f"Day 3: {event_name} fixture check"
                 entry["theme"] = f"{event_name} fixture check"
@@ -640,6 +642,7 @@ class TripAssemblyEngine:
                 )
             elif (
                 entry["day"] == 4
+                and is_amsterdam
                 and "major attractions" in interests
                 and ("ajax stadium" in interests or requested_event)
             ):
@@ -683,18 +686,6 @@ class TripAssemblyEngine:
                 entry["afternoon"] = afternoon
                 entry["evening"] = evening
                 entry["notes"] = note
-            elif (
-                requested_activities
-                and 1 < int(entry["day"]) < int(brief.get("duration_days") or 1)
-            ):
-                activity_index = int(entry["day"]) - 2
-                if activity_index < len(requested_activities):
-                    activity = requested_activities[activity_index]
-                    entry["afternoon"] = (
-                        f"Include the requested {activity}; confirm current opening times, "
-                        "tickets and suitability before booking"
-                    )
-
             if day_date and occasion_date == day_date.isoformat():
                 occasion_type = occasion.get("type") or "Special occasion"
                 notes = occasion.get("notes")
@@ -704,6 +695,115 @@ class TripAssemblyEngine:
                 entry["notes"] = (
                     f"{entry.get('notes', '')} Confirm the celebration venue and reservations."
                 ).strip()
+
+        if requested_event and not is_amsterdam and len(outline) > 2:
+            event_name = str(requested_event.get("name") or "Requested event")
+            event_type = str(requested_event.get("type") or "event")
+            event_day = outline[min(1, len(outline) - 1)]
+            event_day["evening"] = (
+                f"Check the official dated listing and ticket availability for {event_name}; "
+                f"keep a destination-local alternative until the {event_type.lower()} is confirmed"
+            )
+            event_day["notes"] = (
+                f"{event_day.get('notes', '')} {event_name} is requested, not confirmed; "
+                "no date or ticket has been invented."
+            ).strip()
+
+        return self._schedule_requested_activities(
+            outline,
+            requested_activities,
+        )
+
+    @staticmethod
+    def _schedule_requested_activities(
+        outline: list[dict[str, Any]],
+        requested_activities: list[str],
+    ) -> list[dict[str, Any]]:
+        """Place every requested activity without silently dropping overflow.
+
+        Major parks and day trips receive a full day. Compatible nearby items
+        share a day, while shorter activities use morning/afternoon capacity.
+        All wording remains a proposal pending current opening and ticket data.
+        """
+        if len(outline) <= 2 or not requested_activities:
+            return outline
+
+        activities = list(
+            dict.fromkeys(
+                value.strip() for value in requested_activities if value.strip()
+            )
+        )
+        pair_rules = (
+            (("statue of liberty", "ellis island"), "Statue of Liberty and Ellis Island"),
+            (("camp nou", "fc barcelona museum"), "Camp Nou and the FC Barcelona museum"),
+            (("harajuku", "shibuya"), "Harajuku and Shibuya"),
+        )
+        grouped: list[str] = []
+        used: set[int] = set()
+        for needles, label in pair_rules:
+            indexes = [
+                index
+                for index, activity in enumerate(activities)
+                if any(needle in activity.casefold() for needle in needles)
+            ]
+            if len(indexes) >= 2:
+                grouped.append(label)
+                used.update(indexes)
+        grouped.extend(
+            activity for index, activity in enumerate(activities) if index not in used
+        )
+
+        days = outline[1:-1]
+        remaining_capacity = [2 for _ in days]
+        day_index = 0
+        full_day_terms = (
+            "disney", "portaventura", "aquaventure", "water park", "waterpark",
+            "mount fuji", "kyoto", "safari", "robben island", "cape of good hope",
+        )
+        grouped.sort(
+            key=lambda activity: not any(
+                term in activity.casefold() for term in full_day_terms
+            )
+        )
+        for activity in grouped:
+            is_full_day = any(term in activity.casefold() for term in full_day_terms)
+            needed = 2 if is_full_day else 1
+            candidate = next(
+                (
+                    offset
+                    for offset in range(len(days))
+                    if remaining_capacity[(day_index + offset) % len(days)] >= needed
+                ),
+                None,
+            )
+            if candidate is None:
+                # The trip genuinely has more requested experiences than
+                # daytime capacity. Keep the item visible as an explicit
+                # scheduling choice instead of losing it.
+                days[-1]["notes"] = (
+                    f"{days[-1].get('notes', '')} Unscheduled priority: {activity}; "
+                    "choose which existing activity to replace."
+                ).strip()
+                continue
+            selected = (day_index + candidate) % len(days)
+            entry = days[selected]
+            guidance = "Confirm current opening times, tickets and age suitability before booking."
+            if is_full_day:
+                entry["title"] = f"Day {entry['day']}: {activity}"
+                entry["theme"] = activity
+                entry["morning"] = f"Travel to and begin the requested {activity} experience"
+                entry["afternoon"] = f"Continue the requested {activity} experience at a realistic pace"
+                entry["notes"] = guidance
+                remaining_capacity[selected] = 0
+            elif remaining_capacity[selected] == 2:
+                entry["morning"] = f"Include the requested {activity}"
+                entry["notes"] = guidance
+                remaining_capacity[selected] = 1
+            else:
+                entry["afternoon"] = f"Include the requested {activity}"
+                entry["notes"] = guidance
+                remaining_capacity[selected] = 0
+            day_index = (selected + 1) % len(days)
         return outline
 
     def _declared_budget_summary(
@@ -747,6 +847,7 @@ class TripAssemblyEngine:
         flight: dict[str, Any] | None,
         accommodation: dict[str, Any] | None,
         events: list[dict[str, Any]],
+        visa: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         current_flight = bool(
             flight
@@ -786,7 +887,16 @@ class TripAssemblyEngine:
             needed.append(
                 "Add each traveller's passport nationality for official entry checks."
             )
-        elif len(brief.get("nationalities") or []) > 1:
+        elif (
+            len(brief.get("nationalities") or []) > 1
+            and any(
+                str(item.get("visa_status") or "").upper() == "CHECK_MANUALLY"
+                for item in (
+                    (visa or {}).get("individual_assessments")
+                    or []
+                )
+            )
+        ):
             needed.append(
                 "Complete a separate official entry-requirements check for each passport nationality."
             )
@@ -1005,9 +1115,27 @@ class TripAssemblyEngine:
         if not nationalities and brief.get("nationality"):
             nationalities = [str(brief["nationality"])]
         scoped = dict(assessment)
-        assessed = str(scoped.get("nationality") or "").strip()
-        considered = [assessed] if assessed else nationalities[:1]
-        pending = [value for value in nationalities if value not in considered]
+        individual = list(scoped.get("individual_assessments") or [])
+        if individual:
+            considered = [
+                str(item.get("nationality") or item.get("passport_country") or "").strip()
+                for item in individual
+                if str(item.get("nationality") or item.get("passport_country") or "").strip()
+            ]
+            pending = [
+                str(item.get("nationality") or item.get("passport_country") or "").strip()
+                for item in individual
+                if str(item.get("visa_status") or "").upper() == "CHECK_MANUALLY"
+            ]
+            if len(individual) > 1:
+                scoped["visa_type"] = "Mixed requirements — see each passport assessment"
+                scoped["recommendation"] = (
+                    "Follow the separate entry action shown for each passport nationality."
+                )
+        else:
+            assessed = str(scoped.get("nationality") or "").strip()
+            considered = [assessed] if assessed else nationalities[:1]
+            pending = [value for value in nationalities if value not in considered]
         scoped["nationalities_considered"] = considered
         scoped["nationalities_pending"] = pending
         scoped["assessment_scope"] = "PARTIAL" if pending else "COMPLETE"

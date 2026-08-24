@@ -111,12 +111,14 @@ class TestIntentClassification:
         assert result.entities["duration_days"] == "15"
         assert result.entities["departure_day"] == "10"
         assert result.entities["date_hint"] == "10 August"
-        inferred_year = datetime.now().year
+        inferred_year = datetime.now().year + (
+            datetime.now().date() > datetime(datetime.now().year, 8, 10).date()
+        )
         assert result.entities["start_date"] == f"{inferred_year}-08-10"
         assert result.entities["end_date"] == f"{inferred_year}-08-25"
         assert result.entities["date_precision"] == "EXACT"
         assert result.entities["date_inference_note"] == (
-            f"Year not supplied; using {inferred_year}."
+            f"Year not supplied; using the next occurrence in {inferred_year}."
         )
         assert result.entities["shared_hotel"] == "true"
         assert result.entities["requested_event"] == "Ajax vs Feyenoord"
@@ -459,12 +461,14 @@ class TestEntityExtraction:
         assert "duration_conflict" not in result.entities
         assert result.entities["departure_day"] == "18"
         assert result.entities["month"] == "8"
-        inferred_year = datetime.now().year
+        inferred_year = datetime.now().year + (
+            datetime.now().date() > datetime(datetime.now().year, 8, 18).date()
+        )
         assert result.entities["start_date"] == f"{inferred_year}-08-18"
         assert result.entities["end_date"] == f"{inferred_year}-08-23"
         assert result.entities["date_precision"] == "EXACT"
         assert result.entities["date_inference_note"] == (
-            f"Year not supplied; using {inferred_year}."
+            f"Year not supplied; using the next occurrence in {inferred_year}."
         )
         assert result.entities["airport_preference"] == (
             "Any London airport; prioritise a reasonable price"

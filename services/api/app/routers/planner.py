@@ -322,6 +322,9 @@ def _build_trip_brief(
     departure_options = [
         value for value in entities.get("departure_options", "").split(",") if value
     ]
+    airline_preferences = [
+        value for value in entities.get("airline_preferences", "").split(",") if value
+    ]
     local_areas = [
         value for value in entities.get("local_areas", "").split(",") if value
     ]
@@ -415,6 +418,7 @@ def _build_trip_brief(
         "origin": entities.get("origin") or trip.get("origin") or "",
         "departure_options": departure_options,
         "airport_preference": entities.get("airport_preference"),
+        "airline_preferences": airline_preferences,
         "destination": destination or trip.get("destination") or "",
         "destination_region": entities.get("destination_region"),
         "local_areas": local_areas,

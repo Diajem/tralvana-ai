@@ -120,7 +120,7 @@ def test_florida_brief_becomes_complete_planner_entities():
     assert result.entities["baggage_information_requested"] == "true"
     assert result.entities["ticket_requested"] == "true"
     assert result.entities["date_inference_note"] == (
-        "Year not supplied; using 2026."
+        "Year not supplied; using the next occurrence in 2026."
     )
     assert "Walt Disney World" in result.entities["requested_activities"]
 

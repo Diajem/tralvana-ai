@@ -95,21 +95,44 @@ class VisaIntelligenceService:
             except Exception:
                 pass
 
-        passport_country = entities.get("nationality") or self._profile_passport_country(profile)
-
-        request = CheckVisaRequest(
-            traveller_id=traveller_id,
-            trip_id=trip_id,
-            nationality=entities.get("nationality"),
-            passport_country=passport_country or "",
-            destination_country=entities.get("destination") or (trip or {}).get("destination") or "",
-            intended_length_of_stay=int(
-                entities.get("duration_days")
-                or (trip or {}).get("duration_days")
-                or 14
-            ),
+        nationalities = list(
+            dict.fromkeys(
+                value.strip()
+                for value in (
+                    entities.get("nationalities")
+                    or entities.get("nationality")
+                    or self._profile_passport_country(profile)
+                    or ""
+                ).split(",")
+                if value.strip()
+            )
         )
-        return self.check(request, trip=trip)
+        if not nationalities:
+            nationalities = [""]
+
+        assessments: list[dict[str, Any]] = []
+        for nationality in nationalities:
+            request = CheckVisaRequest(
+                traveller_id=traveller_id,
+                trip_id=trip_id,
+                nationality=nationality or None,
+                passport_country=nationality,
+                destination_country=(
+                    entities.get("destination")
+                    or (trip or {}).get("destination")
+                    or ""
+                ),
+                intended_length_of_stay=int(
+                    entities.get("duration_days")
+                    or (trip or {}).get("duration_days")
+                    or 14
+                ),
+            )
+            assessments.append(self.check(request, trip=trip))
+
+        primary = dict(assessments[0])
+        primary["individual_assessments"] = assessments
+        return primary
 
     def _profile_passport_country(self, profile: dict[str, Any] | None) -> str | None:
         if not profile:

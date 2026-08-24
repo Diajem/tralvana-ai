@@ -47,3 +47,27 @@ def test_explicit_rest_and_relaxation_still_selects_relaxation() -> None:
     assert classifier.classify_from_text(
         "I want a spa holiday for rest and relaxation."
     ) == "RELAXATION"
+
+
+def test_couple_with_restaurant_request_is_not_forced_into_romance_or_food() -> None:
+    classifier = GoalClassifier()
+
+    assert classifier.classify_from_text(
+        "A couple want Japanese culture and one Michelin-starred restaurant."
+    ) == "GENERAL_TRAVEL"
+
+
+def test_children_take_priority_over_a_parent_football_interest() -> None:
+    classifier = GoalClassifier()
+
+    assert classifier.classify_from_text(
+        "Plan a family holiday with two children and a Camp Nou stadium visit."
+    ) == "FAMILY_TRIP"
+
+
+def test_explicit_food_tour_still_selects_food_goal() -> None:
+    classifier = GoalClassifier()
+
+    assert classifier.classify_from_text(
+        "Plan a street food tour and culinary holiday."
+    ) == "FOOD_TOUR"
