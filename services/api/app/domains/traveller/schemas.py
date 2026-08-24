@@ -8,6 +8,8 @@ class IdentitySchema(BaseModel):
     email: str
     locale: str = "en"
     timezone: str = "UTC"
+    nationality: str = ""
+    country_of_residence: str = ""
 
 
 class PreferencesSchema(BaseModel):

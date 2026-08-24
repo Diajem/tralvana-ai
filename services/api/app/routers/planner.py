@@ -34,6 +34,30 @@ class PlanTripRequest(BaseModel):
     conversation_id: str | None = None
 
 
+class TravellerReadinessSummary(BaseModel):
+    adults: int
+    children: int
+    infants: int
+    minor_ages: list[int]
+    nationalities: list[str]
+
+
+class PlanningReadinessResponse(BaseModel):
+    stage: str
+    score: int
+    can_build_itinerary: bool
+    can_live_search: bool
+    can_book: bool
+    confirmed_fields: list[str]
+    missing_essential: list[str]
+    missing_recommended: list[str]
+    conflicts: list[str]
+    next_question: str | None = None
+    question_fields: list[str]
+    profile_fields_used: list[str]
+    traveller_summary: TravellerReadinessSummary
+
+
 class PlanTripResponse(BaseModel):
     conversation_id: str
     intent: str
@@ -44,6 +68,7 @@ class PlanTripResponse(BaseModel):
     next_actions: list[str]
     goal_id: str | None = None
     trip_id: str | None = None
+    planning_readiness: PlanningReadinessResponse | None = None
     # None whenever the conversation turn didn't produce a full Trip
     # Brain recommendation yet (e.g. still gathering destination/dates)
     # — `response`/`missing_information` above carry the follow-up in
@@ -368,6 +393,23 @@ def _build_trip_brief(
         for value in entities.get("accessibility_needs", "").split(",")
         if value
     ]
+    dietary_requirements = [
+        value
+        for value in entities.get("dietary_requirements", "").split(",")
+        if value
+    ]
+    negative_constraints = [
+        value
+        for value in entities.get("negative_constraints", "").split(",")
+        if value
+    ]
+    nationalities = [
+        value
+        for value in (
+            entities.get("nationalities") or entities.get("nationality") or ""
+        ).split(",")
+        if value
+    ]
 
     return {
         "origin": entities.get("origin") or trip.get("origin") or "",
@@ -402,6 +444,8 @@ def _build_trip_brief(
         },
         "budget": budget,
         "nationality": entities.get("nationality"),
+        "nationalities": nationalities,
+        "country_of_residence": entities.get("country_of_residence"),
         "cabin_class": entities.get("cabin_class"),
         "dining_out_count": (
             int(entities["dining_out_count"])
@@ -412,6 +456,8 @@ def _build_trip_brief(
             entities.get("baggage_information_requested") == "true"
         ),
         "accessibility_needs": accessibility_needs,
+        "dietary_requirements": dietary_requirements,
+        "negative_constraints": negative_constraints,
         "interests": list(interests),
         "accommodation_preferences": accommodation_preferences,
         "requested_events": requested_events,

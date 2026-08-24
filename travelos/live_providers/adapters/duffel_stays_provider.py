@@ -365,6 +365,7 @@ class DuffelStaysProvider(BaseLiveProvider):
             "duffel_review_score": accommodation.get("review_score"),
             "duffel_review_count": accommodation.get("review_count"),
             "duffel_amenities": accommodation.get("amenities") or [],
+            "duffel_photos": accommodation.get("photos") or [],
             "duffel_latitude": geo.get("latitude"),
             "duffel_longitude": geo.get("longitude"),
             "duffel_city_name": address.get("city_name"),

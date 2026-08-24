@@ -55,10 +55,14 @@ export interface TripBrief {
     source?: string;
   };
   nationality: string | null;
+  nationalities: string[];
+  country_of_residence: string | null;
   cabin_class: string | null;
   dining_out_count: number | null;
   baggage_information_requested: boolean;
   accessibility_needs: string[];
+  dietary_requirements: string[];
+  negative_constraints: string[];
   interests: string[];
   accommodation_preferences: string[];
   requested_events: RequestedEvent[];
@@ -118,6 +122,9 @@ export interface EventRecommendation extends Record<string, unknown> {
   team_level: string;
   interests_matched: string[];
   data_source: string;
+  image_url: string | null;
+  image_alt: string | null;
+  image_source: string | null;
 }
 
 export interface GroundingNotice {
@@ -159,6 +166,29 @@ export interface PlanTripResponse {
   goal_id: string | null;
   trip_id: string | null;
   itinerary: TripItinerary | null;
+  planning_readiness: PlanningReadiness | null;
+}
+
+export interface PlanningReadiness {
+  stage: "CLARIFYING" | "INSPIRATION_READY" | "SEARCH_READY";
+  score: number;
+  can_build_itinerary: boolean;
+  can_live_search: boolean;
+  can_book: boolean;
+  confirmed_fields: string[];
+  missing_essential: string[];
+  missing_recommended: string[];
+  conflicts: string[];
+  next_question: string | null;
+  question_fields: string[];
+  profile_fields_used: string[];
+  traveller_summary: {
+    adults: number;
+    children: number;
+    infants: number;
+    minor_ages: number[];
+    nationalities: string[];
+  };
 }
 
 export interface SavedPlanSummary {

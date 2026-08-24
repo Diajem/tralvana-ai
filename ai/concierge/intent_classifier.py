@@ -394,7 +394,11 @@ class IntentClassifier:
 
         cabin_patterns = (
             ("premium_economy", r"\bpremium[- ]economy(?:\s+(?:flights?|class|cabin))?\b"),
-            ("business", r"\bbusiness(?:[- ]class)?(?:\s+(?:flights?|cabin))?\b"),
+            (
+                "business",
+                r"\bbusiness(?:[- ]class|\s+(?:flights?|cabin))\b"
+                r"|\b(?:fly|flying)\s+business\b",
+            ),
             ("first", r"\bfirst[- ]class(?:\s+(?:flights?|cabin))?\b"),
             ("economy", r"\beconomy(?:[- ]class)?(?:\s+(?:flights?|cabin))?\b"),
         )
@@ -817,6 +821,20 @@ class IntentClassifier:
             r"(days?|weeks?)\b",
             text,
         ))
+        duration_matches = [
+            match
+            for match in duration_matches
+            if not re.match(r"\s+trips?\b", text[match.end():])
+            or re.match(r"\s+trip\b", text[match.end():]) is not None
+        ]
+        duration_matches = [
+            match
+            for match in duration_matches
+            if not (
+                re.search(r"\bin\s*$", text[:match.start()])
+                and match.group(2).startswith("day")
+            )
+        ]
         if duration_matches:
             # A trip brief can contain an excursion length as well as the
             # overall holiday length: "5 days ... Wicklow Mountains for a
@@ -1114,6 +1132,29 @@ class IntentClassifier:
                 entities["budget_currency"] = currency
                 break
 
+        negative_constraints: list[str] = []
+        if re.search(r"\b(?:no alcohol|alcohol[- ]free|avoid alcohol)\b", text):
+            negative_constraints.append("No alcohol")
+        if re.search(r"\b(?:no nightlife|avoid nightlife)\b", text):
+            negative_constraints.append("No nightlife")
+        if negative_constraints:
+            entities["negative_constraints"] = ",".join(negative_constraints)
+
+        dietary_requirements: list[str] = []
+        dietary_patterns = {
+            "Halal": r"\bhalal\b",
+            "Kosher": r"\bkosher\b",
+            "Vegetarian": r"\bvegetarian\b",
+            "Vegan": r"\bvegan\b",
+            "Gluten-free": r"\bgluten[- ]free\b",
+            "Nut allergy": r"\b(?:nut|peanut)\s+allerg(?:y|ies|ic)\b",
+        }
+        for label, pattern in dietary_patterns.items():
+            if re.search(pattern, text):
+                dietary_requirements.append(label)
+        if dietary_requirements:
+            entities["dietary_requirements"] = ",".join(dietary_requirements)
+
         return entities
 
     @staticmethod
@@ -1128,7 +1169,7 @@ class IntentClassifier:
         age_values: list[int] = []
         labelled = re.search(
             r"\b(?:(?:children|child|kids?|infants?|bab(?:y|ies)|their|children'?s|kids'?)\s+)"
-            r"(?:are\s+)?(?:aged?|ages?)\s*(?:are|is|:)?\s*"
+            r"(?:(?:are|will\s+be)\s+)?(?:aged?|ages?)\s*(?:are|is|:)?\s*"
             r"(\d{1,2}(?:(?:\s*,\s*and\s+|\s*,\s*|\s+and\s+)\d{1,2})*)"
             r"(?=\s*(?:[,.;!?]|\b(?:departing|returning|travelling|traveling|with|we\s+want)\b|$))",
             text,

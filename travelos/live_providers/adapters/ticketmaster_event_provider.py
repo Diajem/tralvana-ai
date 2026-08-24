@@ -297,6 +297,7 @@ def _map_event(event: Any) -> dict[str, Any]:
         "UNKNOWN",
     )
     ticket_url = _safe_public_url(event.get("url"))
+    image_url = _event_image_url(event.get("images"))
     description = _description(event)
 
     return {
@@ -320,6 +321,9 @@ def _map_event(event: Any) -> dict[str, Any]:
         ),
         "availability_status": availability,
         "ticket_url": ticket_url,
+        "image_url": image_url,
+        "image_alt": f"Promotional image for {name}" if image_url else None,
+        "image_source": "Ticketmaster Discovery API" if image_url else None,
         "requires_ticket": ticket_url is not None,
         "source_name": "Ticketmaster Discovery API",
         "evidence_level": "LIVE",
@@ -421,3 +425,22 @@ def _safe_public_url(value: Any) -> str | None:
         return None
     parsed = urlparse(value)
     return value if parsed.scheme == "https" and bool(parsed.hostname) else None
+
+
+def _event_image_url(value: Any) -> str | None:
+    """Choose a landscape provider image already included in the event feed."""
+    if not isinstance(value, list):
+        return None
+    candidates = [image for image in value if isinstance(image, dict)]
+    candidates.sort(
+        key=lambda image: (
+            str(image.get("ratio", "")) == "16_9",
+            int(image.get("width") or 0),
+        ),
+        reverse=True,
+    )
+    for image in candidates:
+        url = _safe_public_url(image.get("url"))
+        if url:
+            return url
+    return None

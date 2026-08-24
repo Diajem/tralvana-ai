@@ -21,6 +21,9 @@ def _raw(**overrides) -> dict:
         "duffel_review_score": 8.5,
         "duffel_review_count": 200,
         "duffel_amenities": ["pool", "workspace"],
+        "duffel_photos": [
+            {"url": "https://assets.duffel.com/img/stays/test-hotel.jpg"}
+        ],
         "duffel_latitude": 35.68,
         "duffel_longitude": 139.65,
         "duffel_city_name": "Tokyo",
@@ -67,6 +70,19 @@ class TestBasicFieldMapping:
         result = accommodation_normalizer.normalize(_raw())
         assert result["_provider_property_id"] == "acc_1"
         assert result["_provider_rate_id"] == "rate_1"
+
+    def test_provider_photo_is_exposed_with_attribution(self):
+        result = accommodation_normalizer.normalize(_raw())
+        assert result["image_url"] == (
+            "https://assets.duffel.com/img/stays/test-hotel.jpg"
+        )
+        assert result["image_source"] == "Duffel Stays"
+
+    def test_non_https_photo_is_rejected(self):
+        result = accommodation_normalizer.normalize(
+            _raw(duffel_photos=[{"url": "http://example.com/hotel.jpg"}])
+        )
+        assert result["image_url"] is None
 
 
 class TestDistanceComputation:

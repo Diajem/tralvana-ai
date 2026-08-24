@@ -20,6 +20,8 @@ const defaultIdentity: TravellerIdentity = {
   email: "",
   locale: "en",
   timezone: "UTC",
+  nationality: "",
+  country_of_residence: "",
 };
 
 const defaultPreferences: TravellerPreferences = {

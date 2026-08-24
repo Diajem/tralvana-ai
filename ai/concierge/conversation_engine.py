@@ -11,6 +11,10 @@ from ai.concierge.openai_trip_intelligence import (
 )
 from ai.concierge.response_composer import ResponseComposer
 from ai.concierge.session_store import SessionStore, build_session_store
+from ai.concierge.trip_requirements import (
+    apply_profile_defaults,
+    assess_trip_readiness,
+)
 from ai.explainability.explainability_engine import explainability_engine
 from ai.ports import PlanningPort, get_planning_port
 from ai.shared.agent_result import AgentResult
@@ -73,10 +77,42 @@ class ConversationEngine:
         classified = self._continue_plan_if_needed(session, classified, message)
         classified = self._add_active_trip_context(session, classified, message)
         profile = self._fetch_profile(session.traveller_id)
+        profile_fields_used: list[str] = []
+        if classified.intent in {Intent.PLAN_TRIP, Intent.MODIFY_TRIP}:
+            remembered_entities, profile_fields_used = apply_profile_defaults(
+                classified.entities,
+                profile,
+            )
+            if (
+                remembered_entities.get("companion_origin")
+                and not any(
+                    remembered_entities.get(field) is not None
+                    for field in ("adults", "children", "infants")
+                )
+            ):
+                # A separately arriving companion does not belong to the
+                # primary flight party. The first-person planner is one adult.
+                remembered_entities["adults"] = "1"
+            classified = ClassifiedIntent(
+                intent=classified.intent,
+                confidence=classified.confidence,
+                entities=remembered_entities,
+            )
+            session.planning_entities = dict(remembered_entities)
         traveller_name = profile.get("identity", {}).get("name") if profile else None
 
         decision = self._decision.decide(classified.intent, classified.entities, profile)
+        planning_readiness = (
+            assess_trip_readiness(
+                classified.entities,
+                profile_fields_used=profile_fields_used,
+            )
+            if classified.intent in {Intent.PLAN_TRIP, Intent.MODIFY_TRIP}
+            else None
+        )
         self._update_session(session, classified.intent, decision)
+        if planning_readiness and planning_readiness.get("next_question"):
+            session.pending_questions = [planning_readiness["next_question"]]
 
         # Attach a Goal to PLAN_TRIP conversations that don't yet have one
         if classified.intent == Intent.PLAN_TRIP and not session.goal_id:
@@ -225,7 +261,13 @@ class ConversationEngine:
         self._store.save(session)
 
         return self._build_output(
-            session, classified, decision, results, response_text, confidence_override
+            session,
+            classified,
+            decision,
+            results,
+            response_text,
+            confidence_override,
+            planning_readiness,
         )
 
     # ------------------------------------------------------------------
@@ -238,6 +280,7 @@ class ConversationEngine:
         results: list[AgentResult],
         response_text: str,
         confidence_override: float | None = None,
+        planning_readiness: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         all_assumptions = list(decision.assumptions)
         all_missing = list(decision.follow_up_questions)
@@ -269,6 +312,7 @@ class ConversationEngine:
             "recommended_agents": decision.requires_agents,
             "goal_id": session.goal_id,
             "trip_id": session.trip_id,
+            "planning_readiness": planning_readiness,
         }
 
     def get_session(self, conversation_id: str) -> ConversationSession | None:
@@ -345,7 +389,11 @@ class ConversationEngine:
             existing_entities=session.planning_entities,
             history=session.history[:-1],
         )
-        merged = merge_interpretations(rule_classified, ai_classified)
+        merged = merge_interpretations(
+            rule_classified,
+            ai_classified,
+            message=message,
+        )
         if (
             session.active_goal == Intent.PLAN_TRIP.value
             and merged.intent == Intent.MODIFY_TRIP
@@ -389,14 +437,9 @@ class ConversationEngine:
         )
         continuing_plan = (
             session.active_goal == Intent.PLAN_TRIP.value
-            and (
-                bool(session.pending_questions)
-                or (
-                    classified.intent
-                    in {Intent.GENERAL_CONVERSATION, Intent.BUDGET_ADVICE}
-                    and bool(clarification_entities)
-                )
-            )
+            and classified.intent
+            in {Intent.GENERAL_CONVERSATION, Intent.BUDGET_ADVICE}
+            and (bool(session.pending_questions) or bool(clarification_entities))
         )
         if classified.intent != Intent.PLAN_TRIP and not continuing_plan:
             return classified
@@ -431,12 +474,19 @@ class ConversationEngine:
         """
         merged = dict(existing)
         for update in updates:
+            for field in [
+                value.strip()
+                for value in update.get("clear_fields", "").split(",")
+                if value.strip()
+            ]:
+                merged.pop(field, None)
             previous_interests = [
                 value.strip()
                 for value in merged.get("interests", "").split(",")
                 if value.strip()
             ]
             merged.update(update)
+            merged.pop("clear_fields", None)
             if update.get("interests"):
                 new_interests = [
                     value.strip()
