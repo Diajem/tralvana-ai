@@ -733,6 +733,15 @@ class TripAssemblyEngine:
                 value.strip() for value in requested_activities if value.strip()
             )
         )
+        if any("aquaventure" in activity.casefold() for activity in activities):
+            generic_water_park_labels = {
+                "water park", "water parks", "waterpark", "waterparks"
+            }
+            activities = [
+                activity
+                for activity in activities
+                if activity.casefold() not in generic_water_park_labels
+            ]
         pair_rules = (
             (("statue of liberty", "ellis island"), "Statue of Liberty and Ellis Island"),
             (("camp nou", "fc barcelona museum"), "Camp Nou and the FC Barcelona museum"),
@@ -1296,10 +1305,26 @@ class TripAssemblyEngine:
 
         if visa and visa.get("visa_status"):
             visa_status = str(visa.get("visa_status", "")).upper()
+            individual_visa_types = {
+                str(item.get("visa_type") or "").strip()
+                for item in (visa.get("individual_assessments") or [])
+                if str(item.get("visa_type") or "").strip()
+            }
             if visa_status == "CHECK_MANUALLY":
                 parts.append(
                     "Entry requirements could not be determined from the available "
                     "guidance; check the official authority before travel."
+                )
+            elif len(individual_visa_types) > 1:
+                passport_actions = "; ".join(
+                    f"{item.get('nationality') or item.get('passport_country')}: "
+                    f"{item.get('visa_type') or item.get('visa_status')}"
+                    for item in (visa.get("individual_assessments") or [])
+                )
+                parts.append(
+                    "Entry requirements differ by passport nationality "
+                    f"({passport_actions}); follow each separate entry check and "
+                    "verify it with the official authority."
                 )
             elif visa.get("travel_authorisation_required"):
                 authorisation = visa.get("visa_type", "travel authorisation")
