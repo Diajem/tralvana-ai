@@ -172,6 +172,25 @@ def test_mixed_party_long_stay_visa_is_preserved_per_nationality():
     )
 
 
+def test_equivalent_residency_documents_and_generic_dining_are_deduplicated():
+    result = merge_interpretations(
+        ClassifiedIntent(
+            Intent.PLAN_TRIP,
+            0.9,
+            {"residency_documents": "Nigerian: Italian long term visa"},
+        ),
+        _florida_interpretation(
+            residency_documents=["Nigerian: Italian long-stay visa"],
+            dining_preferences=["traditional tapas bar", "dining together"],
+        ).to_classified_intent(),
+    )
+
+    assert result.entities["residency_documents"] == (
+        "Nigerian: Italian long-stay visa"
+    )
+    assert result.entities["dining_preferences"] == "traditional tapas bar"
+
+
 def test_explicit_companion_origin_is_preserved_as_a_separate_trip():
     result = _florida_interpretation(
         companion_relationship="Wife",
