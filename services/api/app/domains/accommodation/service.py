@@ -39,7 +39,7 @@ class AccommodationIntelligenceService:
             destination = trip.get("destination") or destination
             nights = trip.get("duration_days") or nights
 
-        if config.accommodation_provider_mode == "LIVE_SANDBOX":
+        if config.accommodation_provider_mode != "MOCK":
             # Validate before any Duffel Stays call is made (T-039,
             # section 4) — MOCK mode is intentionally exempt; see
             # live_search_validator's module docstring for why.
@@ -49,6 +49,8 @@ class AccommodationIntelligenceService:
                 nights=nights,
                 adults=request.adults,
                 rooms=request.rooms,
+                children=request.children,
+                child_ages=request.child_ages,
             )
 
         output = accommodation_intelligence.recommend(
@@ -59,6 +61,7 @@ class AccommodationIntelligenceService:
             budget_style=request.budget_style,
             adults=request.adults,
             children=request.children,
+            child_ages=request.child_ages,
             rooms=request.rooms,
             business_trip=request.business_trip,
             accessibility_required=request.accessibility_required,
@@ -162,6 +165,11 @@ class AccommodationIntelligenceService:
             nights=(trip or {}).get("duration_days", 7),
             adults=adults,
             children=int(entities.get("children") or travellers.get("children") or 0),
+            child_ages=[
+                int(age)
+                for age in str(entities.get("minor_ages") or "").split(",")
+                if age.strip().isdigit()
+            ],
             rooms=max(1, (adults + 1) // 2),
         )
         return self.recommend(request, trip=trip, goal=goal, profile=profile)

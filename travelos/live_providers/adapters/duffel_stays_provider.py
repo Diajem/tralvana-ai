@@ -387,12 +387,18 @@ def register_duffel_stays_provider(
     registry: ProviderRegistry | None = None,
     token_env_var: str = "DUFFEL_API_TOKEN",
     environment: ProviderEnvironment = ProviderEnvironment.SANDBOX,
+    priority: int = 10,
 ) -> DuffelStaysProvider:
     """Explicit, opt-in registration — never called automatically at
     import, matching register_duffel_flight_provider()'s (T-027)
     pattern. `transport` must be supplied by the caller."""
     target = registry or provider_registry
-    provider = DuffelStaysProvider(transport=transport, token_env_var=token_env_var, environment=environment)
+    provider = DuffelStaysProvider(
+        transport=transport,
+        token_env_var=token_env_var,
+        environment=environment,
+        priority=priority,
+    )
     target.register(provider)
     return provider
 

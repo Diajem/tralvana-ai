@@ -107,7 +107,7 @@ class IntelligenceGateway:
             try:
                 from travelos.config.configuration_manager import config
                 mode = getattr(config, config_attr)
-                if mode == "LIVE_SANDBOX":
+                if mode == "LIVE_SANDBOX" or mode.endswith("_SANDBOX"):
                     return ProviderEnvironment.SANDBOX
                 if mode == "LIVE":
                     return ProviderEnvironment.PRODUCTION

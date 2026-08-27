@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import math
+import re
+from datetime import datetime, timezone
 from typing import Any
 
 # Raw provider vocabulary -> canonical AccommodationType values.
@@ -58,6 +60,8 @@ class AccommodationNormalizer:
     def normalize(self, raw: dict[str, Any]) -> dict[str, Any]:
         if raw.get("_provider_source") == "duffel_stays":
             return self._normalize_duffel_stays(raw)
+        if raw.get("_provider_source") == "hbx_hotels":
+            return self._normalize_hbx_hotels(raw)
 
         accommodation_type = _TYPE_MAP.get(raw["property_type"], "HOTEL")
         amenities = set(raw.get("amenities", []))
@@ -231,6 +235,97 @@ class AccommodationNormalizer:
         if any(abs(amount - total_price) < 0.01 for amount in refund_amounts):
             return "free_cancellation"
         if all(amount <= 0.01 for amount in refund_amounts):
+            return "non_refundable"
+        return "partial_refund"
+
+    # ------------------------------------------------------------------
+    # HBX Hotels (T-076). Availability contains real rates, boards,
+    # cancellation charges and coordinates, but static amenities, reviews,
+    # images and a city-centre reference belong to the offline Content API.
+    # Missing signals therefore remain neutral instead of being fabricated.
+    # ------------------------------------------------------------------
+
+    def _normalize_hbx_hotels(self, raw: dict[str, Any]) -> dict[str, Any]:
+        category = raw.get("hbx_category_name") or ""
+        match = re.search(r"([1-5])", category)
+        star_rating = int(match.group(1)) if match else 0
+        board_code = (raw.get("board_code") or "").upper()
+        breakfast_included = board_code in {"BB", "HB", "FB", "AI"}
+        cancellation_policy = self._hbx_cancellation_policy(
+            raw.get("cancellation_policies"), raw["total_price"]
+        )
+
+        accommodation_type = "HOTEL"
+        category_lower = category.casefold()
+        if "apartment" in category_lower:
+            accommodation_type = "APARTMENT"
+        elif "hostel" in category_lower:
+            accommodation_type = "HOSTEL"
+        elif "villa" in category_lower:
+            accommodation_type = "VILLA"
+
+        review_score = 5.0
+        comfort_score = round(0.5 * (star_rating / 5 if star_rating else 0.5) + 0.3 * 0.5 + 0.2 * 0.5, 2)
+        return {
+            "destination": raw.get("_destination", ""),
+            "property_name": raw["property_name"],
+            "accommodation_type": accommodation_type,
+            "star_rating": star_rating,
+            "neighbourhood": raw.get("hbx_zone_name") or raw.get("hbx_destination_name") or "",
+            # HBX availability has coordinates for the hotel but no city-centre
+            # coordinate. Keep distance fields at the schema's neutral legacy
+            # placeholder and force the actual location score to 0.5 below.
+            "distance_to_centre": 0.0,
+            "distance_to_transport": 0.0,
+            "nightly_price": raw["nightly_price"],
+            "total_price": raw["total_price"],
+            "currency": raw["currency"],
+            "breakfast_included": breakfast_included,
+            "cancellation_policy": cancellation_policy,
+            "accessibility_features": [],
+            "family_friendly": accommodation_type in _FAMILY_TYPES,
+            "business_friendly": False,
+            "review_score": review_score,
+            "safety_score": _DUFFEL_NEUTRAL_SAFETY_SCORE,
+            "comfort_score": comfort_score,
+            "location_score": 0.5,
+            "check_in_date": raw["check_in_date"],
+            "nights": raw["nights"],
+            "_amenities": [],
+            "_provider_property_id": raw.get("_provider_property_id"),
+            "_provider_rate_id": raw.get("_provider_rate_id"),
+            "_data_assumptions": [
+                "HBX live availability does not include review, accessibility, safety, or centre-distance data; those ranking signals remain neutral until the offline property-content catalogue is loaded."
+            ],
+            "image_url": None,
+            "image_alt": f"{raw['property_name']} accommodation",
+            "image_source": None,
+        }
+
+    @staticmethod
+    def _hbx_cancellation_policy(policies: Any, total_price: float) -> str:
+        if not isinstance(policies, list) or not policies:
+            return "unknown"
+        parsed: list[tuple[float, datetime | None]] = []
+        for policy in policies:
+            if not isinstance(policy, dict):
+                return "unknown"
+            try:
+                amount = float(policy["amount"])
+            except (KeyError, TypeError, ValueError):
+                return "unknown"
+            starts_at: datetime | None = None
+            if policy.get("from"):
+                try:
+                    starts_at = datetime.fromisoformat(str(policy["from"]).replace("Z", "+00:00"))
+                except ValueError:
+                    starts_at = None
+            parsed.append((amount, starts_at))
+
+        now = datetime.now(timezone.utc)
+        if any(starts_at is not None and starts_at.astimezone(timezone.utc) > now for _, starts_at in parsed):
+            return "free_cancellation"
+        if all(amount >= total_price - 0.01 for amount, _ in parsed):
             return "non_refundable"
         return "partial_refund"
 

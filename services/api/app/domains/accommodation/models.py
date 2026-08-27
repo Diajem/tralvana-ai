@@ -62,7 +62,8 @@ class AccommodationOption:
     # Property and Rate Identifiers" section.
     provider_property_id: str | None = None
     provider_rate_id: str | None = None
-    # Safe provenance label (T-039) — MOCK | DUFFEL_STAYS_SANDBOX | MOCK_FALLBACK.
+    # Safe provenance label — MOCK | DUFFEL_STAYS_SANDBOX |
+    # HBX_HOTELS_SANDBOX | MOCK_FALLBACK.
     # Public (unlike the two ids above) so a single option fetched via
     # GET /accommodation/{id} still carries its own sandbox/mock label.
     data_source: str = "MOCK"

@@ -75,6 +75,20 @@ class TestStayLengthValidation:
 
 
 class TestGuestAndRoomValidation:
+    def test_explicit_child_ages_are_accepted(self):
+        validate_live_accommodation_search(**_valid(children=2, child_ages=[4, 11]))
+
+    def test_missing_child_age_is_rejected(self):
+        with pytest.raises(LiveAccommodationSearchValidationError) as exc_info:
+            validate_live_accommodation_search(**_valid(children=2, child_ages=[4]))
+        assert any("explicit child age" in error for error in exc_info.value.errors)
+
+    @pytest.mark.parametrize("age", [-1, 18, 5.5, True])
+    def test_invalid_child_age_is_rejected(self, age):
+        with pytest.raises(LiveAccommodationSearchValidationError) as exc_info:
+            validate_live_accommodation_search(**_valid(children=1, child_ages=[age]))
+        assert any("whole numbers" in error for error in exc_info.value.errors)
+
     def test_zero_adults_rejected(self):
         with pytest.raises(LiveAccommodationSearchValidationError):
             validate_live_accommodation_search(**_valid(adults=0))

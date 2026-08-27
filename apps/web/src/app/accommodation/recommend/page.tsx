@@ -36,10 +36,15 @@ const DATA_SOURCE_LABELS: Record<string, { label: string; className: string; ban
     className: "bg-sky-100 text-sky-700",
     banner: "Duffel Stays sandbox data — not available for purchase.",
   },
+  HBX_HOTELS_SANDBOX: {
+    label: "HBX Hotels sandbox",
+    className: "bg-cyan-100 text-cyan-800",
+    banner: "HBX Hotels sandbox data — test inventory only and not available for purchase.",
+  },
   MOCK_FALLBACK: {
     label: "Mock fallback",
     className: "bg-amber-100 text-amber-700",
-    banner: "Duffel Stays sandbox was unavailable — showing mock fallback data, not real inventory.",
+    banner: "Live accommodation suppliers were unavailable — showing mock fallback data, not real inventory.",
   },
 };
 
@@ -168,6 +173,7 @@ export default function RecommendAccommodationPage() {
     budget_style: string;
     adults: number;
     children: number;
+    child_ages: string[];
     rooms: number;
     business_trip: boolean;
     accessibility_required: boolean;
@@ -181,6 +187,7 @@ export default function RecommendAccommodationPage() {
     budget_style: "balanced",
     adults: 1,
     children: 0,
+    child_ages: [],
     rooms: 1,
     business_trip: false,
     accessibility_required: false,
@@ -201,6 +208,7 @@ export default function RecommendAccommodationPage() {
       budget_style: form.budget_style,
       adults: form.adults,
       children: form.children,
+      child_ages: form.child_ages.map((age) => Number(age)),
       rooms: form.rooms,
       business_trip: form.business_trip,
       accessibility_required: form.accessibility_required,
@@ -358,7 +366,17 @@ export default function RecommendAccommodationPage() {
                 max={20}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={form.children}
-                onChange={(e) => setForm({ ...form, children: parseInt(e.target.value) || 0 })}
+                onChange={(e) => {
+                  const children = parseInt(e.target.value) || 0;
+                  setForm({
+                    ...form,
+                    children,
+                    child_ages: Array.from(
+                      { length: children },
+                      (_, index) => form.child_ages[index] ?? "",
+                    ),
+                  });
+                }}
               />
             </div>
             <div>
@@ -373,6 +391,38 @@ export default function RecommendAccommodationPage() {
               />
             </div>
           </div>
+
+          {form.children > 0 && (
+            <div>
+              <p className="block text-sm font-medium text-gray-700 mb-2">
+                Child ages <span className="text-red-500">*</span>
+              </p>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {form.child_ages.map((age, index) => (
+                  <label key={index} className="text-xs text-gray-600">
+                    Child {index + 1}
+                    <input
+                      type="number"
+                      min={0}
+                      max={17}
+                      required
+                      value={age}
+                      onChange={(e) => {
+                        const childAges = [...form.child_ages];
+                        childAges[index] = e.target.value;
+                        setForm({ ...form, child_ages: childAges });
+                      }}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      aria-label={`Age of child ${index + 1}`}
+                    />
+                  </label>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                Suppliers require each child&apos;s age to return the correct room availability and price.
+              </p>
+            </div>
+          )}
 
           <div className="flex flex-wrap gap-4">
             <label className="flex items-center gap-2 text-sm text-gray-700">

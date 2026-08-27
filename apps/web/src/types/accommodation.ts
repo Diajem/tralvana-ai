@@ -18,7 +18,11 @@ export type RecommendationType =
   | "BEST_BUDGET"
   | "AVOID";
 
-export type AccommodationDataSource = "MOCK" | "DUFFEL_STAYS_SANDBOX" | "MOCK_FALLBACK";
+export type AccommodationDataSource =
+  | "MOCK"
+  | "DUFFEL_STAYS_SANDBOX"
+  | "HBX_HOTELS_SANDBOX"
+  | "MOCK_FALLBACK";
 
 export interface AccommodationOption {
   accommodation_option_id: string;
@@ -82,6 +86,7 @@ export interface RecommendAccommodationRequest {
   budget_style?: string;
   adults?: number;
   children?: number;
+  child_ages?: number[];
   rooms?: number;
   business_trip?: boolean;
   accessibility_required?: boolean;

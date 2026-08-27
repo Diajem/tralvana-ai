@@ -310,6 +310,7 @@ class GatewayAccommodationProvider:
         nights: int,
         adults: int = 1,
         children: int = 0,
+        child_ages: list[int] | None = None,
         rooms: int = 1,
     ) -> list[dict[str, Any]]:
         self.used_mock_fallback = False
@@ -317,7 +318,7 @@ class GatewayAccommodationProvider:
             capability=Capability.ACCOMMODATION, operation="search",
             params={
                 "destination": destination, "check_in_date": check_in_date, "nights": nights,
-                "adults": adults, "children": children, "rooms": rooms,
+                "adults": adults, "children": children, "child_ages": list(child_ages or []), "rooms": rooms,
             },
         )
         result = self._gateway.execute(Capability.ACCOMMODATION, request)
@@ -327,7 +328,7 @@ class GatewayAccommodationProvider:
 
         from travelos.config.configuration_manager import config
 
-        if config.accommodation_provider_mode != "LIVE_SANDBOX":
+        if config.accommodation_provider_mode == "MOCK":
             # MOCK mode's own provider effectively never fails this way —
             # preserve the pre-T-039 behaviour of a quiet empty list.
             return []
@@ -340,7 +341,7 @@ class GatewayAccommodationProvider:
             )
 
         raise LiveAccommodationSearchUnavailableError(
-            "Duffel Stays sandbox search is unavailable "
+            "Live accommodation sandbox search is unavailable "
             f"(provider_status={result.status.value}); "
             "set TRALVANA_ACCOMMODATION_MOCK_FALLBACK_ENABLED=true to fall back to mock data instead."
         )
