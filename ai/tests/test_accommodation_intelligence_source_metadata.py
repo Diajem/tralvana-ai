@@ -1,6 +1,7 @@
 """
 AccommodationIntelligence._source_metadata() / recommend()'s data_source
-labelling (T-039) — MOCK / DUFFEL_STAYS_SANDBOX / MOCK_FALLBACK,
+labelling (T-039/T-076) — MOCK / DUFFEL_STAYS_SANDBOX /
+HBX_HOTELS_SANDBOX / MOCK_FALLBACK,
 duck-typed off the injected provider so a plain MockAccommodationProvider
 (no gateway involved) still gets a sensible default.
 """
@@ -18,7 +19,10 @@ class _ProviderStub:
         self.last_result = last_result
         self.used_mock_fallback = used_mock_fallback
 
-    def search(self, destination, check_in_date, nights, adults=1, children=0, rooms=1):
+    def search(
+        self, destination, check_in_date, nights, adults=1, children=0,
+        child_ages=None, rooms=1,
+    ):
         return MockAccommodationProvider().search(destination, check_in_date, nights)
 
 
@@ -78,6 +82,18 @@ class TestDuffelStaysProvider:
         # is what makes raw_results_count differ from these.
         assert result["normalised_results_count"] == 8
         assert result["ranked_results_count"] == 8
+
+
+class TestHbxHotelsProvider:
+    def test_hbx_provider_is_labelled_sandbox_and_non_purchasable(self):
+        stub = _ProviderStub(last_result=_result("hbx_hotels_provider"))
+        result = AccommodationIntelligence(provider=stub).recommend(
+            destination="Manchester", check_in_date="2027-09-15", nights=3
+        )
+
+        assert result["data_source"] == "HBX_HOTELS_SANDBOX"
+        assert any("test inventory" in item for item in result["assumptions"])
+        assert any("cannot be purchased" in item for item in result["next_actions"])
 
 
 class TestMockFallback:

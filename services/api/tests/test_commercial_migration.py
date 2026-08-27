@@ -18,6 +18,7 @@ def test_commercial_migration_upgrades_and_downgrades(tmp_path: Path, monkeypatc
         "commercial_partners", "affiliate_programmes", "outbound_clicks",
         "affiliate_conversions", "commission_records", "travel_goals",
         "trip_plans", "knowledge_nodes", "knowledge_edges", "alembic_version",
+        "hbx_destinations",
     } <= set(inspect(engine).get_table_names())
     columns = {column["name"] for column in inspect(engine).get_columns("affiliate_programmes")}
     assert {"allowed_destination_hosts", "allowed_tracking_hosts"} <= columns

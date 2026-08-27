@@ -14,6 +14,7 @@ import app.domains.goals.orm  # noqa: F401
 import app.domains.trips.orm  # noqa: F401
 import app.domains.traveller.orm  # noqa: F401
 import travelos.persistence.knowledge_orm  # noqa: F401
+import travelos.persistence.hbx_orm  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:

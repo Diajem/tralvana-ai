@@ -52,6 +52,7 @@ class AccommodationIntelligence:
         budget_style: str = "balanced",
         adults: int = 1,
         children: int = 0,
+        child_ages: list[int] | None = None,
         rooms: int = 1,
         business_trip: bool = False,
         accessibility_required: bool = False,
@@ -87,7 +88,8 @@ class AccommodationIntelligence:
         goal_type = (goal or {}).get("goal_type")
 
         raw_candidates = self._provider.search(
-            destination, resolved_check_in, nights, adults=adults, children=children, rooms=rooms
+            destination, resolved_check_in, nights, adults=adults, children=children,
+            child_ages=child_ages or [], rooms=rooms
         )
         normalized = [accommodation_normalizer.normalize(r) for r in raw_candidates]
 
@@ -104,7 +106,10 @@ class AccommodationIntelligence:
                 "match_score": score_result["match_score"],
                 "reasoning": reasoning,
                 "risks": risks,
-                "assumptions": self._per_option_assumptions(dna, profile),
+                "assumptions": [
+                    *self._per_option_assumptions(dna, profile),
+                    *a.pop("_data_assumptions", []),
+                ],
                 "_persona_scores": score_result["persona_scores"],
             })
 
@@ -132,9 +137,14 @@ class AccommodationIntelligence:
                 "Accommodation data is from Duffel Stays' SANDBOX test environment — "
                 "real property shapes and pricing, but not available for purchase (T-039)."
             )
+        elif source["data_source"] == "HBX_HOTELS_SANDBOX":
+            assumptions.append(
+                "Accommodation rates and availability are from HBX's evaluation environment — "
+                "test inventory only and not available for customer purchase."
+            )
         elif source["data_source"] == "MOCK_FALLBACK":
             assumptions.append(
-                "Duffel Stays sandbox was unavailable for this search — showing mock "
+                "Live accommodation suppliers were unavailable for this search — showing mock "
                 "fallback data, not real property inventory."
             )
         else:
@@ -144,7 +154,7 @@ class AccommodationIntelligence:
         return {
             "accommodation_options": ranked,
             "assumptions": assumptions,
-            "next_actions": self._next_actions(ranked),
+            "next_actions": self._next_actions(ranked, source["data_source"]),
             "recommended_agents": ["hotel_agent"],
             "summary": self._summary(destination, ranked),
             "raw_results_count": source.pop("raw_results_count"),
@@ -178,6 +188,8 @@ class AccommodationIntelligence:
             data_source = "MOCK_FALLBACK"
         elif last_result.provider_name == "duffel_stays_provider":
             data_source = "DUFFEL_STAYS_SANDBOX"
+        elif last_result.provider_name == "hbx_hotels_provider":
+            data_source = "HBX_HOTELS_SANDBOX"
         else:
             data_source = "MOCK"
 
@@ -281,7 +293,7 @@ class AccommodationIntelligence:
         for i, a in enumerate(ranked):
             a["recommendation_type"] = labeled[i]
 
-    def _next_actions(self, ranked: list[dict[str, Any]]) -> list[str]:
+    def _next_actions(self, ranked: list[dict[str, Any]], data_source: str) -> list[str]:
         actions = [
             "Confirm exact check-in and check-out dates for accurate pricing.",
             "Compare cancellation policies before booking.",
@@ -289,7 +301,10 @@ class AccommodationIntelligence:
         ]
         if any(a["cancellation_policy"] == "non_refundable" for a in ranked):
             actions.append("Consider travel insurance for non-refundable bookings.")
-        actions.append("Live availability has not been checked — rates are indicative only.")
+        if data_source in {"DUFFEL_STAYS_SANDBOX", "HBX_HOTELS_SANDBOX"}:
+            actions.append("Sandbox availability was checked, but test inventory cannot be purchased.")
+        else:
+            actions.append("Live availability has not been checked — rates are indicative only.")
         return actions
 
     def _summary(self, destination: str, ranked: list[dict[str, Any]]) -> str:

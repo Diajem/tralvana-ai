@@ -1,9 +1,7 @@
 "use client";
 
-import { AffiliateCheckout } from "@/components/commercial/AffiliateCheckout";
-import { getAffiliateProgrammes, getFlightOption } from "@/lib/api";
+import { getFlightOption } from "@/lib/api";
 import { useTralvanaAuth } from "@/lib/auth-context";
-import type { AffiliateProgramme } from "@/types/commercial";
 import type { FlightOption } from "@/types/flight";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -40,7 +38,6 @@ export default function FlightOptionPage() {
   const { id } = useParams<{ id: string }>();
   const { loaded: authLoaded, signedIn, getSessionToken } = useTralvanaAuth();
   const [flight, setFlight] = useState<FlightOption | null>(null);
-  const [affiliateProgrammes, setAffiliateProgrammes] = useState<AffiliateProgramme[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,13 +53,9 @@ export default function FlightOptionPage() {
       setError(null);
       try {
         const token = await getSessionToken();
-        const [option, programmes] = await Promise.all([
-          getFlightOption(id, token ?? undefined),
-          getAffiliateProgrammes().catch(() => []),
-        ]);
+        const option = await getFlightOption(id, token ?? undefined);
         if (!cancelled) {
           setFlight(option);
-          setAffiliateProgrammes(programmes);
         }
       } catch {
         if (!cancelled) {
@@ -108,8 +101,6 @@ export default function FlightOptionPage() {
     );
   }
 
-  const expedia = affiliateProgrammes.find((programme) => programme.partner === "Expedia");
-
   const badge = RECOMMENDATION_LABELS[flight.recommendation_type] ?? {
     label: flight.recommendation_type,
     className: "bg-gray-500 text-white",
@@ -130,10 +121,6 @@ export default function FlightOptionPage() {
           <div className="rounded-lg bg-sky-50 border border-sky-200 p-4 text-sky-800 text-sm font-medium">
             {sandboxBanner}
           </div>
-        )}
-
-        {expedia && flight.data_source !== "DUFFEL_SANDBOX" && (
-          <AffiliateCheckout programme={expedia} recommendationReference={flight.flight_option_id} />
         )}
 
         {/* Header */}

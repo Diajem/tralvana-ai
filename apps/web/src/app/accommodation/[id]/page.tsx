@@ -1,5 +1,4 @@
-import { AffiliateCheckout } from "@/components/commercial/AffiliateCheckout";
-import { getAccommodationOption, getAffiliateProgrammes } from "@/lib/api";
+import { getAccommodationOption } from "@/lib/api";
 import { serverSessionToken } from "@/lib/server-auth";
 import type { AccommodationOption } from "@/types/accommodation";
 import { notFound } from "next/navigation";
@@ -54,8 +53,6 @@ export default async function AccommodationOptionPage({
   const { id } = await params;
   const token = await serverSessionToken();
   let accommodation: AccommodationOption;
-  const affiliateProgrammes = await getAffiliateProgrammes().catch(() => []);
-  const expedia = affiliateProgrammes.find((programme) => programme.partner === "Expedia");
   try {
     accommodation = await getAccommodationOption(id, token);
   } catch {
@@ -70,8 +67,10 @@ export default async function AccommodationOptionPage({
   const sandboxBanner =
     accommodation.data_source === "DUFFEL_STAYS_SANDBOX"
       ? "Duffel Stays sandbox data — not available for purchase."
+      : accommodation.data_source === "HBX_HOTELS_SANDBOX"
+        ? "HBX Hotels sandbox data — test inventory only and not available for purchase."
       : accommodation.data_source === "MOCK_FALLBACK"
-        ? "Duffel Stays sandbox was unavailable — showing mock fallback data, not real inventory."
+        ? "Live accommodation suppliers were unavailable — showing mock fallback data, not real inventory."
         : null;
 
   return (
@@ -82,13 +81,6 @@ export default async function AccommodationOptionPage({
           <div className="rounded-lg bg-sky-50 border border-sky-200 p-4 text-sky-800 text-sm font-medium">
             {sandboxBanner}
           </div>
-        )}
-
-        {expedia && accommodation.data_source !== "DUFFEL_STAYS_SANDBOX" && (
-          <AffiliateCheckout
-            programme={expedia}
-            recommendationReference={accommodation.accommodation_option_id}
-          />
         )}
 
         {/* Header */}

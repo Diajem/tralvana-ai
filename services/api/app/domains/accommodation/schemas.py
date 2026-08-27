@@ -13,6 +13,7 @@ class RecommendAccommodationRequest(BaseModel):
     budget_style: str = "balanced"           # backpacker | budget | balanced | comfort | luxury
     adults: int = Field(default=1, ge=1)
     children: int = Field(default=0, ge=0)
+    child_ages: list[int] = Field(default_factory=list)
     rooms: int = Field(default=1, ge=1)      # T-039 — forwarded to Duffel Stays; ignored by MockAccommodationProvider
     business_trip: bool = False
     accessibility_required: bool = False
@@ -62,7 +63,7 @@ class AccommodationRecommendationResponse(BaseModel):
     # Safe provenance metadata only (T-039, docs/LIVE_ACCOMMODATION_SEARCH.md)
     # — never a header, token, or raw provider payload. Additive fields
     # with defaults, so this is not a breaking change to the response shape.
-    data_source: str = "MOCK"              # MOCK | DUFFEL_STAYS_SANDBOX | MOCK_FALLBACK
+    data_source: str = "MOCK"              # MOCK | DUFFEL_STAYS_SANDBOX | HBX_HOTELS_SANDBOX | MOCK_FALLBACK
     provider_status: str = "AVAILABLE"
     retrieved_at: str = ""
     request_id: str = ""

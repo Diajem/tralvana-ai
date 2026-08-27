@@ -167,6 +167,7 @@ class MockAccommodationProvider:
         nights: int,
         adults: int = 1,
         children: int = 0,
+        child_ages: list[int] | None = None,
         rooms: int = 1,
     ) -> list[dict[str, Any]]:
         seed = sum(ord(c) for c in destination.lower()) or 1

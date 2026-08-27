@@ -11,6 +11,7 @@ Live register of all engineering tasks. Update status in the same PR that comple
 
 | Task ID | Title | Status | Priority | Commit | Notes |
 |---------|-------|--------|----------|--------|-------|
+| T-076 | HBX Hotels and provider-neutral accommodation transactions | `in-progress` | critical | This PR | Adds HBX signed sandbox availability behind explicit HBX/multi-supplier modes, an offline migration-backed destination catalogue and bounded Content API sync, provider-neutral check-rate/booking/cancellation contracts outside discovery retries, exact child-age/room mapping, customer-approval and price-boundary guards, HBX provenance in API/UI, and removes redirect accommodation checkout. Public booking/payment remains disabled pending sandbox verification, persistence, servicing and HBX certification. ADR-049. |
 | T-001 | Bootstrap project foundation | `complete` | critical | Sprint 0 | Next.js 15 + FastAPI + AI directory structure |
 | T-001B | Complete Sprint 0 scaffold | `complete` | critical | Sprint 0 | AI agent layer, orchestrator, memory schema, architecture docs |
 | T-002 | Initial commit and remote push | `complete` | high | Sprint 0 | Repo live at github.com/Diajem/tralvana-ai |

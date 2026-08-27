@@ -35,6 +35,8 @@ def validate_live_accommodation_search(
     nights: int,
     adults: int,
     rooms: int,
+    children: int = 0,
+    child_ages: list[int] | None = None,
 ) -> None:
     errors: list[str] = []
 
@@ -57,6 +59,12 @@ def validate_live_accommodation_search(
 
     if not (_MIN_ROOMS <= rooms <= _MAX_ROOMS):
         errors.append(f"rooms must be between {_MIN_ROOMS} and {_MAX_ROOMS}, got {rooms}")
+
+    ages = list(child_ages or [])
+    if children != len(ages):
+        errors.append("one explicit child age is required for every child in a live accommodation search")
+    if any(not isinstance(age, int) or isinstance(age, bool) or age < 0 or age > 17 for age in ages):
+        errors.append("child ages must be whole numbers between 0 and 17")
 
     if errors:
         raise LiveAccommodationSearchValidationError(errors)
