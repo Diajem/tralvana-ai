@@ -45,7 +45,7 @@ class InMemoryHbxDestinationCatalog:
         self.upsert_many(destinations or [])
 
     def resolve(self, destination: str, country_code: str | None = None) -> HbxDestination | None:
-        candidates = _candidate_names(destination)
+        candidates = _catalogue_name_candidates(destination)
         countries = _country_code_aliases(country_code)
         matches = [
             item
@@ -66,7 +66,7 @@ class SqlAlchemyHbxDestinationCatalog:
         self._factory = factory
 
     def resolve(self, destination: str, country_code: str | None = None) -> HbxDestination | None:
-        candidates = _candidate_names(destination)
+        candidates = _catalogue_name_candidates(destination)
         if not candidates:
             return None
         with session_scope(self._factory) as session:
@@ -133,6 +133,14 @@ def _normalize_name(value: str) -> str:
     decomposed = unicodedata.normalize("NFKD", value)
     ascii_value = "".join(char for char in decomposed if not unicodedata.combining(char))
     return re.sub(r"[^a-z0-9]+", " ", ascii_value.casefold()).strip()
+
+
+def _catalogue_name_candidates(destination: str) -> set[str]:
+    candidates = _candidate_names(destination)
+    # T-076 initially persisted HBX localized names via ``str(dict)``, so
+    # existing production rows normalize to values such as ``content london``.
+    # Keep those rows resolvable while the corrected content sync replaces them.
+    return candidates | {f"content {candidate}" for candidate in candidates}
 
 
 def _country_code_aliases(value: str | None) -> tuple[str, ...]:
