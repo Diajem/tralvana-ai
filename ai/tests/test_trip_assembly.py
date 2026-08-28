@@ -395,6 +395,22 @@ class TestExecutiveSummary:
         assert "Duffel sandbox test data returned Duffel Test Air" in itinerary.executive_summary
         assert "not a purchasable fare" in itinerary.executive_summary
 
+    def test_hbx_sandbox_accommodation_names_the_correct_provider(self):
+        sandbox = {
+            "property_name": "Central Hotel Golders Green",
+            "accommodation_type": "HOTEL",
+            "match_score": 0.73,
+            "data_source": "HBX_HOTELS_SANDBOX",
+        }
+        itinerary = engine.assemble(
+            _unified([_accommodation_result(top=sandbox)]),
+            destination="London",
+            duration_days=2,
+        )
+
+        assert "HBX Hotels sandbox test data returned" in itinerary.executive_summary
+        assert "Duffel Stays" not in itinerary.executive_summary
+
     def test_summary_never_fabricates_a_module_that_did_not_run(self):
         unified = _unified([_flight_result()])
         itinerary = engine.assemble(unified, destination="Tokyo", duration_days=5)
