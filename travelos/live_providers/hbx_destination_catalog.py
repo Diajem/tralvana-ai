@@ -46,12 +46,12 @@ class InMemoryHbxDestinationCatalog:
 
     def resolve(self, destination: str, country_code: str | None = None) -> HbxDestination | None:
         candidates = _candidate_names(destination)
-        country = (country_code or "").strip().upper()
+        countries = _country_code_aliases(country_code)
         matches = [
             item
             for item in self._items.values()
             if _normalize_name(item.name) in candidates
-            and (not country or item.country_code.upper() == country)
+            and (not countries or item.country_code.upper() in countries)
         ]
         return matches[0] if len(matches) == 1 else None
 
@@ -73,9 +73,9 @@ class SqlAlchemyHbxDestinationCatalog:
             statement = select(HbxDestinationRow).where(
                 HbxDestinationRow.normalized_name.in_(candidates)
             )
-            country = (country_code or "").strip().upper()
-            if country:
-                statement = statement.where(HbxDestinationRow.country_code == country)
+            countries = _country_code_aliases(country_code)
+            if countries:
+                statement = statement.where(HbxDestinationRow.country_code.in_(countries))
             rows = list(session.scalars(statement.limit(2)))
         if len(rows) != 1:
             return None
@@ -133,3 +133,12 @@ def _normalize_name(value: str) -> str:
     decomposed = unicodedata.normalize("NFKD", value)
     ascii_value = "".join(char for char in decomposed if not unicodedata.combining(char))
     return re.sub(r"[^a-z0-9]+", " ", ascii_value.casefold()).strip()
+
+
+def _country_code_aliases(value: str | None) -> tuple[str, ...]:
+    country = (value or "").strip().upper()
+    if not country:
+        return ()
+    if country in {"GB", "UK"}:
+        return ("GB", "UK")
+    return (country,)

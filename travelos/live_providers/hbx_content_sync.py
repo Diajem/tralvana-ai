@@ -144,10 +144,33 @@ def _parse_destination_page(body: dict[str, Any]) -> tuple[list[HbxDestination],
         if not isinstance(item, dict):
             continue
         code = str(item.get("code") or "").strip()
-        name = str(item.get("name") or "").strip()
-        country_code = str(item.get("countryCode") or "").strip().upper()
+        name = _content_text(item.get("name"))
+        country_code = _normalize_country_code(item.get("countryCode"))
         if not code or not name or len(country_code) != 2:
             continue
         zones = item.get("zones") if isinstance(item.get("zones"), list) else []
         parsed.append(HbxDestination(code=code, name=name, country_code=country_code, zones=tuple(zones)))
     return parsed, total, len(raw_destinations)
+
+
+def _content_text(value: Any) -> str:
+    """Extract text from HBX Content API localized-content fields.
+
+    Destination names are returned as ``{"content": "London"}`` in the
+    live Content API, while older fixtures and some supplier responses use a
+    plain string.  Never persist the Python representation of the wrapper
+    object because it makes otherwise valid destinations impossible to
+    resolve later.
+    """
+
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, dict) and isinstance(value.get("content"), str):
+        return value["content"].strip()
+    return ""
+
+
+def _normalize_country_code(value: Any) -> str:
+    code = str(value or "").strip().upper()
+    # HBX uses UK in Content API data; Tralvana and ISO-3166 use GB.
+    return "GB" if code == "UK" else code

@@ -86,6 +86,31 @@ def test_content_sync_advances_past_invalid_supplier_rows():
     assert result.next_index == 3
 
 
+def test_content_sync_extracts_live_hbx_name_shape_and_normalizes_uk_code():
+    body = {
+        "destinations": [
+            {
+                "code": "LON",
+                "name": {"content": "London"},
+                "countryCode": "UK",
+                "zones": [],
+            }
+        ],
+        "total": 1,
+    }
+    catalog = InMemoryHbxDestinationCatalog()
+    transport = FakeTransport.always_returning(200, body)
+
+    result = HbxDestinationContentSync(transport, catalog).sync(page_size=1000, max_pages=1)
+
+    assert result.destinations_upserted == 1
+    destination = catalog.resolve("London, United Kingdom", "GB")
+    assert destination is not None
+    assert destination.code == "LON"
+    assert destination.name == "London"
+    assert destination.country_code == "GB"
+
+
 def test_content_sync_classifies_quota_failure():
     transport = FakeTransport.always_returning(429, {"error": {"message": "quota"}})
 
