@@ -1378,8 +1378,12 @@ class TripAssemblyEngine:
                         "recheck the rate and availability before booking."
                     )
                 elif self._is_sandbox_source(source):
+                    provider = {
+                        "DUFFEL_STAYS_SANDBOX": "Duffel Stays",
+                        "HBX_HOTELS_SANDBOX": "HBX Hotels",
+                    }.get(source, "Accommodation provider")
                     parts.append(
-                        f"Duffel Stays sandbox test data returned {name}, {stay_desc}; "
+                        f"{provider} sandbox test data returned {name}, {stay_desc}; "
                         "it is not available to book from this result."
                     )
                 else:
