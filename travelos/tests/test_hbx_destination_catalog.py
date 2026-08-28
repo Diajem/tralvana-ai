@@ -45,6 +45,26 @@ def test_sql_catalog_treats_hbx_uk_and_iso_gb_as_equivalent():
     engine.dispose()
 
 
+def test_catalog_resolves_legacy_serialized_hbx_content_name():
+    catalog = InMemoryHbxDestinationCatalog(
+        [HbxDestination(code="LON", name="{'content': 'London'}", country_code="UK")]
+    )
+
+    assert catalog.resolve("London, United Kingdom", "GB").code == "LON"
+
+
+def test_sql_catalog_resolves_legacy_serialized_hbx_content_name():
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    catalog = SqlAlchemyHbxDestinationCatalog(create_session_factory(engine))
+    catalog.upsert_many(
+        [HbxDestination(code="LON", name="{'content': 'London'}", country_code="UK")]
+    )
+
+    assert catalog.resolve("London, United Kingdom", "GB").code == "LON"
+    engine.dispose()
+
+
 def test_sql_catalog_upserts_and_updates_without_duplicates():
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
