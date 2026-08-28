@@ -31,3 +31,4 @@ class Capability(str, Enum):
     MAPS = "MAPS"
     CURRENCY = "CURRENCY"
     EVENTS = "EVENTS"
+    EXPERIENCES = "EXPERIENCES"

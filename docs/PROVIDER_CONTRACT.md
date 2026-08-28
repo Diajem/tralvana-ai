@@ -105,6 +105,6 @@ The gateway only selects providers whose `environment` matches
 ## Capabilities
 
 `FLIGHTS`, `ACCOMMODATION`, `DESTINATIONS`, `BUDGET`, `VISA`, `WEATHER`,
-`MAPS`, `CURRENCY`, `EVENTS` — one per current or future Discovery
+`MAPS`, `CURRENCY`, `EVENTS`, `EXPERIENCES` — one per current or future Discovery
 domain. See `docs/INTELLIGENCE_GATEWAY.md`'s Deferred Integrations
 section for which capabilities have a registered provider today.
