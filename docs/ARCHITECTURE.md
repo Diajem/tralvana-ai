@@ -173,6 +173,13 @@ ADR-040.
 
 **FLIGHTS and ACCOMMODATION have independently switchable live providers (T-038, T-039, T-076).** Flights use `DuffelFlightProvider`; accommodation can use `DuffelStaysProvider`, `HbxHotelsProvider`, or an explicit multi-supplier sandbox mode with HBX first and Duffel fallback. All use `HttpxTransport` and are selected through capability-specific configuration (`MOCK` by default); credentials alone never activate network calls. HBX destination codes resolve from the offline `hbx_destinations` catalogue rather than customer-path Content API calls. Accommodation search remains in the Intelligence Gateway, while provider-neutral check-rate, booking retrieval, confirmation and cancellation contracts sit outside discovery caching/retries. Public checkout remains disabled pending credential installation, live sandbox verification, persistence, servicing and certification. See `docs/HBX_HOTELS_INTEGRATION.md` and ADR-049.
 
+**EXPERIENCES is distinct from ticketed EVENTS (T-080).** It has a
+provider-neutral search, availability, hold, booking, voucher and cancellation
+lifecycle, but its Viator adapter foundation is deliberately unregistered and
+fail-closed. It contains no endpoints, credentials or transport until partner
+qualification selects the commercial model and certification path. See
+`docs/VIATOR_INTEGRATION_PREPARATION.md` and ADR-050.
+
 Accommodation's live path differs structurally from Flights': Duffel resolves a destination to coordinates through its Places API, while HBX resolves a city to a cached destination code. Both supplier vocabularies are absorbed by `AccommodationNormalizer`; missing static HBX content remains explicitly neutral rather than fabricated.
 
 **The AI Travel Planner (T-040) is now the primary user experience** — a traveller describes a trip in natural language via `POST /planner/plan` (`services/api/app/routers/planner.py`, backed by `apps/web/src/app/planner/page.tsx`) and receives one coherent, consultant-style itinerary. This reuses `travel_concierge.handle()`/`ConversationEngine.process()`/`TripBrain.plan()` entirely unchanged — the only new component is `ai/trip_brain/trip_assembly.py`'s `TripAssemblyEngine`, a second, separate caller of Trip Brain's own output (the same relationship `ConversationEngine` and `POST /explain` already have with it) that assembles an executive summary, per-module recommendations, a daily outline (reusing `ai/planning/itinerary_builder.py`, T-008 — not duplicated), risks, assumptions, confidence, and alternatives into one `TripItinerary`. See `docs/AI_TRAVEL_PLANNER.md` and `docs/ADR/ADR-026-trip-assembly-engine.md`. No module's score is ever recalculated by this layer.
