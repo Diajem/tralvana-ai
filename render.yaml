@@ -36,7 +36,7 @@ services:
       - key: TRALVANA_ACCOMMODATION_PROVIDER_MODE
         sync: false
       - key: TRALVANA_EVENT_PROVIDER_MODE
-        value: MOCK
+        sync: false
 
   - type: web
     name: tralvana-web

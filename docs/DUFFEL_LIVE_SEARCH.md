@@ -29,3 +29,14 @@ Successful search must return AVAILABLE and the expected live source. An access-
 ## Regression checks
 
 Production routing and provenance, separate bearer credentials, cross-environment rejection, empty overrides, the Duffel Stays data envelope, child ages and no booking requests are covered by `services/api/tests/test_duffel_production_search.py`.
+
+## Deployment checkpoint — 4 September 2026
+
+PR #79 is merged at `fa065ce` and both app.tralvana.com and its API deployed successfully. All 1,676 Python tests, Ruff, frontend lint/type checking and build passed. Live activation remains blocked: the cloud browser's Duffel Copy control did not populate its clipboard, so no usable live token was stored or live search verified. The blank dedicated token was removed; flights remain LIVE_SANDBOX using the existing token, accommodation remains HBX_SANDBOX, and the existing Ticketmaster LIVE setting is preserved. Booking/payment remains disabled.
+
+Observed Duffel organisation states after refresh:
+- Tralvana AI: live mode available; a token named `Tralvana AI production integration` exists.
+- Peter's Team: live-mode control requests billing details.
+- Tralvana AI Stays: live-mode control requests account activation.
+
+The user recalls Stays activation under Tralvana AI Stays and flights under Peter's Team. Confirm the actual product entitlement for each organisation; do not infer it from a team name or payment details. Next, enter the correct live token directly into Render's secret environment, enable that product's LIVE mode, deploy, and run the search-only verifier above. Never paste tokens into chat. Separate product credentials are supported.
