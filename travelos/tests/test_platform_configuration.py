@@ -181,7 +181,7 @@ def test_conversation_session_numeric_settings_reject_non_positive_values(
 @pytest.mark.parametrize(
     ("name", "valid", "invalid", "expected"),
     [
-        ("TRALVANA_FLIGHT_PROVIDER_MODE", "live_sandbox", "live", "LIVE_SANDBOX"),
+        ("TRALVANA_FLIGHT_PROVIDER_MODE", "live_sandbox", "unsupported", "LIVE_SANDBOX"),
         (
             "TRALVANA_ACCOMMODATION_PROVIDER_MODE",
             "live_sandbox",

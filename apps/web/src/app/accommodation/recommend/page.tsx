@@ -41,6 +41,11 @@ const DATA_SOURCE_LABELS: Record<string, { label: string; className: string; ban
     className: "bg-cyan-100 text-cyan-800",
     banner: "HBX Hotels sandbox data — test inventory only and not available for purchase.",
   },
+  DUFFEL_STAYS_LIVE: {
+    label: "Live hotel results",
+    className: "bg-emerald-100 text-emerald-800",
+    banner: "Current prices and availability. Booking is not yet enabled in Tralvana.",
+  },
   MOCK_FALLBACK: {
     label: "Mock fallback",
     className: "bg-amber-100 text-amber-700",

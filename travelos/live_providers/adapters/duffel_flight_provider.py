@@ -267,6 +267,7 @@ class DuffelFlightProvider(BaseLiveProvider):
                 else []
             ),
             source_metadata={
+                "environment": self.environment.value,
                 "provider_request_id": data.get("id", ""),
                 "raw_offer_count": len(offers),
                 "mapped_offer_count": len(options),

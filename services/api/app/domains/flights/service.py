@@ -40,7 +40,7 @@ class FlightIntelligenceService:
             destination = trip.get("destination") or destination
             duration_days = trip.get("duration_days") or duration_days
 
-        if config.flight_provider_mode == "LIVE_SANDBOX":
+        if config.flight_provider_mode != "MOCK":
             # Validate before any Duffel call is made (T-038, section 3) —
             # MOCK mode is intentionally exempt; see live_search_validator's
             # module docstring for why.

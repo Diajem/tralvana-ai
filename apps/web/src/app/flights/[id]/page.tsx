@@ -107,7 +107,9 @@ export default function FlightOptionPage() {
   };
 
   const sandboxBanner =
-    flight.data_source === "DUFFEL_SANDBOX"
+    flight.data_source === "DUFFEL_LIVE"
+      ? "Current prices and availability. Booking is not yet enabled in Tralvana."
+      : flight.data_source === "DUFFEL_SANDBOX"
       ? "Sandbox flight data — not available for purchase."
       : flight.data_source === "MOCK_FALLBACK"
         ? "Duffel sandbox was unavailable — showing mock fallback data, not real inventory."

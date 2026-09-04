@@ -65,7 +65,9 @@ export default async function AccommodationOptionPage({
   };
 
   const sandboxBanner =
-    accommodation.data_source === "DUFFEL_STAYS_SANDBOX"
+    accommodation.data_source === "DUFFEL_STAYS_LIVE"
+      ? "Current prices and availability. Booking is not yet enabled in Tralvana."
+      : accommodation.data_source === "DUFFEL_STAYS_SANDBOX"
       ? "Duffel Stays sandbox data — not available for purchase."
       : accommodation.data_source === "HBX_HOTELS_SANDBOX"
         ? "HBX Hotels sandbox data — test inventory only and not available for purchase."

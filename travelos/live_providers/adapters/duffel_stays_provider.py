@@ -127,6 +127,7 @@ class DuffelStaysProvider(BaseLiveProvider):
         Duffel needs check_out_date, not nights — computed here, the one
         exact, non-fabricated conversion between the two representations."""
         params = request.params
+        guests = _build_guests(params.get("adults", 1), params.get("children", 0), params.get("child_ages"))
         latitude, longitude = self._resolve_destination(params["destination"])
 
         nights = params.get("nights", 1)
@@ -151,16 +152,16 @@ class DuffelStaysProvider(BaseLiveProvider):
                 "Content-Type": "application/json",
                 "Accept": "application/json",
             },
-            json_body={
+            json_body={"data": {
                 "check_in_date": check_in_date,
                 "check_out_date": check_out_date,
                 "rooms": params.get("rooms", 1),
-                "guests": _build_guests(params.get("adults", 1), params.get("children", 0)),
+                "guests": guests,
                 "location": {
                     "geographic_coordinates": {"latitude": latitude, "longitude": longitude},
                     "radius": self._search_radius_km,
                 },
-            },
+            }},
             timeout_seconds=config.provider_http_timeout_seconds,
         )
 
@@ -215,6 +216,7 @@ class DuffelStaysProvider(BaseLiveProvider):
                 else []
             ),
             source_metadata={
+                "environment": self.environment.value,
                 "raw_result_count": len(results),
                 "mapped_result_count": len(options),
             },
@@ -403,9 +405,12 @@ def register_duffel_stays_provider(
     return provider
 
 
-def _build_guests(adults: int, children: int) -> list[dict[str, Any]]:
+def _build_guests(adults: int, children: int, child_ages: list[int] | None = None) -> list[dict[str, Any]]:
+    ages = list(child_ages or [])
+    if children != len(ages) or any(type(age) is not int or not 0 <= age <= 17 for age in ages):
+        raise ProviderValidationError("One age between 0 and 17 is required for every child.")
     guests: list[dict[str, Any]] = [{"type": "adult"} for _ in range(max(adults, 1))]
-    guests.extend({"type": "child"} for _ in range(max(children, 0)))
+    guests.extend({"type": "child", "age": age} for age in ages)
     return guests
 
 

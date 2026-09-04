@@ -19,7 +19,7 @@ from __future__ import annotations
 from travelos.config.configuration_manager import config
 from travelos.intelligence_gateway.provider_registry import ProviderRegistry, provider_registry
 from travelos.intelligence_gateway.provider_status import Capability, ProviderEnvironment
-from travelos.intelligence_gateway.secret_reference import SecretReference
+from travelos.live_providers.duffel_credentials import duffel_token_variable
 from travelos.live_providers.adapters.duffel_flight_provider import register_duffel_flight_provider
 from travelos.live_providers.httpx_transport import HttpxTransport
 from travelos.logging.travel_logger import TravelLogger
@@ -30,12 +30,7 @@ DUFFEL_TOKEN_ENV_VAR = "DUFFEL_API_TOKEN"
 
 
 class FlightProviderMisconfiguredError(RuntimeError):
-    """Raised at startup — never at request time — when
-    TRALVANA_FLIGHT_PROVIDER_MODE=LIVE_SANDBOX but DUFFEL_API_TOKEN isn't
-    set. Fails the application process immediately rather than starting
-    in a mode that can never actually serve a live search — "require
-    DUFFEL_API_TOKEN" (T-038, section 1) is enforced here, once, instead
-    of being rediscovered as a per-request MISCONFIGURED health check."""
+    """Raised at startup when the selected Duffel mode has no matching token."""
 
 
 def configure_flight_provider(registry: ProviderRegistry | None = None) -> None:
@@ -43,23 +38,22 @@ def configure_flight_provider(registry: ProviderRegistry | None = None) -> None:
     once at process startup. In MOCK mode (the default) this is a no-op:
     no Transport is constructed, no provider is registered, no
     credential is required, matching "make no network calls" literally.
-    In LIVE_SANDBOX mode, constructs one shared `HttpxTransport` and
+    In LIVE or LIVE_SANDBOX mode, constructs one shared `HttpxTransport` and
     registers `DuffelFlightProvider` — selection between it and the
     existing mock flight provider is still entirely the Intelligence
     Gateway's job (see `travelos/intelligence_gateway/gateway.py`'s
     per-capability environment resolution), not this function's."""
     target = registry or provider_registry
 
-    if config.flight_provider_mode != "LIVE_SANDBOX":
+    if config.flight_provider_mode == "MOCK":
         _logger.info("Flight provider mode is MOCK — Duffel not registered", mode=config.flight_provider_mode)
         return
 
-    token = SecretReference(env_var=DUFFEL_TOKEN_ENV_VAR, required=True, description="Duffel sandbox token")
-    if not token.is_present():
-        raise FlightProviderMisconfiguredError(
-            "TRALVANA_FLIGHT_PROVIDER_MODE=LIVE_SANDBOX requires DUFFEL_API_TOKEN to be set. "
-            "See docs/LIVE_FLIGHT_SEARCH.md."
-        )
+    live = config.flight_provider_mode == "LIVE"
+    try:
+        token_env_var = duffel_token_variable("flights", live)
+    except ValueError as exc:
+        raise FlightProviderMisconfiguredError(str(exc)) from None
 
     already_registered = any(
         p.provider_name == "duffel_flight_provider" for p in target.get_providers(Capability.FLIGHTS)
@@ -69,5 +63,8 @@ def configure_flight_provider(registry: ProviderRegistry | None = None) -> None:
         return
 
     transport = HttpxTransport()
-    register_duffel_flight_provider(transport=transport, registry=target, environment=ProviderEnvironment.SANDBOX)
-    _logger.info("Duffel flight provider registered for LIVE_SANDBOX mode")
+    register_duffel_flight_provider(
+        transport=transport, registry=target, token_env_var=token_env_var,
+        environment=ProviderEnvironment.PRODUCTION if live else ProviderEnvironment.SANDBOX,
+    )
+    _logger.info("Duffel flight provider registered", mode=config.flight_provider_mode)
