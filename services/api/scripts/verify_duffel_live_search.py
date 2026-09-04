@@ -5,6 +5,7 @@ from datetime import date, timedelta
 import json
 from pathlib import Path
 import sys
+from urllib.parse import urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
@@ -27,9 +28,13 @@ class SearchTransport(HttpxTransport):
         self.error_codes = []
 
     def send(self, request):
-        if not (request.url.endswith("/air/offer_requests")
-                or request.url.endswith("/places/suggestions")
-                or request.url.endswith("/stays/search")):
+        url = urlsplit(request.url)
+        if (url.scheme != "https" or url.netloc != "api.duffel.com"
+                or (request.method, url.path) not in {
+                    ("POST", "/air/offer_requests"),
+                    ("GET", "/places/suggestions"),
+                    ("POST", "/stays/search"),
+                }):
             raise ValueError("Only search endpoints are allowed by this verifier")
         result = super().send(request)
         self.statuses.append(result.status_code)
