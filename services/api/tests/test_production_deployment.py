@@ -47,10 +47,15 @@ def test_render_blueprint_uses_dedicated_app_domain_and_safe_provider_modes():
         for item in services["tralvana-api"]["envVars"]
         if "key" in item
     }
+    supplier_modes = {
+        item["key"]: item
+        for item in services["tralvana-api"]["envVars"]
+        if item["key"] in {"TRALVANA_FLIGHT_PROVIDER_MODE", "TRALVANA_ACCOMMODATION_PROVIDER_MODE"}
+    }
+    assert len(supplier_modes) == 2
+    assert all(item.get("sync") is False and "value" not in item for item in supplier_modes.values())
     assert api_environment["TRALVANA_PROVIDER_ENVIRONMENT"] == "MOCK"
-    assert api_environment["TRALVANA_FLIGHT_PROVIDER_MODE"] == "LIVE_SANDBOX"
     assert api_environment["TRALVANA_FLIGHT_MOCK_FALLBACK_ENABLED"] == "false"
-    assert api_environment["TRALVANA_ACCOMMODATION_PROVIDER_MODE"] == "MOCK"
     assert api_environment["TRALVANA_EVENT_PROVIDER_MODE"] == "MOCK"
     assert api_environment["TRALVANA_AUTH_MODE"] == "CLERK"
     assert api_environment["CLERK_AUTHORIZED_PARTIES"] == "https://app.tralvana.com"
