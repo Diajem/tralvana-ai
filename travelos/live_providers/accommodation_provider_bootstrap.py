@@ -13,6 +13,7 @@ from travelos.live_providers.hbx_destination_catalog import (
     build_hbx_destination_catalog,
 )
 from travelos.live_providers.httpx_transport import HttpxTransport
+from travelos.live_providers.duffel_credentials import duffel_token_variable
 from travelos.live_providers.transport import Transport
 from travelos.logging.travel_logger import TravelLogger
 
@@ -38,13 +39,15 @@ def configure_accommodation_provider(
         _logger.info("Accommodation provider mode is MOCK — no live supplier registered", mode=mode)
         return
 
-    wants_duffel = mode in {"LIVE_SANDBOX", "DUFFEL_SANDBOX", "MULTI_SANDBOX"}
+    wants_duffel = mode in {"LIVE_SANDBOX", "DUFFEL_SANDBOX", "MULTI_SANDBOX", "LIVE"}
     wants_hbx = mode in {"HBX_SANDBOX", "MULTI_SANDBOX"}
 
-    if wants_duffel and not SecretReference(DUFFEL_TOKEN_ENV_VAR).is_present():
-        raise AccommodationProviderMisconfiguredError(
-            f"TRALVANA_ACCOMMODATION_PROVIDER_MODE={mode} requires {DUFFEL_TOKEN_ENV_VAR}."
-        )
+    duffel_token_env = DUFFEL_TOKEN_ENV_VAR
+    if wants_duffel:
+        try:
+            duffel_token_env = duffel_token_variable("stays", mode == "LIVE")
+        except ValueError as exc:
+            raise AccommodationProviderMisconfiguredError(str(exc)) from None
     if wants_hbx:
         missing = [
             name
@@ -81,7 +84,8 @@ def configure_accommodation_provider(
         register_duffel_stays_provider(
             transport=provider_transport,
             registry=target,
-            environment=ProviderEnvironment.SANDBOX,
+            environment=ProviderEnvironment.PRODUCTION if mode == "LIVE" else ProviderEnvironment.SANDBOX,
+            token_env_var=duffel_token_env,
             priority=20 if wants_hbx else 10,
         )
-        _logger.info("Duffel Stays provider registered for sandbox mode")
+        _logger.info("Duffel Stays provider registered", mode=mode)

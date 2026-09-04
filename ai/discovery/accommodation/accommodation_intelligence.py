@@ -137,6 +137,8 @@ class AccommodationIntelligence:
                 "Accommodation data is from Duffel Stays' SANDBOX test environment — "
                 "real property shapes and pricing, but not available for purchase (T-039)."
             )
+        elif source["data_source"] == "DUFFEL_STAYS_LIVE":
+            assumptions.append("Current accommodation rates were retrieved from Duffel Stays. Prices and availability may change; no booking has been made.")
         elif source["data_source"] == "HBX_HOTELS_SANDBOX":
             assumptions.append(
                 "Accommodation rates and availability are from HBX's evaluation environment — "
@@ -187,7 +189,10 @@ class AccommodationIntelligence:
         if getattr(self._provider, "used_mock_fallback", False):
             data_source = "MOCK_FALLBACK"
         elif last_result.provider_name == "duffel_stays_provider":
-            data_source = "DUFFEL_STAYS_SANDBOX"
+            data_source = (
+                "DUFFEL_STAYS_LIVE" if last_result.source_metadata.get("environment") == "PRODUCTION"
+                else "DUFFEL_STAYS_SANDBOX"
+            )
         elif last_result.provider_name == "hbx_hotels_provider":
             data_source = "HBX_HOTELS_SANDBOX"
         else:
@@ -303,6 +308,8 @@ class AccommodationIntelligence:
             actions.append("Consider travel insurance for non-refundable bookings.")
         if data_source in {"DUFFEL_STAYS_SANDBOX", "HBX_HOTELS_SANDBOX"}:
             actions.append("Sandbox availability was checked, but test inventory cannot be purchased.")
+        elif data_source == "DUFFEL_STAYS_LIVE":
+            actions.append("Live availability was checked. Confirm the rate and cancellation terms before booking.")
         else:
             actions.append("Live availability has not been checked — rates are indicative only.")
         return actions

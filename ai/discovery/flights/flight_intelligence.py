@@ -313,9 +313,11 @@ class FlightIntelligence:
                 "Flight data is from Duffel's SANDBOX test environment — real airline "
                 "schedules and pricing shapes, but not available for purchase (T-038)."
             )
+        elif source["data_source"] == "DUFFEL_LIVE":
+            assumptions.append("Current flight offers were retrieved from Duffel. Prices and availability may change; no booking has been made.")
         elif source["data_source"] == "MOCK_FALLBACK":
             assumptions.append(
-                "Duffel sandbox was unavailable for this search — showing mock fallback "
+                "Duffel was unavailable for this search — showing mock fallback "
                 "data, not real airline inventory."
             )
         else:
@@ -333,7 +335,7 @@ class FlightIntelligence:
         return {
             "flight_options": ranked,
             "assumptions": assumptions,
-            "next_actions": self._next_actions(ranked),
+            "next_actions": self._next_actions(ranked, source["data_source"]),
             "recommended_agents": ["flight_agent"],
             "summary": self._summary(origin, destination, ranked),
             "results_count": len(ranked),
@@ -354,7 +356,10 @@ class FlightIntelligence:
         if getattr(self._provider, "used_mock_fallback", False):
             data_source = "MOCK_FALLBACK"
         elif last_result.provider_name == "duffel_flight_provider":
-            data_source = "DUFFEL_SANDBOX"
+            data_source = (
+                "DUFFEL_LIVE" if last_result.source_metadata.get("environment") == "PRODUCTION"
+                else "DUFFEL_SANDBOX"
+            )
         else:
             data_source = "MOCK"
 
@@ -453,7 +458,7 @@ class FlightIntelligence:
         for i, f in enumerate(ranked):
             f["recommendation_type"] = labeled[i]
 
-    def _next_actions(self, ranked: list[dict[str, Any]]) -> list[str]:
+    def _next_actions(self, ranked: list[dict[str, Any]], data_source: str = "MOCK") -> list[str]:
         actions = [
             "Confirm exact travel dates for accurate pricing.",
             "Compare baggage policies before booking.",
@@ -461,7 +466,10 @@ class FlightIntelligence:
         ]
         if any(f["refundability"] == "non_refundable" for f in ranked):
             actions.append("Consider travel insurance for non-refundable fares.")
-        actions.append("Live availability has not been checked — fares are indicative only.")
+        if data_source == "DUFFEL_LIVE":
+            actions.append("Live availability was checked. Reconfirm the fare before booking.")
+        else:
+            actions.append("Live availability has not been checked — fares are indicative only.")
         return actions
 
     def _summary(self, origin: str, destination: str, ranked: list[dict[str, Any]]) -> str:

@@ -208,17 +208,17 @@ class ConfigurationManager:
 
     @property
     def flight_provider_mode(self) -> str:
-        """MOCK / LIVE_SANDBOX. Defaults to MOCK, and only ever changes on
-        an explicit TRALVANA_FLIGHT_PROVIDER_MODE=LIVE_SANDBOX — never
+        """MOCK / LIVE_SANDBOX / LIVE. Defaults to MOCK and requires an
+        explicit TRALVANA_FLIGHT_PROVIDER_MODE setting — never
         inferred from DUFFEL_API_TOKEN's mere presence. An unrecognised
         value falls back to MOCK rather than failing open into a live
         vendor call."""
         raw = os.environ.get("TRALVANA_FLIGHT_PROVIDER_MODE", "MOCK").strip().upper()
-        return raw if raw in ("MOCK", "LIVE_SANDBOX") else "MOCK"
+        return raw if raw in ("MOCK", "LIVE_SANDBOX", "LIVE") else "MOCK"
 
     @property
     def flight_mock_fallback_enabled(self) -> bool:
-        """When True, a failed LIVE_SANDBOX flight search falls back to
+        """When True, a failed live flight search falls back to
         mock data (clearly labelled `data_source: MOCK_FALLBACK`) instead
         of returning an error. False (the safe default) means a live
         failure is reported as an error, never silently masked."""
@@ -235,17 +235,18 @@ class ConfigurationManager:
     def accommodation_provider_mode(self) -> str:
         """Provider-neutral accommodation mode.
 
-        ``LIVE_SANDBOX`` remains a backwards-compatible alias for Duffel.
+        ``LIVE`` selects production Duffel Stays. ``LIVE_SANDBOX``
+        remains a backwards-compatible alias for Duffel sandbox.
         HBX and multi-supplier modes are always explicit and credentials
         alone never enable a network call.
         """
         raw = os.environ.get("TRALVANA_ACCOMMODATION_PROVIDER_MODE", "MOCK").strip().upper()
-        allowed = {"MOCK", "LIVE_SANDBOX", "DUFFEL_SANDBOX", "HBX_SANDBOX", "MULTI_SANDBOX"}
+        allowed = {"MOCK", "LIVE_SANDBOX", "DUFFEL_SANDBOX", "HBX_SANDBOX", "MULTI_SANDBOX", "LIVE"}
         return raw if raw in allowed else "MOCK"
 
     @property
     def accommodation_mock_fallback_enabled(self) -> bool:
-        """When True, a failed LIVE_SANDBOX accommodation search falls
+        """When True, a failed live accommodation search falls
         back to mock data (labelled `data_source: MOCK_FALLBACK`) instead
         of returning an error. False (the safe default) means a live
         failure is reported as an error, never silently masked."""

@@ -249,7 +249,7 @@ class GatewayFlightProvider:
 
         from travelos.config.configuration_manager import config
 
-        if config.flight_provider_mode != "LIVE_SANDBOX":
+        if config.flight_provider_mode == "MOCK":
             # MOCK mode's own provider effectively never fails this way —
             # preserve the pre-T-038 behaviour of a quiet empty list.
             return []
@@ -268,7 +268,7 @@ class GatewayFlightProvider:
             )
 
         raise LiveFlightSearchUnavailableError(
-            "Duffel sandbox flight search is unavailable "
+            "Duffel flight search is unavailable "
             f"(provider_status={result.status.value}); "
             "set TRALVANA_FLIGHT_MOCK_FALLBACK_ENABLED=true to fall back to mock data instead."
         )
@@ -341,7 +341,7 @@ class GatewayAccommodationProvider:
             )
 
         raise LiveAccommodationSearchUnavailableError(
-            "Live accommodation sandbox search is unavailable "
+            "Live accommodation search is unavailable "
             f"(provider_status={result.status.value}); "
             "set TRALVANA_ACCOMMODATION_MOCK_FALLBACK_ENABLED=true to fall back to mock data instead."
         )

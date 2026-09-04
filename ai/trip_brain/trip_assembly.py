@@ -1740,7 +1740,7 @@ class TripAssemblyEngine:
         `_provider_notice`; a provider cannot become "live" merely because
         its name contains a vendor brand.
         """
-        return source in {"LIVE", "LIVE_PROVIDER", "PRODUCTION", "PRODUCTION_PROVIDER"}
+        return source in {"LIVE", "LIVE_PROVIDER", "PRODUCTION", "PRODUCTION_PROVIDER", "DUFFEL_LIVE", "DUFFEL_STAYS_LIVE"}
 
     @staticmethod
     def _is_sandbox_source(source: str) -> bool:

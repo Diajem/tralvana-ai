@@ -38,7 +38,7 @@ export interface FlightOption {
   data_source: FlightDataSource;
 }
 
-export type FlightDataSource = "MOCK" | "DUFFEL_SANDBOX" | "MOCK_FALLBACK";
+export type FlightDataSource = "MOCK" | "DUFFEL_SANDBOX" | "DUFFEL_LIVE" | "MOCK_FALLBACK";
 
 export interface FlightRecommendationResponse {
   traveller_id: string | null;

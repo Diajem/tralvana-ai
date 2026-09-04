@@ -26,6 +26,11 @@ const DATA_SOURCE_LABELS: Record<string, { label: string; className: string; ban
     className: "bg-sky-100 text-sky-700",
     banner: "Sandbox flight data — not available for purchase.",
   },
+  DUFFEL_LIVE: {
+    label: "Live flight results",
+    className: "bg-emerald-100 text-emerald-800",
+    banner: "Current prices and availability. Booking is not yet enabled in Tralvana.",
+  },
   MOCK_FALLBACK: {
     label: "Mock fallback",
     className: "bg-amber-100 text-amber-700",

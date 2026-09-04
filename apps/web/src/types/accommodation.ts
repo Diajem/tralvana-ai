@@ -21,6 +21,7 @@ export type RecommendationType =
 export type AccommodationDataSource =
   | "MOCK"
   | "DUFFEL_STAYS_SANDBOX"
+  | "DUFFEL_STAYS_LIVE"
   | "HBX_HOTELS_SANDBOX"
   | "MOCK_FALLBACK";
 

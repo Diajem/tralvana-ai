@@ -30,11 +30,11 @@ services:
       - key: TRALVANA_PROVIDER_ENVIRONMENT
         value: MOCK
       - key: TRALVANA_FLIGHT_PROVIDER_MODE
-        value: LIVE_SANDBOX
+        sync: false
       - key: TRALVANA_FLIGHT_MOCK_FALLBACK_ENABLED
         value: "false"
       - key: TRALVANA_ACCOMMODATION_PROVIDER_MODE
-        value: MOCK
+        sync: false
       - key: TRALVANA_EVENT_PROVIDER_MODE
         value: MOCK
 

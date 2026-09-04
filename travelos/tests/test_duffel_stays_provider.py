@@ -139,7 +139,7 @@ class TestDestinationResolution:
         assert places_request.query_params["query"] == "Tokyo"
 
         search_request = transport.sent_requests[1]
-        location = search_request.json_body["location"]["geographic_coordinates"]
+        location = search_request.json_body["data"]["location"]["geographic_coordinates"]
         # City coordinates (35.6762), not the airport's (35.5494).
         assert location["latitude"] == 35.6762
         assert location["longitude"] == 139.6503
@@ -155,7 +155,7 @@ class TestDestinationResolution:
         transport = FakeTransport(responder=responder)
         provider = DuffelStaysProvider(transport=transport)
         provider.execute(_req())
-        location = transport.sent_requests[1].json_body["location"]["geographic_coordinates"]
+        location = transport.sent_requests[1].json_body["data"]["location"]["geographic_coordinates"]
         assert location["latitude"] == 35.5494
 
     def test_city_place_missing_coordinates_falls_back_to_a_geocoded_airport(self, monkeypatch):
@@ -177,7 +177,7 @@ class TestDestinationResolution:
         transport = FakeTransport(responder=responder)
         provider = DuffelStaysProvider(transport=transport)
         provider.execute(_req())
-        location = transport.sent_requests[1].json_body["location"]["geographic_coordinates"]
+        location = transport.sent_requests[1].json_body["data"]["location"]["geographic_coordinates"]
         assert location["latitude"] == 35.5494
         assert location["longitude"] == 139.7798
 
@@ -221,7 +221,7 @@ class TestRequestMapping:
         transport = FakeTransport(responder=_places_and_search_responder(search_body=_search_body(_DIRECT_RESULT)))
         provider = DuffelStaysProvider(transport=transport)
         provider.execute(_req(check_in_date="2026-10-01", nights=3))
-        body = transport.sent_requests[1].json_body
+        body = transport.sent_requests[1].json_body["data"]
         assert body["check_in_date"] == "2026-10-01"
         assert body["check_out_date"] == "2026-10-04"
 
@@ -229,17 +229,17 @@ class TestRequestMapping:
         monkeypatch.setenv(_ENV_VAR, "duffel_test_abc123")
         transport = FakeTransport(responder=_places_and_search_responder(search_body=_search_body(_DIRECT_RESULT)))
         provider = DuffelStaysProvider(transport=transport)
-        provider.execute(_req(adults=2, children=1, rooms=2))
-        body = transport.sent_requests[1].json_body
+        provider.execute(_req(adults=2, children=1, child_ages=[7], rooms=2))
+        body = transport.sent_requests[1].json_body["data"]
         assert body["rooms"] == 2
-        assert body["guests"] == [{"type": "adult"}, {"type": "adult"}, {"type": "child"}]
+        assert body["guests"] == [{"type": "adult"}, {"type": "adult"}, {"type": "child", "age": 7}]
 
     def test_radius_included_and_configurable(self, monkeypatch):
         monkeypatch.setenv(_ENV_VAR, "duffel_test_abc123")
         transport = FakeTransport(responder=_places_and_search_responder(search_body=_search_body(_DIRECT_RESULT)))
         provider = DuffelStaysProvider(transport=transport, search_radius_km=25.0)
         provider.execute(_req())
-        body = transport.sent_requests[1].json_body
+        body = transport.sent_requests[1].json_body["data"]
         assert body["location"]["radius"] == 25.0
 
     def test_search_request_has_no_auth_header_of_its_own(self, monkeypatch):
