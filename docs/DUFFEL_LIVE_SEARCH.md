@@ -18,8 +18,8 @@ Duffel must enable the relevant product for the credential's organisation. Compl
 Run from the deployed repository with the corresponding live mode and token configured:
 
 ```sh
-python scripts/verify_duffel_live_search.py --product flights
-python scripts/verify_duffel_live_search.py --product stays
+python services/api/scripts/verify_duffel_live_search.py --product flights
+python services/api/scripts/verify_duffel_live_search.py --product stays
 ```
 
 The verifier only allows offer requests, place suggestions and Stays searches. It reports status codes, provider error codes, result counts and limited offer fields without credentials. It never calls order, booking or payment endpoints. Stays verifies a London family stay with a child's age.
