@@ -328,6 +328,13 @@ class TestEntityExtraction:
         result = classifier.classify("I'm going to Tokyo")
         assert result.entities.get("destination") == "Tokyo"
 
+    def test_destination_stops_at_sentence_boundary_in_refinement(self, classifier):
+        result = classifier.classify(
+            "Refresh live flights from London Heathrow to New York City. "
+            "Keep all dates and travellers unchanged."
+        )
+        assert result.entities.get("destination") == "New York City"
+
     def test_extracts_date_hint_month(self, classifier):
         result = classifier.classify("I want to go to Paris in october")
         assert result.entities.get("date_hint") == "in october"
