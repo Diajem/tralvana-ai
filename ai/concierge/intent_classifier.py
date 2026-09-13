@@ -893,7 +893,10 @@ class IntentClassifier:
                         if word in stop_words:
                             break
                         candidate_words.append(word)
-                    candidate = " ".join(candidate_words).strip(".,?!")
+                    candidate = " ".join(candidate_words)
+                    candidate = re.split(
+                        r"[?!,;]|(?<!\bst)\.(?=\s|$)", candidate, maxsplit=1
+                    )[0].strip(".,?!")
                     invalid_candidates = (
                         "the", "my", "a", "an", "be", "me", "do", "go", "is", "stay",
                         "visit", "travel", "plan", "fly", "book", "see", "explore",
@@ -929,7 +932,10 @@ class IntentClassifier:
                         if word in stop_words:
                             break
                         candidate_words.append(word)
-                    candidate = " ".join(candidate_words).strip(".,?!")
+                    candidate = " ".join(candidate_words)
+                    candidate = re.split(
+                        r"[?!,;]|(?<!\bst)\.(?=\s|$)", candidate, maxsplit=1
+                    )[0].strip(".,?!")
                     if len(candidate) > 2 and candidate not in (
                         "the", "my", "a", "an", "be", "me", "do", "go", "is", "stay", "visit",
                         "city centre", "the city centre", "city center", "the city center",
