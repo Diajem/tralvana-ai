@@ -211,6 +211,12 @@ class DuffelFlightProvider(BaseLiveProvider):
             None,
         )
         match = city or airport
+        # Duffel's production Places API currently returns no suggestion for
+        # common names ending in "City" (for example "New York City"), while
+        # the base place name ("New York") resolves normally.  Retry only
+        # that narrow, deterministic normalization before reporting failure.
+        if not match and re.search(r"\s+city$", place, flags=re.IGNORECASE):
+            return self._resolve_place(re.sub(r"\s+city$", "", place, flags=re.IGNORECASE))
         if not match:
             raise ProviderValidationError(
                 f"{self.provider_name}: could not resolve {value!r} to a Duffel city or airport"
