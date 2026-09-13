@@ -133,7 +133,7 @@ class TestRequestMapping:
 
         sent = transport.sent_requests[0]
         assert sent.method == "POST"
-        assert sent.url == "https://api.duffel.com/air/offer_requests?return_offers=true"
+        assert sent.url == "https://api.duffel.com/air/offer_requests?return_offers=false"
         assert sent.headers["Duffel-Version"] == "v2"
         assert sent.json_body["data"]["slices"] == [
             {"origin": "LHR", "destination": "JFK", "departure_date": "2026-10-01"}
@@ -257,6 +257,35 @@ class TestRequestMapping:
         provider = DuffelFlightProvider(transport=FakeTransport())
         transport_request = provider.build_request(_req())
         assert "Authorization" not in transport_request.headers
+
+    def test_fetches_one_bounded_sorted_offer_page(self, monkeypatch):
+        monkeypatch.setenv(_ENV_VAR, "duffel_test_abc123")
+
+        def responder(request):
+            if request.url.endswith("/air/offer_requests?return_offers=false"):
+                return TransportResponse(
+                    status_code=201,
+                    body={"data": {"id": "orq_bounded"}},
+                )
+            if request.url.endswith("/air/offers"):
+                return TransportResponse(status_code=200, body={"data": [_DIRECT_OFFER]})
+            raise AssertionError(f"Unexpected request: {request.url}")
+
+        transport = FakeTransport(responder=responder)
+        provider = DuffelFlightProvider(transport=transport)
+        result = provider.execute(_req())
+
+        assert result.status == ProviderStatus.AVAILABLE
+        assert len(result.data) == 1
+        offers_request = transport.sent_requests[1]
+        assert offers_request.method == "GET"
+        assert offers_request.query_params == {
+            "offer_request_id": "orq_bounded",
+            "limit": "50",
+            "sort": "total_amount",
+            "max_connections": "1",
+        }
+        assert offers_request.headers["Authorization"] == "Bearer duffel_test_abc123"
 
 
 class TestResponseMapping:

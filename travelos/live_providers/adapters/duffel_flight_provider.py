@@ -44,6 +44,7 @@ from travelos.live_providers.transport import Transport, TransportRequest, Trans
 
 _DUFFEL_BASE_URL = "https://api.duffel.com"
 _DUFFEL_API_VERSION = "v2"
+_DUFFEL_OFFER_PAGE_SIZE = 50
 
 # Internal cabin_class <-> Duffel cabin_class. Duffel also supports
 # "premium_economy", which has no internal equivalent (the Discovery
@@ -134,7 +135,12 @@ class DuffelFlightProvider(BaseLiveProvider):
 
         return TransportRequest(
             method="POST",
-            url=f"{_DUFFEL_BASE_URL}/air/offer_requests?return_offers=true",
+            # Do not embed every airline offer in this response.  A busy
+            # route can return hundreds of deeply nested offers and exceed a
+            # small API instance's memory limit before Tralvana has a chance
+            # to rank them.  Duffel recommends the separate List Offers
+            # endpoint when pagination, sorting, or filtering is required.
+            url=f"{_DUFFEL_BASE_URL}/air/offer_requests?return_offers=false",
             headers={
                 "Duffel-Version": _DUFFEL_API_VERSION,
                 "Content-Type": "application/json",
@@ -234,10 +240,48 @@ class DuffelFlightProvider(BaseLiveProvider):
             raise ProviderResponseError(f"{self.provider_name}: response missing 'data'")
 
         data = body["data"]
-        if not isinstance(data, dict) or "offers" not in data:
-            raise ProviderResponseError(f"{self.provider_name}: response missing 'data.offers'")
+        if not isinstance(data, dict):
+            raise ProviderResponseError(f"{self.provider_name}: response 'data' is not an object")
 
-        offers = data["offers"]
+        # Older recorded fixtures and provider responses may already include
+        # offers.  Production searches intentionally request only the compact
+        # offer-request resource, then fetch one bounded, price-sorted page.
+        if "offers" not in data:
+            offer_request_id = data.get("id")
+            if not isinstance(offer_request_id, str) or not offer_request_id:
+                raise ProviderResponseError(
+                    f"{self.provider_name}: response missing offer request id"
+                )
+            offers_response = self.send_request(
+                TransportRequest(
+                    method="GET",
+                    url=f"{_DUFFEL_BASE_URL}/air/offers",
+                    headers={
+                        **self.authenticate(),
+                        "Duffel-Version": _DUFFEL_API_VERSION,
+                        "Accept": "application/json",
+                    },
+                    query_params={
+                        "offer_request_id": offer_request_id,
+                        "limit": str(_DUFFEL_OFFER_PAGE_SIZE),
+                        "sort": "total_amount",
+                        "max_connections": "1",
+                    },
+                    timeout_seconds=10.0,
+                )
+            )
+            self._check_response_status(offers_response)
+            offers_body = offers_response.body
+            if not isinstance(offers_body, dict) or not isinstance(
+                offers_body.get("data"), list
+            ):
+                raise ProviderResponseError(
+                    f"{self.provider_name}: offers list returned an unexpected shape"
+                )
+            offers = offers_body["data"]
+        else:
+            offers = data["offers"]
+
         if not isinstance(offers, list):
             raise ProviderResponseError(f"{self.provider_name}: 'data.offers' is not a list")
 
