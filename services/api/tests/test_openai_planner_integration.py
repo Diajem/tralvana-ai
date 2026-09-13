@@ -17,7 +17,7 @@ FLORIDA_REQUEST = (
     "trip and would love to stay in a family-friendly hotel. We would like to know "
     "our baggage allowance and a proper plan for the holiday. Maybe a water park "
     "or water showplace for the kids and a visit to historical places for us as a "
-    "family. Traveling out on the 10 of September and would like to spend 10 full "
+    "family. Traveling out on the 10 of September 2026 and would like to spend 10 full "
     "days in Florida."
 )
 
@@ -45,8 +45,7 @@ class _FloridaTripIntelligence:
                 "departure_day": "10",
                 "date_hint": "10 September 2026",
                 "date_precision": "EXACT",
-                "date_year_inferred": "true",
-                "date_inference_note": "Year not supplied; using 2026.",
+                "date_year_explicit": "true",
                 "adults": "2",
                 "children": "3",
                 "infants": "0",
