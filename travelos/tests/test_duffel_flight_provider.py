@@ -212,6 +212,39 @@ class TestRequestMapping:
         }
         assert len(transport.sent_requests) == 3
 
+    def test_city_suffix_is_retried_when_duffel_returns_no_suggestions(self, monkeypatch):
+        monkeypatch.setenv(_ENV_VAR, "duffel_test_abc123")
+
+        def responder(request):
+            if request.url.endswith("/places/suggestions"):
+                query = request.query_params["query"]
+                places = {
+                    "London Heathrow": [
+                        {"type": "airport", "name": "Heathrow Airport", "iata_code": "LHR"}
+                    ],
+                    "New York City": [],
+                    "New York": [
+                        {"type": "city", "name": "New York", "iata_code": "NYC"}
+                    ],
+                }[query]
+                return TransportResponse(status_code=200, body={"data": places})
+            return TransportResponse(status_code=200, body=_offer_request_body(_DIRECT_OFFER))
+
+        transport = FakeTransport(responder=responder)
+        provider = DuffelFlightProvider(transport=transport)
+        provider.execute(_req(origin="London Heathrow", destination="New York City"))
+
+        offer_request = transport.sent_requests[-1]
+        assert offer_request.json_body["data"]["slices"][0] == {
+            "origin": "LHR",
+            "destination": "NYC",
+            "departure_date": "2026-10-01",
+        }
+        assert [
+            request.query_params["query"]
+            for request in transport.sent_requests[:-1]
+        ] == ["London Heathrow", "New York City", "New York"]
+
     def test_auth_header_merged_as_bearer_token(self, monkeypatch):
         monkeypatch.setenv(_ENV_VAR, "duffel_test_my-secret-token")
         transport = FakeTransport.always_returning(status_code=200, body=_offer_request_body(_DIRECT_OFFER))
