@@ -331,7 +331,10 @@ class OpenAITripIntelligence:
             return None
 
         try:
-            timeout = float(os.environ.get("TRALVANA_OPENAI_TIMEOUT_SECONDS", "15"))
+            # Full itinerary adaptation is a larger structured response than
+            # intent extraction.  Fifteen seconds proved too short in the
+            # production planner even when the OpenAI request succeeded.
+            timeout = float(os.environ.get("TRALVANA_OPENAI_TIMEOUT_SECONDS", "30"))
             model = os.environ.get("TRALVANA_OPENAI_MODEL", "gpt-5.6").strip()
             client = AsyncOpenAI(
                 api_key=api_key,

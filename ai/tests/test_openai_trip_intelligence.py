@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 from types import SimpleNamespace
 
 from ai.concierge.intent_classifier import ClassifiedIntent, Intent
@@ -102,6 +103,29 @@ class _FakeResponses:
 class _FakeClient:
     def __init__(self, *parsed_outputs):
         self.responses = _FakeResponses(parsed_outputs)
+
+
+def test_environment_client_uses_thirty_second_default_timeout(monkeypatch):
+    captured = {}
+
+    class FakeAsyncOpenAI:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("TRALVANA_OPENAI_ENABLED", "true")
+    monkeypatch.delenv("TRALVANA_OPENAI_TIMEOUT_SECONDS", raising=False)
+    monkeypatch.setitem(
+        sys.modules,
+        "openai",
+        SimpleNamespace(AsyncOpenAI=FakeAsyncOpenAI),
+    )
+
+    intelligence = OpenAITripIntelligence.from_environment()
+
+    assert intelligence is not None
+    assert captured["timeout"] == 30.0
+    assert captured["max_retries"] == 0
 
 
 def test_florida_brief_becomes_complete_planner_entities():
