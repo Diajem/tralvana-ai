@@ -14,6 +14,7 @@ export interface TripItinerary {
   visa_summary: Record<string, unknown> | null;
   weather_expectations: Record<string, unknown> | null;
   event_recommendations: EventRecommendation[];
+  experience_recommendations: ExperienceRecommendation[];
   risks: string[];
   assumptions: string[];
   daily_outline: DailyOutlineEntry[];
@@ -128,6 +129,19 @@ export interface EventRecommendation extends Record<string, unknown> {
   image_url: string | null;
   image_alt: string | null;
   image_source: string | null;
+}
+
+export interface ExperienceRecommendation extends Record<string, unknown> {
+  provider: "VIATOR";
+  product_reference: string;
+  title: string;
+  description: string;
+  rating: number | null;
+  review_count: number | null;
+  price_from: number | null;
+  currency: string | null;
+  images: unknown[];
+  booking_enabled: false;
 }
 
 export interface GroundingNotice {

@@ -461,6 +461,54 @@ function GroundingCard({ notice }: { notice: GroundingNotice }) {
   );
 }
 
+function viatorImageUrl(images: unknown[]): string | null {
+  const first = images.find((image) => image && typeof image === "object") as
+    | { variants?: { url?: string; width?: number }[] }
+    | undefined;
+  const variants = first?.variants?.filter((variant) => variant.url) || [];
+  variants.sort((left, right) => (right.width || 0) - (left.width || 0));
+  return variants[0]?.url || null;
+}
+
+function ExperienceCard({ experience }: { experience: TripItinerary["experience_recommendations"][number] }) {
+  const imageUrl = viatorImageUrl(experience.images);
+  const price =
+    experience.price_from != null
+      ? `${experience.currency || ""} ${experience.price_from}`.trim()
+      : null;
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-indigo-100 bg-white shadow-sm">
+      <ProviderImage
+        url={imageUrl}
+        alt={experience.title}
+        source={imageUrl ? "Viator sandbox" : null}
+        fallback="from-orange-500 via-rose-500 to-violet-600"
+      />
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="font-bold leading-6 text-slate-950">{experience.title}</h3>
+          <span className="shrink-0 rounded-full bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700">Sandbox</span>
+        </div>
+        {experience.description && (
+          <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">{experience.description}</p>
+        )}
+        <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-slate-700">
+          {price && <span className="rounded-full bg-slate-100 px-3 py-1">From {price}</span>}
+          {experience.rating != null && (
+            <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-800">
+              ★ {experience.rating}{experience.review_count != null ? ` (${experience.review_count})` : ""}
+            </span>
+          )}
+        </div>
+        <p className="mt-4 text-xs leading-5 text-blue-700">
+          Preview only — booking and payment are not enabled.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function ItineraryView({
   itinerary,
   readiness,
@@ -480,6 +528,7 @@ function ItineraryView({
     ? itinerary.daily_outline
     : itinerary.daily_outline.slice(0, 4);
   const brief = itinerary.trip_brief;
+  const experiences = itinerary.experience_recommendations || [];
   const travellerSummary = [
     `${brief.travellers.adults} adult${brief.travellers.adults === 1 ? "" : "s"}`,
     brief.travellers.children
@@ -628,6 +677,19 @@ function ItineraryView({
         </div>
         <RequestedEventsCard itinerary={itinerary} />
         <RequestedActivitiesCard itinerary={itinerary} />
+        {experiences.length > 0 && (
+          <div>
+            <div className="mb-4">
+              <h3 className="text-lg font-bold text-slate-950">Viator experience previews</h3>
+              <p className="mt-1 text-sm text-blue-700">Sandbox products for testing; no booking or payment is active.</p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {experiences.map((experience) => (
+                <ExperienceCard key={experience.product_reference} experience={experience} />
+              ))}
+            </div>
+          </div>
+        )}
         {itinerary.event_recommendations.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {itinerary.event_recommendations.map((event) => (

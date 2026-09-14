@@ -13,6 +13,7 @@ Trip Brain's own output — no Discovery module logic is duplicated here.
 
 from __future__ import annotations
 
+import asyncio
 import calendar
 from typing import Any
 
@@ -26,6 +27,8 @@ from app.auth.dependencies import (
     require_owner,
 )
 router = APIRouter(prefix="/planner", tags=["planner"])
+
+_VIATOR_PLANNER_TIMEOUT_SECONDS = 8
 
 
 class PlanTripRequest(BaseModel):
@@ -248,7 +251,59 @@ async def _assemble_itinerary(session: Any):
     )
     from ai.concierge.conversation_engine import conversation_engine
 
-    return await conversation_engine.personalise_itinerary(itinerary)
+    itinerary = await conversation_engine.personalise_itinerary(itinerary)
+    await _attach_viator_experiences(itinerary)
+    return itinerary
+
+
+async def _attach_viator_experiences(itinerary: Any) -> None:
+    """Add read-only sandbox products without making itinerary creation depend on Viator."""
+    from app.domains.experiences.service import experience_discovery_service
+    from ai.trip_brain.trip_assembly import GroundingNotice
+    from travelos.intelligence_gateway.exceptions import ProviderError
+
+    brief = itinerary.trip_brief
+    destination = str(brief.get("destination") or "").strip()
+    if not destination:
+        return
+
+    budget = brief.get("budget") or {}
+    currency = str(budget.get("currency") or "GBP").upper()
+    try:
+        result = await asyncio.wait_for(
+            asyncio.to_thread(
+                experience_discovery_service.search,
+                destination=destination,
+                start_date=brief.get("start_date"),
+                end_date=brief.get("end_date"),
+                currency=currency,
+                count=6,
+            ),
+            timeout=_VIATOR_PLANNER_TIMEOUT_SECONDS,
+        )
+    except (ProviderError, ValueError, ImportError, TimeoutError):
+        if "viator_experiences" not in itinerary.modules_unavailable:
+            itinerary.modules_unavailable.append("viator_experiences")
+        return
+
+    itinerary.experience_recommendations = list(result.get("products") or [])
+    if "viator_experiences" not in itinerary.modules_used:
+        itinerary.modules_used.append("viator_experiences")
+    itinerary.grounding_notices.append(
+        GroundingNotice(
+            domain="experiences",
+            level="SANDBOX",
+            title="Viator experience previews",
+            message=(
+                "These products come from Viator's sandbox. Prices and availability "
+                "must be confirmed before booking is enabled."
+            ),
+            data_source="VIATOR_SANDBOX_API",
+            is_current=False,
+            requires_confirmation=True,
+            retrieved_at=result.get("retrieved_at"),
+        )
+    )
 
 
 def _build_trip_brief(

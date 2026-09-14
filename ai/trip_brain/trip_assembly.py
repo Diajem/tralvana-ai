@@ -265,6 +265,7 @@ class TripItinerary:
     confidence: float
     confidence_explanation: str
     alternative_options: list[dict[str, Any]]
+    experience_recommendations: list[dict[str, Any]] = field(default_factory=list)
     grounding_notices: list[GroundingNotice] = field(default_factory=list)
     modules_used: list[str] = field(default_factory=list)
     modules_unavailable: list[str] = field(default_factory=list)
@@ -281,6 +282,7 @@ class TripItinerary:
             "visa_summary": self.visa_summary,
             "weather_expectations": self.weather_expectations,
             "event_recommendations": self.event_recommendations,
+            "experience_recommendations": self.experience_recommendations,
             "risks": self.risks,
             "assumptions": self.assumptions,
             "daily_outline": self.daily_outline,
@@ -390,6 +392,7 @@ class TripAssemblyEngine:
             visa_summary=visa_rec,
             weather_expectations=weather_rec,
             event_recommendations=event_recs,
+            experience_recommendations=[],
             risks=self._coherent_risks(
                 brief=brief,
                 visa=visa_rec,
