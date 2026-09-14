@@ -23,7 +23,7 @@ from travelos.live_providers.adapters.viator_experience_provider import (
     DisabledViatorExperienceProvider,
     ViatorExperienceProvider,
 )
-from travelos.live_providers.transport import FakeTransport, TransportResponse
+from travelos.live_providers.transport import FakeTransport
 
 
 def _passengers() -> tuple[ExperiencePassengerGroup, ...]:

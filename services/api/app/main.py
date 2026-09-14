@@ -12,6 +12,7 @@ from app.domains.budget.router import router as budget_router
 from app.domains.visa.router import router as visa_router
 from app.domains.weather.router import router as weather_router
 from app.domains.events.router import router as events_router
+from app.domains.experiences.router import router as experiences_router
 from app.demo.demo_router import router as demo_router
 from app.domains.commercial.router import public_router as commercial_public_router
 from app.domains.commercial.router import router as commercial_router
@@ -73,6 +74,7 @@ app.include_router(budget_router, dependencies=_authenticated)
 app.include_router(visa_router, dependencies=_authenticated)
 app.include_router(weather_router, dependencies=_authenticated)
 app.include_router(events_router, dependencies=_authenticated)
+app.include_router(experiences_router, dependencies=_authenticated)
 app.include_router(commercial_router, dependencies=_authenticated)
 
 

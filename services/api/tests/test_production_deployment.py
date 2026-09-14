@@ -75,14 +75,25 @@ def test_render_blueprint_uses_dedicated_app_domain_and_safe_provider_modes():
     api_secrets = {
         item["key"]: item.get("sync")
         for item in services["tralvana-api"]["envVars"]
-        if item["key"] in {"CLERK_JWT_KEY", "DUFFEL_API_TOKEN"}
+        if item["key"]
+        in {
+            "CLERK_JWT_KEY",
+            "DUFFEL_API_TOKEN",
+            "VIATOR_SANDBOX_API_KEY",
+            "VIATOR_PRODUCTION_API_KEY",
+        }
     }
     web_secrets = {
         item["key"]: item.get("sync")
         for item in services["tralvana-web"]["envVars"]
         if item["key"] in {"NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "CLERK_SECRET_KEY"}
     }
-    assert api_secrets == {"CLERK_JWT_KEY": False, "DUFFEL_API_TOKEN": False}
+    assert api_secrets == {
+        "CLERK_JWT_KEY": False,
+        "DUFFEL_API_TOKEN": False,
+        "VIATOR_SANDBOX_API_KEY": False,
+        "VIATOR_PRODUCTION_API_KEY": False,
+    }
     assert web_secrets == {
         "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": False,
         "CLERK_SECRET_KEY": False,

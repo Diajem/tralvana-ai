@@ -21,9 +21,9 @@ from travelos.bookings.experience import (
     ExperienceHoldCommand,
     ExperienceSearchCommand,
 )
-from travelos.intelligence_gateway.exceptions import ProviderUnavailableError
 from travelos.intelligence_gateway.exceptions import (
     ProviderResponseError,
+    ProviderUnavailableError,
     ProviderValidationError,
 )
 from travelos.intelligence_gateway.provider_contract import Provider, ProviderRequest
@@ -40,7 +40,12 @@ from travelos.live_providers.transport import Transport, TransportRequest, Trans
 
 _SANDBOX_BASE_URL = "https://api.sandbox.viator.com/partner"
 _PRODUCTION_BASE_URL = "https://api.viator.com/partner"
-_DISCOVERY_OPERATIONS = {"search", "product_details", "availability_schedule"}
+_DISCOVERY_OPERATIONS = {
+    "destinations",
+    "search",
+    "product_details",
+    "availability_schedule",
+}
 
 
 class ViatorExperienceProvider(BaseLiveProvider):
@@ -102,6 +107,14 @@ class ViatorExperienceProvider(BaseLiveProvider):
             "Accept": "application/json;version=2.0",
             "Accept-Language": str(request.params.get("language", "en")),
         }
+
+        if request.operation == "destinations":
+            return TransportRequest(
+                method="GET",
+                url=f"{base_url}/destinations",
+                headers=headers,
+                timeout_seconds=_provider_timeout(),
+            )
 
         if request.operation == "search":
             destination_id = str(request.params.get("destination_id", "")).strip()
@@ -166,6 +179,12 @@ class ViatorExperienceProvider(BaseLiveProvider):
                     f"{self.provider_name}: products is not a list"
                 )
             data: Any = [_map_product_summary(item) for item in products if isinstance(item, dict)]
+        elif isinstance(body.get("destinations"), list):
+            data = [
+                _map_destination(item)
+                for item in body["destinations"]
+                if isinstance(item, dict)
+            ]
         else:
             data = body
         return ProviderResult(
@@ -200,6 +219,16 @@ def _map_product_summary(product: dict[str, Any]) -> dict[str, Any]:
         "currency": pricing.get("currency"),
         "images": images,
         "booking_enabled": False,
+    }
+
+
+def _map_destination(destination: dict[str, Any]) -> dict[str, str]:
+    return {
+        "destination_id": str(destination.get("destinationId", "")),
+        "name": str(destination.get("name", "")),
+        "type": str(destination.get("type", "")),
+        "parent_destination_id": str(destination.get("parentDestinationId", "")),
+        "country_code": str(destination.get("countryCode", "")),
     }
 
 
