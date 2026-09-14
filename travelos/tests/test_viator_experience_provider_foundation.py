@@ -14,10 +14,16 @@ from travelos.bookings.experience import (
 )
 from travelos.intelligence_gateway.exceptions import ProviderUnavailableError
 from travelos.intelligence_gateway.provider_contract import ProviderRequest
-from travelos.intelligence_gateway.provider_status import Capability, ProviderStatus
+from travelos.intelligence_gateway.provider_status import (
+    Capability,
+    ProviderEnvironment,
+    ProviderStatus,
+)
 from travelos.live_providers.adapters.viator_experience_provider import (
     DisabledViatorExperienceProvider,
+    ViatorExperienceProvider,
 )
+from travelos.live_providers.transport import FakeTransport, TransportResponse
 
 
 def _passengers() -> tuple[ExperiencePassengerGroup, ...]:
@@ -109,3 +115,81 @@ def test_gateway_execution_is_unsupported_and_never_claims_availability():
 def test_every_viator_operation_remains_disabled(operation):
     with pytest.raises(ProviderUnavailableError, match="qualification"):
         operation(DisabledViatorExperienceProvider())
+
+
+def test_live_viator_search_uses_sandbox_key_and_never_enables_booking(monkeypatch):
+    monkeypatch.setenv("TEST_VIATOR_KEY", "sandbox-secret")
+    transport = FakeTransport.always_returning(
+        200,
+        {
+            "products": [
+                {
+                    "productCode": "LON-123",
+                    "title": "London walking tour",
+                    "reviews": {"combinedAverageRating": 4.8, "totalReviews": 42},
+                    "pricing": {"currency": "GBP", "summary": {"fromPrice": 25.0}},
+                    "images": [{"isCover": True}],
+                }
+            ]
+        },
+    )
+    provider = ViatorExperienceProvider(
+        transport,
+        api_key_env_var="TEST_VIATOR_KEY",
+    )
+    result = provider.execute(
+        ProviderRequest(
+            capability=Capability.EXPERIENCES,
+            operation="search",
+            params={
+                "destination_id": "684",
+                "start_date": "2026-10-10",
+                "end_date": "2026-10-12",
+                "currency": "GBP",
+            },
+        )
+    )
+
+    sent = transport.sent_requests[0]
+    assert sent.url == "https://api.sandbox.viator.com/partner/products/search"
+    assert sent.headers["exp-api-key"] == "sandbox-secret"
+    assert sent.headers["Accept"] == "application/json;version=2.0"
+    assert sent.json_body["filtering"] == {
+        "destination": "684",
+        "startDate": "2026-10-10",
+        "endDate": "2026-10-12",
+    }
+    assert result.data[0]["product_reference"] == "LON-123"
+    assert result.data[0]["booking_enabled"] is False
+    assert provider.environment is ProviderEnvironment.SANDBOX
+    assert provider.metadata["payment_enabled"] is False
+
+
+def test_live_viator_product_details_and_schedule_are_read_only(monkeypatch):
+    monkeypatch.setenv("TEST_VIATOR_KEY", "sandbox-secret")
+    transport = FakeTransport.always_returning(200, {"productCode": "LON-123"})
+    provider = ViatorExperienceProvider(
+        transport,
+        api_key_env_var="TEST_VIATOR_KEY",
+    )
+
+    for operation in ("product_details", "availability_schedule"):
+        result = provider.execute(
+            ProviderRequest(
+                capability=Capability.EXPERIENCES,
+                operation=operation,
+                params={"product_code": "LON-123", "currency": "GBP"},
+            )
+        )
+        assert result.source_metadata["booking_enabled"] is False
+
+    assert transport.sent_requests[0].url.endswith("/products/LON-123")
+    assert transport.sent_requests[1].url.endswith(
+        "/availability/schedules/LON-123"
+    )
+    assert provider.supports(
+        ProviderRequest(
+            capability=Capability.EXPERIENCES,
+            operation="create_booking",
+        )
+    ) is False
