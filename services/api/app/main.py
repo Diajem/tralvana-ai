@@ -16,6 +16,7 @@ from app.domains.experiences.router import router as experiences_router
 from app.demo.demo_router import router as demo_router
 from app.domains.commercial.router import public_router as commercial_public_router
 from app.domains.commercial.router import router as commercial_router
+from app.domains.commerce.stripe_webhook import router as stripe_webhook_router
 from travelos.live_providers.accommodation_provider_bootstrap import configure_accommodation_provider
 from travelos.live_providers.event_provider_bootstrap import configure_event_provider
 from travelos.live_providers.flight_provider_bootstrap import configure_flight_provider
@@ -58,6 +59,7 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(demo_router)
 app.include_router(commercial_public_router)
+app.include_router(stripe_webhook_router)
 
 _authenticated = [Depends(require_authenticated_traveller)]
 app.include_router(traveller_router, dependencies=_authenticated)
