@@ -623,3 +623,10 @@ class TestEntityExtraction:
         assert result.entities["accommodation_preference"] == "Child-friendly hotel"
         assert result.entities["airport_details_requested"] == "true"
         assert result.entities["hotel_airport_distance_requested"] == "true"
+
+    def test_hotel_nights_preserve_inclusive_calendar_day_count(self, classifier):
+        result = classifier.classify(
+            "Plan 12 hotel nights from 10 October 2026 to 22 October 2026."
+        )
+        assert result.entities["duration_nights"] == "12"
+        assert result.entities["duration_days"] == "13"

@@ -1470,6 +1470,11 @@ class IntentClassifier:
                 int(raw_count) if raw_count.isdigit() else _NUMBER_WORDS[raw_count]
             )
 
+        hotel_nights = re.search(r"\b(\d{1,3})\s+hotel\s+nights?\b", text)
+        if hotel_nights:
+            entities["duration_nights"] = hotel_nights.group(1)
+            entities["duration_days"] = str(int(hotel_nights.group(1)) + 1)
+
         return entities
 
     @staticmethod
