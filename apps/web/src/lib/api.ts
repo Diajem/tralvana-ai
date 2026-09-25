@@ -282,6 +282,32 @@ export async function runFlightSearchDiagnostic(params: {
   return res.json();
 }
 
+export async function runExperienceSearchDiagnostic(params: {
+  destination: string;
+  start_date: string;
+  end_date: string;
+}): Promise<Record<string, any>> {
+  const query = new URLSearchParams({
+    destination: params.destination,
+    start_date: params.start_date,
+    end_date: params.end_date,
+    currency: "GBP",
+    count: "5",
+  });
+  const res = await apiFetch(`${BASE_URL}/internal/providers/experience-search?${query}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => null);
+    throw new Error(
+      typeof detail?.detail === "string"
+        ? detail.detail
+        : `Viator search failed (${res.status})`
+    );
+  }
+  return res.json();
+}
+
 // ------------------------------------------------------------------
 // Accommodation API
 // ------------------------------------------------------------------

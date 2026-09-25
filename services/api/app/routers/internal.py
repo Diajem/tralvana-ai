@@ -57,6 +57,17 @@ class FlightSearchDiagnosticResponse(BaseModel):
     sample: dict | None = None
 
 
+class ExperienceSearchDiagnosticResponse(BaseModel):
+    booking_attempted: bool = False
+    destination: str
+    resolved_destination: str | None = None
+    environment: str | None = None
+    provider: str | None = None
+    results_count: int
+    booking_enabled: bool = False
+    sample: dict | None = None
+
+
 @router.get("/providers/status", response_model=ProvidersStatusResponse)
 async def providers_status() -> dict:
     from travelos.config.configuration_manager import config
@@ -194,6 +205,61 @@ async def flight_search_diagnostic(
         "provider_status": result["provider_status"],
         "results_count": len(options),
         "request_id": result.get("request_id", ""),
+        "sample": sample,
+    }
+
+
+@router.get(
+    "/providers/experience-search",
+    response_model=ExperienceSearchDiagnosticResponse,
+)
+async def experience_search_diagnostic(
+    destination: str,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    currency: str = "GBP",
+    count: int = 5,
+) -> dict:
+    """Run an authenticated, search-only Viator inventory check.
+
+    Only mapped catalogue fields are returned. Booking and payment are
+    deliberately disabled until Full + Booking approval and certification.
+    """
+    from app.domains.experiences.service import experience_discovery_service
+
+    result = experience_discovery_service.search(
+        destination=destination,
+        start_date=start_date,
+        end_date=end_date,
+        currency=currency.upper(),
+        count=max(1, min(count, 10)),
+    )
+    products = result["products"]
+    first = products[0] if products else None
+    sample = None
+    if first:
+        sample = {
+            key: first[key]
+            for key in (
+                "product_reference",
+                "title",
+                "service_type",
+                "rating",
+                "review_count",
+                "price_from",
+                "currency",
+                "booking_enabled",
+            )
+            if key in first
+        }
+    return {
+        "booking_attempted": False,
+        "destination": destination,
+        "resolved_destination": result["destination"],
+        "environment": result["environment"],
+        "provider": result["provider"],
+        "results_count": len(products),
+        "booking_enabled": result["booking_enabled"],
         "sample": sample,
     }
 

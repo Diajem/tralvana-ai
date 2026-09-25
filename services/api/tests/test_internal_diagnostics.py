@@ -76,6 +76,44 @@ class TestDiagnosticsOutput:
 
 
 class TestNoPublicAPIRegression:
+    def test_experience_search_diagnostic_is_search_only(self, client, monkeypatch):
+        from app.domains.experiences.service import experience_discovery_service
+
+        monkeypatch.setattr(
+            experience_discovery_service,
+            "search",
+            lambda **kwargs: {
+                "destination": "Montego Bay",
+                "destination_id": "34",
+                "products": [{
+                    "product_reference": "TEST-1",
+                    "title": "Jamaica family adventure",
+                    "service_type": "EXPERIENCE",
+                    "price_from": 42.0,
+                    "currency": "GBP",
+                    "booking_enabled": False,
+                }],
+                "provider": "viator_experience_provider",
+                "environment": "SANDBOX",
+                "booking_enabled": False,
+                "retrieved_at": "2026-09-25T10:00:00Z",
+            },
+        )
+        res = client.get(
+            "/internal/providers/experience-search",
+            params={
+                "destination": "Montego Bay, Jamaica",
+                "start_date": "2026-10-10",
+                "end_date": "2026-10-22",
+            },
+        )
+        assert res.status_code == 200
+        body = res.json()
+        assert body["booking_attempted"] is False
+        assert body["booking_enabled"] is False
+        assert body["results_count"] == 1
+        assert body["sample"]["product_reference"] == "TEST-1"
+
     def test_flight_search_diagnostic_is_search_only(self, client):
         res = client.get(
             "/internal/providers/flight-search",
