@@ -46,6 +46,17 @@ class ProvidersStatusResponse(BaseModel):
     providers: list[ProviderStatusEntry]
 
 
+class FlightSearchDiagnosticResponse(BaseModel):
+    booking_attempted: bool = False
+    origin: str
+    destination: str
+    data_source: str
+    provider_status: str
+    results_count: int
+    request_id: str
+    sample: dict | None = None
+
+
 @router.get("/providers/status", response_model=ProvidersStatusResponse)
 async def providers_status() -> dict:
     from travelos.config.configuration_manager import config
@@ -109,6 +120,62 @@ async def providers_status() -> dict:
         "retry_enabled": config.retry_enabled,
         "healthcheck_enabled": healthcheck_enabled,
         "providers": sorted(entries, key=lambda e: (e["capability"], e["priority"])),
+    }
+
+
+@router.get(
+    "/providers/flight-search",
+    response_model=FlightSearchDiagnosticResponse,
+)
+async def flight_search_diagnostic(
+    origin: str,
+    destination: str,
+    departure_date: str,
+    return_date: str | None = None,
+) -> dict:
+    """Run an authenticated, search-only flight inventory check.
+
+    This deliberately exposes only safe provenance and one mapped offer. It
+    never creates a Duffel order, payment, hold, or booking.
+    """
+    from ai.discovery.flights.flight_intelligence import FlightIntelligence
+    from travelos.intelligence_gateway.discovery_adapters import GatewayFlightProvider
+    from travelos.intelligence_gateway.gateway import intelligence_gateway
+
+    result = FlightIntelligence(
+        provider=GatewayFlightProvider(intelligence_gateway)
+    ).recommend(
+        origin=origin,
+        destination=destination,
+        departure_date=departure_date,
+        return_date=return_date,
+        adults=1,
+    )
+    options = result["flight_options"]
+    first = options[0] if options else None
+    sample = None
+    if first:
+        sample = {
+            key: first[key]
+            for key in (
+                "airline",
+                "flight_number",
+                "estimated_price",
+                "currency",
+                "stops",
+                "baggage_included",
+            )
+            if key in first
+        }
+    return {
+        "booking_attempted": False,
+        "origin": origin,
+        "destination": destination,
+        "data_source": result["data_source"],
+        "provider_status": result["provider_status"],
+        "results_count": len(options),
+        "request_id": result.get("request_id", ""),
+        "sample": sample,
     }
 
 

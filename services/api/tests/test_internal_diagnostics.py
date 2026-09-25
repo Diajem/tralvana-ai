@@ -76,6 +76,23 @@ class TestDiagnosticsOutput:
 
 
 class TestNoPublicAPIRegression:
+    def test_flight_search_diagnostic_is_search_only(self, client):
+        res = client.get(
+            "/internal/providers/flight-search",
+            params={
+                "origin": "LHR",
+                "destination": "JFK",
+                "departure_date": "2026-11-10",
+                "return_date": "2026-11-17",
+            },
+        )
+        assert res.status_code == 200
+        body = res.json()
+        assert body["booking_attempted"] is False
+        assert body["origin"] == "LHR"
+        assert body["destination"] == "JFK"
+        assert body["results_count"] > 0
+
     def test_conversation_message_response_shape_unchanged(self, client):
         res = client.post("/conversation/message", json={"message": "recommend flights to Tokyo"})
         body = res.json()
