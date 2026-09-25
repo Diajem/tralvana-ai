@@ -260,12 +260,17 @@ export async function getTripFlights(tripId: string): Promise<FlightOption[]> {
   return res.json();
 }
 
-export async function runFlightSearchDiagnostic(): Promise<Record<string, any>> {
+export async function runFlightSearchDiagnostic(params: {
+  origin: string;
+  destination: string;
+  departure_date: string;
+  return_date: string;
+}): Promise<Record<string, any>> {
   const query = new URLSearchParams({
-    origin: "LHR",
-    destination: "JFK",
-    departure_date: "2026-11-10",
-    return_date: "2026-11-17",
+    origin: params.origin,
+    destination: params.destination,
+    departure_date: params.departure_date,
+    return_date: params.return_date,
   });
   const res = await apiFetch(`${BASE_URL}/internal/providers/flight-search?${query}`, {
     cache: "no-store",

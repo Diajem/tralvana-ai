@@ -19,12 +19,17 @@ export default function FlightSearchDiagnosticPage() {
   const [result, setResult] = useState<Diagnostic | null>(null);
   const [error, setError] = useState("");
 
+  const [route, setRoute] = useState<"control" | "jamaica">("control");
+
   async function runSearch() {
     setLoading(true);
     setError("");
     setResult(null);
     try {
-      setResult(await runFlightSearchDiagnostic() as Diagnostic);
+      const params = route === "control"
+        ? { origin: "LHR", destination: "JFK", departure_date: "2026-11-10", return_date: "2026-11-17" }
+        : { origin: "VIE", destination: "MBJ", departure_date: "2026-10-10", return_date: "2026-10-22" };
+      setResult(await runFlightSearchDiagnostic(params) as Diagnostic);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Search failed");
     } finally {
@@ -38,8 +43,28 @@ export default function FlightSearchDiagnosticPage() {
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">Internal diagnostic</p>
           <h1 className="mt-2 text-3xl font-bold text-gray-900">Live Duffel flight search</h1>
-          <p className="mt-2 text-gray-600">LHR → JFK · 10–17 November 2026 · one adult</p>
+          <p className="mt-2 text-gray-600">
+            {route === "control"
+              ? "LHR → JFK · 10–17 November 2026 · one adult"
+              : "VIE → MBJ · 10–22 October 2026 · one adult"}
+          </p>
           <p className="mt-1 text-sm text-gray-500">Search only. This cannot create an order, hold, payment, or booking.</p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => { setRoute("control"); setResult(null); setError(""); }}
+            className={`rounded-xl border px-4 py-2 font-semibold ${route === "control" ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-gray-300 text-gray-700"}`}
+          >
+            LHR → JFK control
+          </button>
+          <button
+            type="button"
+            onClick={() => { setRoute("jamaica"); setResult(null); setError(""); }}
+            className={`rounded-xl border px-4 py-2 font-semibold ${route === "jamaica" ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-gray-300 text-gray-700"}`}
+          >
+            VIE → MBJ test
+          </button>
         </div>
         <button
           type="button"
