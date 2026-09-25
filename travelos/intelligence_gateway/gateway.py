@@ -178,6 +178,127 @@ class IntelligenceGateway:
         )
         return result
 
+    def execute_market_search(self, capability: Capability, request: ProviderRequest) -> ProviderResult:
+        """Query *every* eligible supplier and combine their inventory.
+
+        ``execute`` intentionally remains the single-answer/failover path for
+        operations such as weather lookups.  A travel inventory search is a
+        different operation: the first supplier to answer is not necessarily
+        the best supplier for the traveller.  This method therefore fans the
+        same request out to all eligible providers, retains every successful
+        list response, and reports individual provider failures without
+        discarding inventory returned by healthy providers.
+
+        An empty response from one provider is a valid contribution, not a
+        terminal "destination unavailable" decision.  UNAVAILABLE is returned
+        only when no eligible provider can be called or every eligible provider
+        fails.
+        """
+        request_id = str(uuid.uuid4())
+        cache_enabled = self._cache_enabled()
+        key = build_cache_key(capability, f"{request.operation}:market", request.params)
+
+        if cache_enabled and not request.bypass_cache:
+            cached = self._cache.get(key)
+            if cached is not None:
+                return self._with_request_id(cached, request_id, cached_copy=True)
+
+        providers = self._registry.get_providers(capability)
+        eligible = self._selector.select(providers, request, self._environment_for(capability))
+        if not eligible:
+            return self._unavailable_result(
+                capability,
+                request_id,
+                errors=[f"No eligible provider is registered for capability {capability.value}"],
+            )
+
+        combined: list[object] = []
+        warnings: list[str] = []
+        successful: list[dict[str, object]] = []
+        successful_metadata: list[dict[str, object]] = []
+        failed: list[str] = []
+        assumptions: list[str] = []
+        total_latency_ms = 0.0
+
+        for provider in eligible:
+            try:
+                result = self._call_provider(provider, request, capability, request_id)
+            except Exception as exc:
+                failed.append(provider.provider_name)
+                warnings.append(f"{provider.provider_name} failed: {exc}")
+                continue
+
+            if not result.ok:
+                failed.append(provider.provider_name)
+                warnings.extend(result.warnings)
+                warnings.append(
+                    f"{provider.provider_name} returned {result.status.value} and contributed no inventory"
+                )
+                continue
+
+            data = result.data if result.data is not None else []
+            if not isinstance(data, list):
+                failed.append(provider.provider_name)
+                warnings.append(
+                    f"{provider.provider_name} returned an invalid non-list market-search response"
+                )
+                continue
+
+            # Attach safe provenance to each candidate before normalisation so
+            # ranking/explainability can identify the actual supplier selected.
+            for item in data:
+                if isinstance(item, dict) and len(eligible) > 1:
+                    item = {**item, "_market_provider_name": provider.provider_name}
+                combined.append(item)
+
+            total_latency_ms += result.latency_ms
+            warnings.extend(result.warnings)
+            assumptions.extend(result.assumptions)
+            successful.append(
+                {
+                    "provider_name": provider.provider_name,
+                    "status": result.status.value,
+                    "result_count": len(data),
+                    "latency_ms": round(result.latency_ms, 1),
+                }
+            )
+            successful_metadata.append(dict(result.source_metadata))
+
+        if not successful:
+            stale = self._cache.get_stale(key) if cache_enabled else None
+            if stale is not None:
+                stale.warnings = [*warnings, *stale.warnings]
+                return self._with_request_id(stale, request_id, cached_copy=True)
+            return self._unavailable_result(
+                capability, request_id, warnings=warnings,
+                errors=["All eligible providers failed"],
+            )
+
+        result = ProviderResult(
+            provider_name="multi_provider" if len(successful) > 1 else str(successful[0]["provider_name"]),
+            capability=capability,
+            status=ProviderStatus.DEGRADED if failed else ProviderStatus.AVAILABLE,
+            data=combined,
+            confidence=min(1.0, max(0.0, len(successful) / len(eligible))),
+            assumptions=list(dict.fromkeys(assumptions)),
+            warnings=warnings,
+            latency_ms=total_latency_ms,
+            request_id=request_id,
+            retrieved_at=_now_iso(),
+            source_metadata={
+                **(successful_metadata[0] if len(successful_metadata) == 1 else {}),
+                "aggregation": "all_eligible_providers",
+                "providers_queried": [p.provider_name for p in eligible],
+                "providers_succeeded": successful,
+                "providers_failed": failed,
+                "mapped_result_count": len(combined),
+                "raw_result_count": sum(int(p["result_count"]) for p in successful),
+            },
+        )
+        if cache_enabled and not request.bypass_cache:
+            self._cache.set(key, result, ttl_seconds=self._cache.ttl_for(capability))
+        return result
+
     # ------------------------------------------------------------------
 
     def _call_provider(

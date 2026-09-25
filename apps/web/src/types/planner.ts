@@ -15,6 +15,7 @@ export interface TripItinerary {
   weather_expectations: Record<string, unknown> | null;
   event_recommendations: EventRecommendation[];
   experience_recommendations: ExperienceRecommendation[];
+  transfer_recommendations: ExperienceRecommendation[];
   risks: string[];
   assumptions: string[];
   daily_outline: DailyOutlineEntry[];
@@ -153,6 +154,7 @@ export interface ExperienceRecommendation extends Record<string, unknown> {
   product_reference: string;
   title: string;
   description: string;
+  service_type: "EXPERIENCE" | "TRANSFER";
   rating: number | null;
   review_count: number | null;
   price_from: number | null;

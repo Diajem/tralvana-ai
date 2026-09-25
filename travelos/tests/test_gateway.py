@@ -44,6 +44,20 @@ class _Provider(Provider):
         return ProviderResult(provider_name=self._name, capability=Capability.FLIGHTS, status=ProviderStatus.AVAILABLE, data={"calls": self.calls}, confidence=1.0)
 
 
+class _MarketProvider(_Provider):
+    def execute(self, request):
+        self.calls += 1
+        if self.calls <= self._fail_times:
+            raise self._raises("simulated failure")
+        return ProviderResult(
+            provider_name=self._name,
+            capability=Capability.FLIGHTS,
+            status=ProviderStatus.AVAILABLE,
+            data=[{"offer": self._name}],
+            confidence=1.0,
+        )
+
+
 def _gateway(**kwargs) -> IntelligenceGateway:
     registry = kwargs.pop("registry", ProviderRegistry())
     return IntelligenceGateway(registry=registry, retry_policy=kwargs.pop("retry_policy", RetryPolicy(base_delay_seconds=0.0)), **kwargs)
@@ -148,6 +162,76 @@ class TestFailover:
         result = gw.execute(Capability.FLIGHTS, _req())
         assert result.status == ProviderStatus.UNAVAILABLE
         assert "No eligible provider" in result.errors[0]
+
+
+class TestMarketWideSearch:
+    def test_queries_and_combines_every_eligible_provider(self):
+        registry = ProviderRegistry()
+        first = _MarketProvider(name="first", priority=1)
+        second = _MarketProvider(name="second", priority=2)
+        registry.register(first)
+        registry.register(second)
+        gw = _gateway(registry=registry)
+
+        result = gw.execute_market_search(Capability.FLIGHTS, _req())
+
+        assert first.calls == 1
+        assert second.calls == 1
+        assert result.provider_name == "multi_provider"
+        assert [item["_market_provider_name"] for item in result.data] == ["first", "second"]
+        assert result.source_metadata["providers_queried"] == ["first", "second"]
+
+    def test_empty_first_supplier_does_not_hide_second_supplier_inventory(self):
+        class _EmptyProvider(_MarketProvider):
+            def execute(self, request):
+                self.calls += 1
+                return ProviderResult(
+                    provider_name=self.provider_name,
+                    capability=Capability.FLIGHTS,
+                    status=ProviderStatus.AVAILABLE,
+                    data=[],
+                    confidence=1.0,
+                )
+
+        registry = ProviderRegistry()
+        empty = _EmptyProvider(name="empty", priority=1)
+        inventory = _MarketProvider(name="inventory", priority=2)
+        registry.register(empty)
+        registry.register(inventory)
+        gw = _gateway(registry=registry)
+
+        result = gw.execute_market_search(Capability.FLIGHTS, _req())
+
+        assert result.ok
+        assert len(result.data) == 1
+        assert result.data[0]["_market_provider_name"] == "inventory"
+        assert len(result.source_metadata["providers_succeeded"]) == 2
+
+    def test_partial_failure_keeps_other_supplier_inventory(self):
+        registry = ProviderRegistry()
+        failed = _MarketProvider(name="failed", priority=1, fail_times=99)
+        healthy = _MarketProvider(name="healthy", priority=2)
+        registry.register(failed)
+        registry.register(healthy)
+        gw = _gateway(registry=registry)
+
+        result = gw.execute_market_search(Capability.FLIGHTS, _req())
+
+        assert result.ok
+        assert result.status == ProviderStatus.DEGRADED
+        assert result.data[0]["_market_provider_name"] == "healthy"
+        assert result.source_metadata["providers_failed"] == ["failed"]
+
+    def test_unavailable_only_after_every_supplier_fails(self):
+        registry = ProviderRegistry()
+        registry.register(_MarketProvider(name="one", priority=1, fail_times=99))
+        registry.register(_MarketProvider(name="two", priority=2, fail_times=99))
+        gw = _gateway(registry=registry)
+
+        result = gw.execute_market_search(Capability.FLIGHTS, _req())
+
+        assert result.status == ProviderStatus.UNAVAILABLE
+        assert result.errors == ["All eligible providers failed"]
 
 
 class TestRateLimitedFailover:

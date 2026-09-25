@@ -206,11 +206,15 @@ def _map_product_summary(product: dict[str, Any]) -> dict[str, Any]:
     reviews = product.get("reviews") if isinstance(product.get("reviews"), dict) else {}
     pricing = product.get("pricing") if isinstance(product.get("pricing"), dict) else {}
     images = product.get("images") if isinstance(product.get("images"), list) else []
+    title = str(product.get("title", ""))
+    description = str(product.get("description", ""))
+    service_type = _classify_service_type(title, description)
     return {
         "provider": "VIATOR",
         "product_reference": str(product.get("productCode", "")),
-        "title": str(product.get("title", "")),
-        "description": str(product.get("description", "")),
+        "title": title,
+        "description": description,
+        "service_type": service_type,
         "rating": reviews.get("combinedAverageRating"),
         "review_count": reviews.get("totalReviews"),
         "price_from": pricing.get("summary", {}).get("fromPrice")
@@ -220,6 +224,38 @@ def _map_product_summary(product: dict[str, Any]) -> dict[str, Any]:
         "images": images,
         "booking_enabled": False,
     }
+
+
+_TRANSFER_TERMS = (
+    "airport transfer",
+    "airport pickup",
+    "airport pick-up",
+    "airport drop-off",
+    "airport dropoff",
+    "private transfer",
+    "shared transfer",
+    "hotel transfer",
+    "port transfer",
+    "cruise transfer",
+    "train station transfer",
+    "shuttle transfer",
+    "taxi transfer",
+    "private taxi",
+    "chauffeur transfer",
+)
+
+
+def _classify_service_type(title: str, description: str) -> str:
+    """Classify transportation products without pretending they are tours.
+
+    Viator's compact product-search response does not consistently expose a
+    stable category field.  The classification is therefore conservative: an
+    item is a transfer only when the supplier's own title/description clearly
+    describes a point-to-point transport service.  Everything else remains an
+    experience until richer product details prove otherwise.
+    """
+    text = f"{title} {description}".casefold()
+    return "TRANSFER" if any(term in text for term in _TRANSFER_TERMS) else "EXPERIENCE"
 
 
 def _map_destination(destination: dict[str, Any]) -> dict[str, str]:

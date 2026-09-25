@@ -117,6 +117,7 @@ class AccommodationIntelligence:
         self._label_recommendation_types(ranked)
 
         for a in ranked:
+            option_provider = a.pop("_market_provider_name", "")
             a.pop("_price_anchor", None)
             a.pop("_persona_scores", None)
             a.pop("_amenities", None)
@@ -128,11 +129,29 @@ class AccommodationIntelligence:
             a["provider_property_id"] = a.pop("_provider_property_id", None)
             a["provider_rate_id"] = a.pop("_provider_rate_id", None)
 
+            if option_provider == "duffel_stays_provider":
+                a["data_source"] = (
+                    "DUFFEL_STAYS_LIVE"
+                    if self._provider_environment(option_provider) == "PRODUCTION"
+                    else "DUFFEL_STAYS_SANDBOX"
+                )
+            elif option_provider == "hbx_hotels_provider":
+                a["data_source"] = "HBX_HOTELS_SANDBOX"
+            else:
+                a["data_source"] = "MOCK"
+
         source = self._source_metadata(default_raw_count=len(raw_candidates))
         for a in ranked:
-            a["data_source"] = source["data_source"]
+            # Single-provider and mock calls keep the response-level source;
+            # aggregated calls retain the per-option supplier assigned above.
+            if source["data_source"] != "MULTI_SUPPLIER":
+                a["data_source"] = source["data_source"]
 
-        if source["data_source"] == "DUFFEL_STAYS_SANDBOX":
+        if source["data_source"] == "MULTI_SUPPLIER":
+            assumptions.append(
+                "All eligible accommodation suppliers were queried and their offers were normalised and ranked together."
+            )
+        elif source["data_source"] == "DUFFEL_STAYS_SANDBOX":
             assumptions.append(
                 "Accommodation data is from Duffel Stays' SANDBOX test environment — "
                 "real property shapes and pricing, but not available for purchase (T-039)."
@@ -188,6 +207,11 @@ class AccommodationIntelligence:
 
         if getattr(self._provider, "used_mock_fallback", False):
             data_source = "MOCK_FALLBACK"
+        elif (
+            last_result.source_metadata.get("aggregation") == "all_eligible_providers"
+            and len(last_result.source_metadata.get("providers_queried", [])) > 1
+        ):
+            data_source = "MULTI_SUPPLIER"
         elif last_result.provider_name == "duffel_stays_provider":
             data_source = (
                 "DUFFEL_STAYS_LIVE" if last_result.source_metadata.get("environment") == "PRODUCTION"
@@ -207,6 +231,21 @@ class AccommodationIntelligence:
             "request_id": last_result.request_id,
             "raw_results_count": raw_count,
         }
+
+    def _provider_environment(self, provider_name: str) -> str:
+        last_result = getattr(self._provider, "last_result", None)
+        if last_result is None:
+            return ""
+        for provider in last_result.source_metadata.get("providers_succeeded", []):
+            if provider.get("provider_name") == provider_name:
+                # Aggregation deliberately exposes no credentials or payloads;
+                # provider mode is inferred from the configured gateway context.
+                try:
+                    from travelos.config.configuration_manager import config
+                    return "PRODUCTION" if config.accommodation_provider_mode == "LIVE" else "SANDBOX"
+                except Exception:
+                    return ""
+        return str(last_result.source_metadata.get("environment", ""))
 
     # ------------------------------------------------------------------
 
@@ -306,7 +345,7 @@ class AccommodationIntelligence:
         ]
         if any(a["cancellation_policy"] == "non_refundable" for a in ranked):
             actions.append("Consider travel insurance for non-refundable bookings.")
-        if data_source in {"DUFFEL_STAYS_SANDBOX", "HBX_HOTELS_SANDBOX"}:
+        if data_source in {"DUFFEL_STAYS_SANDBOX", "HBX_HOTELS_SANDBOX", "MULTI_SUPPLIER"}:
             actions.append("Sandbox availability was checked, but test inventory cannot be purchased.")
         elif data_source == "DUFFEL_STAYS_LIVE":
             actions.append("Live availability was checked. Confirm the rate and cancellation terms before booking.")

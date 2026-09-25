@@ -54,6 +54,14 @@ The general rule: **the Coordinator resolves *presentation* conflicts (what to s
 
 **Existing implementation, entirely unchanged**: the six modules under `ai/discovery/` plus their `services/api/app/domains/<domain>/` API layers, per `docs/DISCOVERY_LAYER_PATTERN.md`. The Coordinator calls each module's existing public service method — `flight_intelligence_service.recommend(...)`, `visa_intelligence_service.check(...)`, `weather_intelligence_service.analyse(...)`, etc. — exactly as `ConversationEngine` already does for narrow intents today. No Discovery module gains an awareness of the Coordinator; from inside `ai/discovery/flights/`, being called by the Coordinator and being called directly by `ConversationEngine` are indistinguishable.
 
+For supplier-backed market domains, one Discovery module may receive offers
+from several providers. Provider priority is never a commercial ranking rule.
+The gateway must query all eligible suppliers, the module must normalise their
+offers into one canonical schema, and the module's scorer must rank the combined
+set against the traveller's constraints. A supplier returning zero matches is
+evidence only about that supplier; it must never become a destination-wide
+"not available" conclusion while another eligible supplier remains unchecked.
+
 ## Knowledge Sources
 
 **Role**: Shared factual and inferred context every Discovery module (and the Coordinator itself) reads, as opposed to domain-specific candidate data (that's a Provider's job — see `docs/KNOWLEDGE_SOURCE_STRATEGY.md` for the precise boundary).

@@ -35,7 +35,13 @@ def _responder(request: TransportRequest) -> TransportResponse:
     if request.url.endswith("/products/search"):
         return TransportResponse(
             200,
-            {"products": [{"productCode": "LON-123", "title": "London tour"}]},
+            {"products": [
+                {"productCode": "LON-123", "title": "London tour"},
+                {
+                    "productCode": "LON-TRANSFER",
+                    "title": "Private airport transfer to your London hotel",
+                },
+            ]},
         )
     if request.url.endswith("/products/LON-123"):
         return TransportResponse(200, {"productCode": "LON-123", "title": "Tour"})
@@ -104,6 +110,8 @@ def test_search_resolves_destination_name_and_returns_non_bookable_products(
     assert result["destination"] == "London"
     assert result["destination_id"] == "684"
     assert result["products"][0]["product_reference"] == "LON-123"
+    assert result["products"][0]["service_type"] == "EXPERIENCE"
+    assert result["products"][1]["service_type"] == "TRANSFER"
     assert result["booking_enabled"] is False
     assert transport.sent_requests[1].json_body["filtering"]["destination"] == "684"
 

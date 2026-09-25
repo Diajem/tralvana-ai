@@ -534,6 +534,7 @@ function ItineraryView({
     : itinerary.daily_outline.slice(0, 4);
   const brief = itinerary.trip_brief;
   const experiences = itinerary.experience_recommendations || [];
+  const transfers = itinerary.transfer_recommendations || [];
   const travellerSummary = [
     `${brief.travellers.adults} adult${brief.travellers.adults === 1 ? "" : "s"}`,
     brief.travellers.children
@@ -611,6 +612,22 @@ function ItineraryView({
           <h2 className="mt-1 text-2xl font-bold text-slate-950">Flights, stay and budget</h2>
         </div>
         <RequestedStayPlanCard itinerary={itinerary} />
+        {brief.airport_transfer_requested && (
+          <div className="rounded-2xl border border-cyan-200 bg-cyan-50/60 p-5">
+            <h3 className="font-bold text-slate-950">Airport transfer options</h3>
+            {transfers.length ? (
+              <div className="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-2">
+                {transfers.slice(0, 4).map((transfer) => (
+                  <ExperienceCard key={transfer.product_reference} experience={transfer} />
+                ))}
+              </div>
+            ) : (
+              <p className="mt-2 text-sm leading-6 text-amber-800">
+                Every connected transfer supplier was checked, but no matching transfer is confirmed yet. This does not mean the destination has no transfers.
+              </p>
+            )}
+          </div>
+        )}
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
           <SectionCard title="Flight">
             {itinerary.flight_recommendation ? (

@@ -73,6 +73,7 @@ class AccommodationNormalizer:
         safety_score = round(min(max(raw["safety_rating"] / 10, 0.0), 1.0), 2)
 
         return {
+            "_market_provider_name": raw.get("_market_provider_name", "mock_accommodation_provider"),
             "destination": raw.get("_destination", ""),
             "property_name": raw["hotel_name"],
             "accommodation_type": accommodation_type,
@@ -157,6 +158,7 @@ class AccommodationNormalizer:
         location_score = self._location_score({"km_to_center": distance_to_centre, "km_to_transit": distance_to_transport})
 
         return {
+            "_market_provider_name": raw.get("_market_provider_name", "duffel_stays_provider"),
             "destination": raw.get("_destination", ""),
             "property_name": raw["property_name"],
             "accommodation_type": accommodation_type,
@@ -267,6 +269,7 @@ class AccommodationNormalizer:
         review_score = 5.0
         comfort_score = round(0.5 * (star_rating / 5 if star_rating else 0.5) + 0.3 * 0.5 + 0.2 * 0.5, 2)
         return {
+            "_market_provider_name": raw.get("_market_provider_name", "hbx_hotels_provider"),
             "destination": raw.get("_destination", ""),
             "property_name": raw["property_name"],
             "accommodation_type": accommodation_type,

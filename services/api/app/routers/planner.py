@@ -285,7 +285,11 @@ async def _attach_viator_experiences(itinerary: Any) -> None:
                 start_date=brief.get("start_date"),
                 end_date=brief.get("end_date"),
                 currency=currency,
-                count=6,
+                # Transfer inventory is part of Viator's product catalogue and
+                # can be displaced by popular tours in a tiny default result
+                # set.  Search the widest supported page when transport was
+                # requested, then classify before composing the itinerary.
+                count=50 if brief.get("airport_transfer_requested") else 12,
             ),
             timeout=_VIATOR_PLANNER_TIMEOUT_SECONDS,
         )
@@ -294,7 +298,15 @@ async def _attach_viator_experiences(itinerary: Any) -> None:
             itinerary.modules_unavailable.append("viator_experiences")
         return
 
-    itinerary.experience_recommendations = list(result.get("products") or [])
+    products = list(result.get("products") or [])
+    itinerary.transfer_recommendations = [
+        product for product in products
+        if product.get("service_type") == "TRANSFER"
+    ]
+    itinerary.experience_recommendations = [
+        product for product in products
+        if product.get("service_type") != "TRANSFER"
+    ]
     if "viator_experiences" not in itinerary.modules_used:
         itinerary.modules_used.append("viator_experiences")
     itinerary.grounding_notices.append(

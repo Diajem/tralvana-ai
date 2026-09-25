@@ -266,6 +266,7 @@ class TripItinerary:
     confidence_explanation: str
     alternative_options: list[dict[str, Any]]
     experience_recommendations: list[dict[str, Any]] = field(default_factory=list)
+    transfer_recommendations: list[dict[str, Any]] = field(default_factory=list)
     grounding_notices: list[GroundingNotice] = field(default_factory=list)
     modules_used: list[str] = field(default_factory=list)
     modules_unavailable: list[str] = field(default_factory=list)
@@ -283,6 +284,7 @@ class TripItinerary:
             "weather_expectations": self.weather_expectations,
             "event_recommendations": self.event_recommendations,
             "experience_recommendations": self.experience_recommendations,
+            "transfer_recommendations": self.transfer_recommendations,
             "risks": self.risks,
             "assumptions": self.assumptions,
             "daily_outline": self.daily_outline,

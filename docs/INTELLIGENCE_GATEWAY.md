@@ -87,6 +87,31 @@ path — see "Architecture Deviations" below and ADR-020.**
 6. **Cache write** — a successful, non-bypassed result is cached with its
    capability's TTL before being returned.
 
+### Market-wide supplier comparison
+
+Inventory searches must not use the first-success rule above. Flights,
+accommodation, transfers, experiences, events and future car-hire products are
+market searches whenever more than one eligible supplier is connected.
+
+`IntelligenceGateway.execute_market_search(capability, request)` therefore:
+
+1. selects every eligible provider for the requested capability and environment;
+2. sends the same grounded request to every selected provider;
+3. combines every successful list response and attaches safe per-offer supplier
+   provenance before normalisation;
+4. preserves healthy inventory when another supplier is empty, rate-limited or
+   fails;
+5. returns `DEGRADED`, not `UNAVAILABLE`, when at least one supplier succeeds;
+6. returns `UNAVAILABLE` only when there is no eligible provider or every
+   eligible provider fails; and
+7. lets the domain intelligence module normalise and rank the combined market,
+   rather than treating provider priority as a recommendation score.
+
+Accommodation uses this path now. New overlapping supplier integrations must
+use this path as part of their acceptance criteria. `execute()` remains valid
+for single-answer operations such as one weather assessment and for explicit
+technical failover where combining responses would be meaningless.
+
 Every step logs through the existing `TravelLogger`
 (`travelos/logging/travel_logger.py`) — provider selected, cache hit/
 miss, retry attempt, failover, latency, final status. No personal data or

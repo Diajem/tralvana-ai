@@ -321,7 +321,10 @@ class GatewayAccommodationProvider:
                 "adults": adults, "children": children, "child_ages": list(child_ages or []), "rooms": rooms,
             },
         )
-        result = self._gateway.execute(Capability.ACCOMMODATION, request)
+        # Accommodation is a market search, not a preferred-provider lookup.
+        # Query every eligible supplier so an empty/expensive HBX response can
+        # never hide suitable Duffel (or future RateHawk) inventory.
+        result = self._gateway.execute_market_search(Capability.ACCOMMODATION, request)
         self.last_result = result
         if result.ok and result.data is not None:
             return result.data
