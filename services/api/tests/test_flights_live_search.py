@@ -18,6 +18,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 import ai.discovery.flights.flight_intelligence as fi_module
+import app.domains.flights.service as flight_service_module
 from travelos.intelligence_gateway.discovery_adapters import GatewayFlightProvider
 from travelos.intelligence_gateway.gateway import IntelligenceGateway
 from travelos.intelligence_gateway.provider_registry import ProviderRegistry
@@ -262,3 +263,49 @@ class TestLiveSandboxFailureBehaviour:
         assert body["data_source"] == "DUFFEL_SANDBOX"
         assert body["results_count"] == 0
         assert body["flight_options"] == []
+
+    def test_zero_through_offers_can_return_a_clearly_labelled_split_ticket(self, client, monkeypatch):
+        empty_response = {"data": {"id": "orq_empty", "offers": []}}
+        _install_live_provider(monkeypatch, status_code=200, body=empty_response)
+        monkeypatch.setattr(
+            flight_service_module,
+            "_best_split_ticket_option",
+            lambda **_: {
+                "airline": "Austrian + Virgin Atlantic",
+                "flight_number": "OS001 / VS165",
+                "cabin_class": "economy",
+                "stops": 1,
+                "layover_duration": "Long buffer or overnight self-transfer required",
+                "departure_time": "08:00",
+                "arrival_time": "16:00",
+                "total_duration": "Varies by self-transfer buffer",
+                "estimated_price": 900.0,
+                "currency": "GBP",
+                "baggage_included": False,
+                "refundability": "separate_fare_rules",
+                "flexibility": "separate_fare_rules",
+                "departure_date": _TOMORROW,
+                "return_date": "2026-11-17",
+                "match_score": 0.45,
+                "reasoning": "Two independently priced return tickets via LHR.",
+                "risks": ["SEPARATE TICKETS", "SELF-TRANSFER", "MISSED-CONNECTION RISK"],
+                "assumptions": ["Not one protected itinerary."],
+                "recommendation_type": "BEST_AVAILABLE_SPLIT_TICKET",
+                "provider_offer_id": None,
+                "data_source": "DUFFEL_LIVE_SPLIT_TICKET",
+                "split_gateway": "LHR",
+            },
+        )
+        res = client.post("/flights/recommend", json={
+            "origin": "VIE", "destination": "MBJ", "departure_date": _TOMORROW,
+            "return_date": "2026-11-17", "cabin_class": "economy",
+        })
+        assert res.status_code == 201
+        body = res.json()
+        assert body["data_source"] == "DUFFEL_LIVE_SPLIT_TICKET"
+        assert body["results_count"] == 1
+        option = body["flight_options"][0]
+        assert option["recommendation_type"] == "BEST_AVAILABLE_SPLIT_TICKET"
+        assert any("SEPARATE TICKETS" in risk for risk in option["risks"])
+        assert any("SELF-TRANSFER" in risk for risk in option["risks"])
+        assert "provider_offer_id" not in option

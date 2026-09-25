@@ -271,6 +271,7 @@ export async function runFlightSearchDiagnostic(params: {
     destination: params.destination,
     departure_date: params.departure_date,
     return_date: params.return_date,
+    allow_split_ticket: "true",
   });
   const res = await apiFetch(`${BASE_URL}/internal/providers/flight-search?${query}`, {
     cache: "no-store",

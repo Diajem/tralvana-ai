@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import Any
 
@@ -70,6 +71,42 @@ class FlightIntelligenceService:
             profile=profile,
             goal=goal,
         )
+
+        if (
+            config.flight_provider_mode != "MOCK"
+            and not output["flight_options"]
+            and request.departure_date
+            and request.return_date
+        ):
+            split_option = _best_split_ticket_option(
+                origin=origin,
+                destination=destination,
+                departure_date=request.departure_date,
+                return_date=request.return_date,
+                cabin_class=request.cabin_class,
+                adults=request.adults,
+                minor_ages=request.minor_ages,
+            )
+            if split_option:
+                output["flight_options"] = [split_option]
+                output["data_source"] = "DUFFEL_LIVE_SPLIT_TICKET"
+                output["provider_status"] = "AVAILABLE"
+                output["results_count"] = 1
+                output["summary"] = (
+                    f"No single through fare was found. A separate-ticket route via "
+                    f"{split_option['split_gateway']} is available, subject to mandatory "
+                    "self-transfer safeguards."
+                )
+                output["assumptions"] = [
+                    *output["assumptions"],
+                    "The displayed total combines two independently priced return tickets; it is not one protected through booking.",
+                ]
+                output["next_actions"] = [
+                    "Allow a long connection or overnight stop in both directions.",
+                    "Confirm transit and entry requirements for the self-transfer country.",
+                    "Recheck baggage, terminals, minimum connection time and both fares immediately before payment.",
+                    *output["next_actions"],
+                ]
 
         now = datetime.now(timezone.utc).isoformat()
         flights = [
@@ -187,6 +224,108 @@ class FlightIntelligenceService:
 
 _repository = FlightRepository()
 flight_intelligence_service = FlightIntelligenceService(_repository)
+
+
+_SPLIT_TICKET_GATEWAYS = ("LHR", "FRA", "MAD", "AMS")
+
+
+def _best_split_ticket_option(
+    *,
+    origin: str,
+    destination: str,
+    departure_date: str,
+    return_date: str,
+    cabin_class: str,
+    adults: int,
+    minor_ages: list[int],
+) -> dict[str, Any] | None:
+    """Find the cheapest viable pair of independent return tickets.
+
+    This is discovery only. The combined result intentionally has no provider
+    offer ID and therefore cannot be booked as a single Duffel order.
+    """
+    from ai.discovery.flights.flight_intelligence import FlightIntelligence
+    from travelos.intelligence_gateway.discovery_adapters import GatewayFlightProvider
+
+    def search_gateway(gateway: str) -> tuple[str, dict, dict] | None:
+        first = FlightIntelligence(provider=GatewayFlightProvider()).recommend(
+            origin=origin,
+            destination=gateway,
+            departure_date=departure_date,
+            return_date=return_date,
+            cabin_class=cabin_class,
+            adults=adults,
+            minor_ages=minor_ages,
+        )["flight_options"]
+        if not first:
+            return None
+        second = FlightIntelligence(provider=GatewayFlightProvider()).recommend(
+            origin=gateway,
+            destination=destination,
+            departure_date=departure_date,
+            return_date=return_date,
+            cabin_class=cabin_class,
+            adults=adults,
+            minor_ages=minor_ages,
+        )["flight_options"]
+        if not second:
+            return None
+        a, b = first[0], second[0]
+        if a["currency"] != b["currency"]:
+            return None
+        return gateway, a, b
+
+    with ThreadPoolExecutor(max_workers=len(_SPLIT_TICKET_GATEWAYS)) as pool:
+        candidates = [
+            result
+            for result in pool.map(search_gateway, _SPLIT_TICKET_GATEWAYS)
+            if result is not None
+        ]
+    if not candidates:
+        return None
+
+    gateway, first, second = min(
+        candidates,
+        key=lambda item: item[1]["estimated_price"] + item[2]["estimated_price"],
+    )
+    total = round(first["estimated_price"] + second["estimated_price"], 2)
+    mandatory_risks = [
+        "SEPARATE TICKETS: the airlines do not protect the onward journey if the first flight is delayed or cancelled.",
+        "SELF-TRANSFER: collect and re-check baggage, pass immigration/security where required, and change terminals independently.",
+        "MISSED-CONNECTION RISK: use a long buffer or overnight stop; buying a replacement flight may be necessary.",
+        "TRANSIT RULES: verify visa, transit and entry requirements for the gateway country for every traveller.",
+    ]
+    return {
+        "airline": f"{first['airline']} + {second['airline']}",
+        "flight_number": f"{first['flight_number']} / {second['flight_number']}",
+        "cabin_class": cabin_class,
+        "stops": first["stops"] + second["stops"] + 1,
+        "layover_duration": "Long buffer or overnight self-transfer required",
+        "departure_time": first["departure_time"],
+        "arrival_time": second["arrival_time"],
+        "total_duration": "Varies by self-transfer buffer",
+        "estimated_price": total,
+        "currency": first["currency"],
+        "baggage_included": first["baggage_included"] and second["baggage_included"],
+        "refundability": "separate_fare_rules",
+        "flexibility": "separate_fare_rules",
+        "departure_date": departure_date,
+        "return_date": return_date,
+        "match_score": 0.45,
+        "reasoning": (
+            f"No single through fare was available. This combines independent return tickets "
+            f"{origin}–{gateway} and {gateway}–{destination}; the price is the sum of both live fares."
+        ),
+        "risks": mandatory_risks,
+        "assumptions": [
+            "This is a planning fallback, not one protected itinerary.",
+            "Both component fares must be re-priced and booked separately.",
+        ],
+        "recommendation_type": "BEST_AVAILABLE_SPLIT_TICKET",
+        "provider_offer_id": None,
+        "data_source": "DUFFEL_LIVE_SPLIT_TICKET",
+        "split_gateway": gateway,
+    }
 
 
 def _minor_ages_from_entities(

@@ -132,25 +132,40 @@ async def flight_search_diagnostic(
     destination: str,
     departure_date: str,
     return_date: str | None = None,
+    allow_split_ticket: bool = False,
 ) -> dict:
     """Run an authenticated, search-only flight inventory check.
 
     This deliberately exposes only safe provenance and one mapped offer. It
     never creates a Duffel order, payment, hold, or booking.
     """
-    from ai.discovery.flights.flight_intelligence import FlightIntelligence
-    from travelos.intelligence_gateway.discovery_adapters import GatewayFlightProvider
-    from travelos.intelligence_gateway.gateway import intelligence_gateway
+    if allow_split_ticket:
+        from app.domains.flights.schemas import RecommendFlightsRequest
+        from app.domains.flights.service import flight_intelligence_service
 
-    result = FlightIntelligence(
-        provider=GatewayFlightProvider(intelligence_gateway)
-    ).recommend(
-        origin=origin,
-        destination=destination,
-        departure_date=departure_date,
-        return_date=return_date,
-        adults=1,
-    )
+        result = flight_intelligence_service.recommend(
+            RecommendFlightsRequest(
+                origin=origin,
+                destination=destination,
+                departure_date=departure_date,
+                return_date=return_date,
+                adults=1,
+            )
+        )
+    else:
+        from ai.discovery.flights.flight_intelligence import FlightIntelligence
+        from travelos.intelligence_gateway.discovery_adapters import GatewayFlightProvider
+        from travelos.intelligence_gateway.gateway import intelligence_gateway
+
+        result = FlightIntelligence(
+            provider=GatewayFlightProvider(intelligence_gateway)
+        ).recommend(
+            origin=origin,
+            destination=destination,
+            departure_date=departure_date,
+            return_date=return_date,
+            adults=1,
+        )
     options = result["flight_options"]
     first = options[0] if options else None
     sample = None
