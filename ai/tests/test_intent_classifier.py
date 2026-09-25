@@ -606,3 +606,10 @@ class TestEntityExtraction:
             "Plan a family trip to Jamaica. The budget is flexible: do not pause to ask for a budget."
         )
         assert result.entities["budget_flexible"] == "true"
+
+    def test_plan_and_price_complete_family_holiday_is_a_trip_plan(self, classifier):
+        result = classifier.classify(
+            "Plan and price a complete family holiday for two Austrian adults "
+            "and two children aged 7 and 10 from Vienna to Ocho Rios, Jamaica."
+        )
+        assert result.intent == Intent.PLAN_TRIP

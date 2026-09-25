@@ -9,7 +9,7 @@ from __future__ import annotations
 
 
 VIENNA_TO_JAMAICA_FAMILY = (
-    "Plan a complete family holiday from Vienna, Austria to Ocho Rios, Jamaica, "
+    "Plan and price a complete family holiday from Vienna, Austria to Ocho Rios, Jamaica, "
     "departing 10 October 2026 for 12 nights. The travellers are 2 adults and "
     "2 children aged 7 and 10. All four travellers are Austrian passport holders. "
     "We need economy return flights, checked baggage allowance, a family-friendly "

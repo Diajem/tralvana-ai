@@ -185,7 +185,7 @@ class IntentClassifier:
         # planner then returned only a weather card instead of assembling the
         # requested itinerary.
         explicit_plan = re.search(
-            r"\bplan\s+(?:me\s+)?(?:a|an|my|our|the)\s+"
+            r"\bplan(?:\s+and\s+price)?\s+(?:me\s+)?(?:a|an|my|our|the)\s+"
             r"(?:[a-z0-9-]+\s+){0,2}(?:trip|holiday)\b",
             text,
         )
