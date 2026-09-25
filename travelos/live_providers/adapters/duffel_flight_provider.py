@@ -46,6 +46,16 @@ _DUFFEL_BASE_URL = "https://api.duffel.com"
 _DUFFEL_API_VERSION = "v2"
 _DUFFEL_OFFER_PAGE_SIZE = 50
 
+# Resort areas are valid trip destinations but are not always useful flight
+# endpoints.  Keep this translation at the supplier boundary so the planner
+# can preserve the traveller's actual destination while Duffel searches the
+# international gateway normally used to reach it.  This deliberately stays
+# small and explicit; unknown places continue through Duffel's Places API.
+_GROUND_DESTINATION_GATEWAYS = {
+    "ocho rios": "MBJ",
+    "ocho rios, jamaica": "MBJ",
+}
+
 # Internal cabin_class <-> Duffel cabin_class. Duffel also supports
 # "premium_economy", which has no internal equivalent (the Discovery
 # Layer's three-tier _CABIN_ORDER in ai/discovery/flights/flight_intelligence.py
@@ -166,6 +176,10 @@ class DuffelFlightProvider(BaseLiveProvider):
         place = value.strip()
         if re.fullmatch(r"[A-Za-z]{3}", place):
             return place.upper()
+
+        gateway = _GROUND_DESTINATION_GATEWAYS.get(place.casefold())
+        if gateway:
+            return gateway
 
         request = TransportRequest(
             method="GET",

@@ -245,6 +245,43 @@ class TestRequestMapping:
             for request in transport.sent_requests[:-1]
         ] == ["London Heathrow", "New York City", "New York"]
 
+    def test_ground_destination_uses_its_international_gateway(self, monkeypatch):
+        monkeypatch.setenv(_ENV_VAR, "duffel_test_abc123")
+
+        def responder(request):
+            if request.url.endswith("/places/suggestions"):
+                assert request.query_params["query"] == "Vienna, Austria"
+                return TransportResponse(
+                    status_code=200,
+                    body={
+                        "data": [
+                            {"type": "city", "name": "Vienna", "iata_code": "VIE"}
+                        ]
+                    },
+                )
+            return TransportResponse(
+                status_code=200,
+                body=_offer_request_body(_DIRECT_OFFER),
+            )
+
+        transport = FakeTransport(responder=responder)
+        provider = DuffelFlightProvider(transport=transport)
+        provider.execute(
+            _req(origin="Vienna, Austria", destination="Ocho Rios")
+        )
+
+        offer_request = transport.sent_requests[-1]
+        assert offer_request.json_body["data"]["slices"][0] == {
+            "origin": "VIE",
+            "destination": "MBJ",
+            "departure_date": "2026-10-01",
+        }
+        assert [
+            request.query_params["query"]
+            for request in transport.sent_requests
+            if request.url.endswith("/places/suggestions")
+        ] == ["Vienna, Austria"]
+
     def test_auth_header_merged_as_bearer_token(self, monkeypatch):
         monkeypatch.setenv(_ENV_VAR, "duffel_test_my-secret-token")
         transport = FakeTransport.always_returning(status_code=200, body=_offer_request_body(_DIRECT_OFFER))
