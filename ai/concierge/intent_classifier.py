@@ -571,7 +571,8 @@ class IntentClassifier:
             entities["accommodation_preference"] = "Same hotel for all travellers"
 
         if re.search(
-            r"\b(?:child|children|kid|kids|family)[- ]friendly\s+hotel\b",
+            r"\b(?:child|children|kid|kids|family)[- ]friendly\s+hotel\b"
+            r"|\bfamily\s+hotel\b",
             text,
         ):
             entities["accommodation_type"] = "HOTEL"
@@ -1441,10 +1442,19 @@ class IntentClassifier:
             text,
         ):
             entities["entry_form_guidance_requested"] = "true"
-        if re.search(r"\bdeparture and arrival airports?\b", text):
+        if re.search(
+            r"\bdeparture(?:,?\s+(?:connection|connecting))?,?\s+and\s+"
+            r"arrival airports?(?:\s+and\s+terminals?)?\b",
+            text,
+        ):
             entities["airport_details_requested"] = "true"
         if re.search(
             r"\b(?:hotel|accommodation) (?:location and )?distance from (?:the )?airport\b",
+            text,
+        ) or re.search(
+            r"\b(?:exact\s+)?hotel\s+location\b.{0,80}\b"
+            r"distance(?:\s+and\s+journey\s+time)?\s+from\s+(?:the\s+)?"
+            r"(?:arrival\s+)?airport\b",
             text,
         ):
             entities["hotel_airport_distance_requested"] = "true"

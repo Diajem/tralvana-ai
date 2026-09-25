@@ -613,3 +613,13 @@ class TestEntityExtraction:
             "and two children aged 7 and 10 from Vienna to Ocho Rios, Jamaica."
         )
         assert result.intent == Intent.PLAN_TRIP
+
+    def test_launch_prompt_preserves_hotel_and_airport_detail_requirements(self, classifier):
+        result = classifier.classify(
+            "Plan and price a complete family holiday with a family hotel. Include "
+            "departure, connection and arrival airports and terminals, the exact hotel "
+            "location, verified distance and journey time from the arrival airport."
+        )
+        assert result.entities["accommodation_preference"] == "Child-friendly hotel"
+        assert result.entities["airport_details_requested"] == "true"
+        assert result.entities["hotel_airport_distance_requested"] == "true"

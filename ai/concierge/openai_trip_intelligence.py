@@ -552,6 +552,14 @@ def merge_interpretations(
         )
         entities["negative_constraints"] = ",".join(constraints)
     _normalise_dates(entities)
+    explicit_nights = re.search(r"\b(\d{1,3})\s+(?:hotel\s+)?nights?\b", message.casefold())
+    if (
+        explicit_nights
+        and entities.get("start_date")
+        and entities.get("end_date")
+        and entities.get("duration_nights") == explicit_nights.group(1)
+    ):
+        entities["duration_days"] = str(int(explicit_nights.group(1)) + 1)
 
     intent = ai_result.intent
     if rule_result.intent == Intent.PLAN_TRIP:

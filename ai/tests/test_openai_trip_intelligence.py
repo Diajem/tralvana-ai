@@ -324,6 +324,29 @@ def test_nationalities_are_deduplicated_case_insensitively():
     assert merged.entities["nationalities"] == "Austrian"
 
 
+def test_explicit_nights_keep_inclusive_calendar_day_count():
+    rule = ClassifiedIntent(
+        intent=Intent.PLAN_TRIP,
+        confidence=0.95,
+        entities={"duration_days": "13", "duration_nights": "12"},
+    )
+    ai = _florida_interpretation(
+        start_date="2026-10-10",
+        end_date="2026-10-22",
+        duration_days=12,
+        duration_nights=12,
+    ).to_classified_intent()
+
+    merged = merge_interpretations(
+        rule,
+        ai,
+        "Plan 12 hotel nights from 10 October 2026 to 22 October 2026.",
+    )
+
+    assert merged.entities["duration_nights"] == "12"
+    assert merged.entities["duration_days"] == "13"
+
+
 def test_openai_is_used_for_plans_and_active_plan_refinements_not_greetings():
     assert should_use_openai_interpretation(
         rule_intent=Intent.PLAN_TRIP,
