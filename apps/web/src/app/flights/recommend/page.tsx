@@ -296,13 +296,15 @@ export default function RecommendFlightsPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Departure Date <span className="text-gray-400">(optional)</span>
+                Departure Date <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
+                name="departure_date"
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={form.departure_date}
-                onChange={(e) => setForm({ ...form, departure_date: e.target.value })}
+                onChange={(e) => setForm((current) => ({ ...current, departure_date: e.target.value }))}
+                required
               />
             </div>
             <div>
@@ -311,9 +313,10 @@ export default function RecommendFlightsPage() {
               </label>
               <input
                 type="date"
+                name="return_date"
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={form.return_date}
-                onChange={(e) => setForm({ ...form, return_date: e.target.value })}
+                onChange={(e) => setForm((current) => ({ ...current, return_date: e.target.value }))}
               />
             </div>
           </div>

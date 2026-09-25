@@ -32,6 +32,7 @@ class SearchTransport(HttpxTransport):
         if (url.scheme != "https" or url.netloc != "api.duffel.com"
                 or (request.method, url.path) not in {
                     ("POST", "/air/offer_requests"),
+                    ("GET", "/air/offers"),
                     ("GET", "/places/suggestions"),
                     ("POST", "/stays/search"),
                 }):

@@ -23,6 +23,7 @@ calls. See docs/FLIGHT_PROVIDER_INTEGRATION.md's "Enabling It" section.
 
 from __future__ import annotations
 
+import logging
 import re
 from datetime import datetime
 from typing import Any
@@ -45,6 +46,8 @@ from travelos.live_providers.transport import Transport, TransportRequest, Trans
 _DUFFEL_BASE_URL = "https://api.duffel.com"
 _DUFFEL_API_VERSION = "v2"
 _DUFFEL_OFFER_PAGE_SIZE = 50
+
+logger = logging.getLogger(__name__)
 
 # Resort areas are valid trip destinations but are not always useful flight
 # endpoints.  Keep this translation at the supplier boundary so the planner
@@ -318,6 +321,17 @@ class DuffelFlightProvider(BaseLiveProvider):
             raise ProviderResponseError(
                 f"{self.provider_name}: all {len(offers)} offer(s) in the response failed to map"
             )
+
+        # Keep production diagnostics useful without logging fares, passenger
+        # details, the bearer token, or Duffel's raw response.  This lets us
+        # distinguish genuine no-inventory results from mapping failures.
+        logger.info(
+            "Duffel flight offers processed | provider_request_id=%s | raw_offer_count=%d | mapped_offer_count=%d | failed_offer_count=%d",
+            data.get("id", ""),
+            len(offers),
+            len(options),
+            failed_count,
+        )
 
         return ProviderResult(
             provider_name=self.provider_name,
