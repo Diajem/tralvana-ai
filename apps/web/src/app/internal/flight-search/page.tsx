@@ -19,16 +19,19 @@ export default function FlightSearchDiagnosticPage() {
   const [result, setResult] = useState<Diagnostic | null>(null);
   const [error, setError] = useState("");
 
-  const [route, setRoute] = useState<"control" | "jamaica">("control");
+  const [route, setRoute] = useState<"control" | "jamaica" | "vienna-jfk" | "london-mbj">("control");
 
   async function runSearch() {
     setLoading(true);
     setError("");
     setResult(null);
     try {
-      const params = route === "control"
-        ? { origin: "LHR", destination: "JFK", departure_date: "2026-11-10", return_date: "2026-11-17" }
-        : { origin: "VIE", destination: "MBJ", departure_date: "2026-10-10", return_date: "2026-10-22" };
+      const params = {
+        control: { origin: "LHR", destination: "JFK", departure_date: "2026-11-10", return_date: "2026-11-17" },
+        jamaica: { origin: "VIE", destination: "MBJ", departure_date: "2026-10-10", return_date: "2026-10-22" },
+        "vienna-jfk": { origin: "VIE", destination: "JFK", departure_date: "2026-10-10", return_date: "2026-10-22" },
+        "london-mbj": { origin: "LHR", destination: "MBJ", departure_date: "2026-10-10", return_date: "2026-10-22" },
+      }[route];
       setResult(await runFlightSearchDiagnostic(params) as Diagnostic);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Search failed");
@@ -44,9 +47,12 @@ export default function FlightSearchDiagnosticPage() {
           <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">Internal diagnostic</p>
           <h1 className="mt-2 text-3xl font-bold text-gray-900">Live Duffel flight search</h1>
           <p className="mt-2 text-gray-600">
-            {route === "control"
-              ? "LHR → JFK · 10–17 November 2026 · one adult"
-              : "VIE → MBJ · 10–22 October 2026 · one adult"}
+            {{
+              control: "LHR → JFK · 10–17 November 2026 · one adult",
+              jamaica: "VIE → MBJ · 10–22 October 2026 · one adult",
+              "vienna-jfk": "VIE → JFK · 10–22 October 2026 · one adult",
+              "london-mbj": "LHR → MBJ · 10–22 October 2026 · one adult",
+            }[route]}
           </p>
           <p className="mt-1 text-sm text-gray-500">Search only. This cannot create an order, hold, payment, or booking.</p>
         </div>
@@ -64,6 +70,20 @@ export default function FlightSearchDiagnosticPage() {
             className={`rounded-xl border px-4 py-2 font-semibold ${route === "jamaica" ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-gray-300 text-gray-700"}`}
           >
             VIE → MBJ test
+          </button>
+          <button
+            type="button"
+            onClick={() => { setRoute("vienna-jfk"); setResult(null); setError(""); }}
+            className={`rounded-xl border px-4 py-2 font-semibold ${route === "vienna-jfk" ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-gray-300 text-gray-700"}`}
+          >
+            VIE → JFK cross-check
+          </button>
+          <button
+            type="button"
+            onClick={() => { setRoute("london-mbj"); setResult(null); setError(""); }}
+            className={`rounded-xl border px-4 py-2 font-semibold ${route === "london-mbj" ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-gray-300 text-gray-700"}`}
+          >
+            LHR → MBJ cross-check
           </button>
         </div>
         <button
