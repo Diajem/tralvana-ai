@@ -1,11 +1,17 @@
 # Viator integration preparation
 
-## Current state
+## Current state — 25 September 2026
 
-Tralvana has no active Viator integration. T-080 adds only a disabled,
-provider-neutral experiences contract and a fail-closed Viator adapter shell.
-It contains no API URL, credential reference, external request, booking route,
-payment path or frontend activation.
+Tralvana has active read-only Viator Full API discovery in the sandbox. The
+sandbox and production keys are stored as Render secrets, the adapter supports
+destinations, product search, product details and availability schedules, and
+live diagnostics have returned mapped catalogue products for Montego Bay,
+London, New York and Vienna. Booking and payment remain fail-closed.
+
+Viator has unlocked **Request additional access** for account P00319157. The
+Full + Booking request is the next commercial step. After submission, Viator's
+Integration team requires backend review, integration access, backend/frontend
+certification, test bookings, PCI DSS SAQ A approval and production-key release.
 
 The requested commercial outcome is an international, fully transactional
 experience flow inside Tralvana. Redirect-only Basic or Full affiliate access
@@ -13,8 +19,23 @@ does not meet that product rule. Viator qualification must establish whether
 Diajem Global Ltd is eligible for either:
 
 1. Merchant API access, where Diajem Global Ltd is merchant of record; or
-2. Full + Booking affiliate access, where the transaction remains inside
-   Tralvana and Viator is merchant of record.
+2. **Selected:** Full + Booking affiliate access, where the transaction remains
+   inside Tralvana and Viator is merchant of record.
+
+## Confirmed payment and revenue boundary
+
+- Viator is Merchant of Record for experience bookings.
+- Viator—not Stripe or another Tralvana gateway—collects the customer's payment.
+- The preferred launch integration is Viator's hosted payment iFrame inside
+  Tralvana, which keeps raw card data outside Tralvana and limits PCI scope to
+  SAQ A, subject to Viator approval and certification.
+- The Viator API payment option must not be enabled unless Viator approves it
+  and Tralvana obtains the required QSA-signed PCI DSS Attestation of Compliance.
+- Tralvana receives the agreed 8% commission for confirmed and completed
+  bookings. Tralvana does not add a markup to Viator products.
+- Tralvana's Stripe account is reserved for products where Tralvana is the
+  merchant, including the planned RateHawk accommodation model. It must never
+  process a Viator experience payment.
 
 ## Consultation brief
 
