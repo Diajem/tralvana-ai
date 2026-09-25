@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { runFlightSearchDiagnostic } from "@/lib/api";
 
 type Diagnostic = {
   booking_attempted: boolean;
@@ -23,17 +24,7 @@ export default function FlightSearchDiagnosticPage() {
     setError("");
     setResult(null);
     try {
-      const query = new URLSearchParams({
-        origin: "LHR",
-        destination: "JFK",
-        departure_date: "2026-11-10",
-        return_date: "2026-11-17",
-      });
-      const response = await fetch(`/api/internal/providers/flight-search?${query}`, {
-        cache: "no-store",
-      });
-      if (!response.ok) throw new Error(`Search failed (${response.status})`);
-      setResult(await response.json());
+      setResult(await runFlightSearchDiagnostic() as Diagnostic);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Search failed");
     } finally {

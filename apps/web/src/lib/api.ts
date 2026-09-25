@@ -260,6 +260,22 @@ export async function getTripFlights(tripId: string): Promise<FlightOption[]> {
   return res.json();
 }
 
+export async function runFlightSearchDiagnostic(): Promise<Record<string, any>> {
+  const query = new URLSearchParams({
+    origin: "LHR",
+    destination: "JFK",
+    departure_date: "2026-11-10",
+    return_date: "2026-11-17",
+  });
+  const res = await apiFetch(`${BASE_URL}/internal/providers/flight-search?${query}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`Search failed (${res.status})`);
+  }
+  return res.json();
+}
+
 // ------------------------------------------------------------------
 // Accommodation API
 // ------------------------------------------------------------------
