@@ -1,5 +1,7 @@
 """Acceptance coverage for the five remote and mixed-status trip briefs."""
 
+from datetime import date, timedelta
+
 
 MANCHESTER = """Plan a 14 day trip to Manchester, UK for a family of 2, both Nigerian nationals (1 adult and 1 child, age 10). We'd like to fly from Lagos, Nigeria, from any convenient airport with a reliable connection to Manchester. We'd like family-friendly sightseeing, including football stadium tours (Old Trafford and/or Etihad Stadium), museums, and day trips outside the city. We would like to dine out together 4 times and stay in a family-friendly hotel close to the city centre. We would like package allowance and UK visa requirements. Maybe visit the Trafford Centre and take a day trip to the Lake District or Peak District. Traveling out on the 15th of September and spending 14 full days in the UK."""
 
@@ -36,9 +38,12 @@ def _outline_text(itinerary: dict) -> str:
 def test_manchester_nigerian_family_gets_visitor_visa_and_family_plan(client):
     itinerary = _plan(client, MANCHESTER)
     brief = itinerary["trip_brief"]
+    departure = date(date.today().year, 9, 15)
+    if departure < date.today():
+        departure = departure.replace(year=departure.year + 1)
     assert brief["destination"] == "Manchester"
-    assert brief["start_date"] == "2026-09-15"
-    assert brief["end_date"] == "2026-09-29"
+    assert brief["start_date"] == departure.isoformat()
+    assert brief["end_date"] == (departure + timedelta(days=14)).isoformat()
     assert brief["travellers"] == {
         "adults": 1, "children": 1, "infants": 0, "minor_ages": [10],
     }

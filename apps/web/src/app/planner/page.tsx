@@ -284,7 +284,7 @@ function TripBriefCard({ itinerary }: { itinerary: TripItinerary }) {
           ["Preferred airlines", brief.airline_preferences?.length ? brief.airline_preferences.join(", ") : "Not supplied"],
           ["To", destination],
           ["Stay areas", brief.local_areas?.length ? brief.local_areas.join(", ") : "Not supplied"],
-          ["Duration", `${brief.duration_days} days`],
+          ["Duration", `${brief.duration_days} days · ${brief.duration_nights} nights`],
           ["Travel period", brief.travel_period],
           ["Travellers", travellers],
           ["Passport nationalities", brief.nationalities?.length ? brief.nationalities.join(", ") : brief.nationality || "Not supplied"],
@@ -295,6 +295,11 @@ function TripBriefCard({ itinerary }: { itinerary: TripItinerary }) {
           ["Dining out", brief.dining_out_count !== null ? `${brief.dining_out_count} planned restaurant meal${brief.dining_out_count === 1 ? "" : "s"}` : "Not supplied"],
           ["Dining preferences", brief.dining_preferences?.length ? brief.dining_preferences.join(", ") : "Not supplied"],
           ["Baggage guidance", brief.baggage_information_requested ? "Requested — confirm against the selected live fare" : "Not requested"],
+          ["Car hire", brief.car_hire_requested ? "Requested — supplier connection required" : "Not requested"],
+          ["Airport transfer", brief.airport_transfer_requested ? "Requested — price after flight and hotel selection" : "Not requested"],
+          ["Entry form guidance", brief.entry_form_guidance_requested ? "Requested — official government source required" : "Not requested"],
+          ["Airport details", brief.airport_details_requested ? "Requested — confirm from selected flight" : "Not requested"],
+          ["Hotel distance from airport", brief.hotel_airport_distance_requested ? "Requested — calculate after property selection" : "Not requested"],
           ["Accessibility", brief.accessibility_needs?.length ? brief.accessibility_needs.join(", ") : "Not supplied"],
           ["Dietary needs", brief.dietary_requirements?.length ? brief.dietary_requirements.join(", ") : "Not supplied"],
           ["Must avoid", brief.negative_constraints?.length ? brief.negative_constraints.join(", ") : "Not supplied"],
@@ -549,7 +554,7 @@ function ItineraryView({
               {brief.origin ? `${brief.origin} → ` : ""}{brief.destination}
             </h2>
             <p className="mt-2 text-sm text-indigo-100">
-              {brief.travel_period} · {brief.duration_days} days · {travellerSummary}
+              {brief.travel_period} · {brief.duration_days} days · {brief.duration_nights} nights · {travellerSummary}
             </p>
           </div>
           <ReadinessBadge score={itinerary.booking_readiness.score} />
@@ -656,6 +661,21 @@ function ItineraryView({
                 <PassportAssessments data={itinerary.visa_summary} />
               </>
             ) : <p className="text-sm text-slate-600">Add passport nationality for entry guidance.</p>}
+            {brief.entry_form_guidance && (
+              <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+                <p className="font-bold">{brief.entry_form_guidance.form_name}</p>
+                <p className="mt-2 leading-6">{brief.entry_form_guidance.advice}</p>
+                <p className="mt-2">{brief.entry_form_guidance.cost} · {brief.entry_form_guidance.completion_window}</p>
+                <a
+                  className="mt-3 inline-flex font-bold text-emerald-800 underline"
+                  href={brief.entry_form_guidance.official_url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open the official Jamaica C5 form
+                </a>
+              </div>
+            )}
           </SectionCard>
           <SectionCard title="Weather expectations">
             {itinerary.weather_expectations ? <RecommendationFacts data={itinerary.weather_expectations} /> : <p className="text-sm text-slate-600">Seasonal guidance is not available for this destination yet.</p>}

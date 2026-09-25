@@ -36,6 +36,7 @@ export interface TripBrief {
   destination_region: string | null;
   local_areas: string[];
   duration_days: number;
+  duration_nights: number;
   start_date: string | null;
   end_date: string | null;
   month: number | null;
@@ -64,6 +65,22 @@ export interface TripBrief {
   dining_out_count: number | null;
   dining_preferences: string[];
   baggage_information_requested: boolean;
+  car_hire_requested: boolean;
+  airport_transfer_requested: boolean;
+  entry_form_guidance_requested: boolean;
+  entry_form_guidance: {
+    form_name: string;
+    required: boolean;
+    official_url: string;
+    cost: string;
+    completion_window: string;
+    per_traveller: boolean;
+    children_included: boolean;
+    advice: string;
+    source: string;
+  } | null;
+  airport_details_requested: boolean;
+  hotel_airport_distance_requested: boolean;
   accessibility_needs: string[];
   dietary_requirements: string[];
   negative_constraints: string[];

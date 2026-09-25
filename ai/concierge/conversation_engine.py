@@ -541,7 +541,12 @@ class ConversationEngine:
                 int(entities["month"]),
                 int(entities["departure_day"]),
             )
-            end = start + timedelta(days=int(entities["duration_days"]))
+            end = start + timedelta(
+                days=int(
+                    entities.get("duration_nights")
+                    or entities["duration_days"]
+                )
+            )
         except (TypeError, ValueError):
             return
         entities["start_date"] = start.isoformat()

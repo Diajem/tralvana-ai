@@ -56,6 +56,7 @@ class TripInterpretation(BaseModel):
     start_date: str | None
     end_date: str | None
     duration_days: int | None = Field(ge=1, le=180)
+    duration_nights: int | None = Field(default=None, ge=1, le=180)
     month: int | None = Field(ge=1, le=12)
     travel_year: int | None = Field(ge=2020, le=2100)
     departure_day: int | None = Field(ge=1, le=31)
@@ -77,6 +78,11 @@ class TripInterpretation(BaseModel):
     ticket_requested: bool
     dining_out_count: int | None = Field(ge=0, le=100)
     baggage_information_requested: bool
+    car_hire_requested: bool = False
+    airport_transfer_requested: bool = False
+    entry_form_guidance_requested: bool = False
+    airport_details_requested: bool = False
+    hotel_airport_distance_requested: bool = False
     accessibility_needs: list[str]
     dietary_requirements: list[str] = Field(default_factory=list)
     negative_constraints: list[str] = Field(default_factory=list)
@@ -100,6 +106,7 @@ class TripInterpretation(BaseModel):
             "start_date": self.start_date,
             "end_date": self.end_date,
             "duration_days": self.duration_days,
+            "duration_nights": self.duration_nights,
             "month": self.month,
             "travel_year": self.travel_year,
             "departure_day": self.departure_day,
@@ -177,6 +184,15 @@ class TripInterpretation(BaseModel):
             entities["requested_event_status"] = "REQUESTED_NOT_CONFIRMED"
         if self.baggage_information_requested:
             entities["baggage_information_requested"] = "true"
+        for field in (
+            "car_hire_requested",
+            "airport_transfer_requested",
+            "entry_form_guidance_requested",
+            "airport_details_requested",
+            "hotel_airport_distance_requested",
+        ):
+            if getattr(self, field):
+                entities[field] = "true"
         cleared = [
             field
             for field in _clean_list(self.fields_to_clear)
@@ -239,8 +255,12 @@ Rules:
   that date on or after the supplied current date and set year_explicit to
   false. If the year is stated, set it true. Compute end_date from start_date
   plus duration when possible.
-- A request for N full days means duration_days=N and end_date is N days after
-  start_date. A return date takes priority when both dates are explicit.
+- Keep calendar days and accommodation nights distinct. A request for N nights
+  means duration_nights=N, duration_days=N+1 and end_date is N days after the
+  start date. A request for N full days means duration_days=N. For an explicit
+  outbound and return date, duration_nights is the date difference; preserve an
+  explicitly stated duration_days when it equals either the night count or the
+  inclusive calendar-day count. Explicit return dates take priority.
 - Separate activities, transport logistics, and dining. Capture attractions,
   shops, parks and historical places in requested_activities. Put requested
   restaurant styles or meal experiences in dining_preferences. Never put a
@@ -249,6 +269,8 @@ Rules:
 - Capture dining frequency, events, cabin, hotel needs, children's ages, every
   stated nationality, baggage questions, dietary requirements, accessibility
   needs, and negative constraints such as no alcohol.
+- Capture requests for car hire, airport transfers, departure/arrival airport
+  details, hotel-to-airport distance, and official online entry-form guidance.
 - Keep home city, country of residence, flexible airport choice, and preferred
   airlines as separate facts. An airline must never appear as a departure city.
 - Preserve traveller-specific immigration context in residency_documents using
@@ -573,7 +595,11 @@ def _normalise_dates(entities: dict[str, str]) -> None:
     entities["date_hint"] = start.strftime("%-d %B %Y")
     if end and end > start:
         entities["end_date"] = end.isoformat()
-        entities["duration_days"] = str((end - start).days)
+        nights = (end - start).days
+        entities["duration_nights"] = str(nights)
+        supplied_days = int(entities.get("duration_days") or 0)
+        if supplied_days not in {nights, nights + 1}:
+            entities["duration_days"] = str(nights)
         entities["date_precision"] = "EXACT"
 
 

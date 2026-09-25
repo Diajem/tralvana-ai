@@ -520,6 +520,7 @@ class TripAssemblyEngine:
         value.setdefault("destination_region", None)
         value.setdefault("local_areas", [])
         value.setdefault("duration_days", max(int(duration_days or 1), 1))
+        value.setdefault("duration_nights", value["duration_days"])
         value.setdefault("start_date", None)
         value.setdefault("end_date", None)
         value.setdefault("month", None)
@@ -546,6 +547,12 @@ class TripAssemblyEngine:
         value.setdefault("dining_out_count", None)
         value.setdefault("dining_preferences", [])
         value.setdefault("baggage_information_requested", False)
+        value.setdefault("car_hire_requested", False)
+        value.setdefault("airport_transfer_requested", False)
+        value.setdefault("entry_form_guidance_requested", False)
+        value.setdefault("entry_form_guidance", None)
+        value.setdefault("airport_details_requested", False)
+        value.setdefault("hotel_airport_distance_requested", False)
         value.setdefault("accessibility_needs", [])
         value.setdefault("dietary_requirements", [])
         value.setdefault("negative_constraints", [])
@@ -1007,6 +1014,30 @@ class TripAssemblyEngine:
         if not current_flight or not current_accommodation:
             needed.append(
                 "Replace sandbox or indicative flight and accommodation results with current bookable searches, then reconcile the prices."
+            )
+        if brief.get("baggage_information_requested"):
+            needed.append(
+                "Confirm the selected fare's checked and cabin baggage piece, weight, size and family pooling rules before payment."
+            )
+        if brief.get("airport_details_requested"):
+            needed.append(
+                "Confirm the exact departure, connection and arrival airport terminals from the selected live flight offer."
+            )
+        if brief.get("hotel_airport_distance_requested"):
+            needed.append(
+                "Calculate the verified airport-to-hotel distance and journey time after selecting the exact airport and property."
+            )
+        if brief.get("airport_transfer_requested"):
+            needed.append(
+                "Select and price a verified family airport transfer after the live flight and hotel are chosen."
+            )
+        if brief.get("car_hire_requested"):
+            needed.append(
+                "Connect an approved car-hire supplier before showing bookable vehicles or prices."
+            )
+        if brief.get("entry_form_guidance_requested"):
+            needed.append(
+                "Verify Jamaica's official entry-form requirement and government submission link close to departure; never use an unofficial paid form site."
             )
         companion = brief.get("companion_plan") or {}
         if companion and (

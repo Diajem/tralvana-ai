@@ -379,7 +379,46 @@ class TestEntityExtraction:
         assert result.entities["start_date"] == "2026-08-10"
         assert result.entities["end_date"] == "2026-08-17"
         assert result.entities["duration_days"] == "7"
+        assert result.entities["duration_nights"] == "7"
         assert result.entities["adults"] == "2"
+
+    def test_explicit_three_day_trip_preserves_inclusive_calendar_days(
+        self, classifier
+    ):
+        result = classifier.classify(
+            "Plan a 3-day trip to Paris from 10 October 2026 to 12 October 2026."
+        )
+
+        assert result.entities["duration_days"] == "3"
+        assert result.entities["duration_nights"] == "2"
+        assert result.entities["start_date"] == "2026-10-10"
+        assert result.entities["end_date"] == "2026-10-12"
+
+    def test_twelve_nights_keeps_hotel_nights_separate_from_calendar_days(
+        self, classifier
+    ):
+        result = classifier.classify(
+            "Plan a family holiday to Jamaica from Vienna on 10 October 2026 "
+            "for 12 nights."
+        )
+
+        assert result.entities["duration_nights"] == "12"
+        assert result.entities["duration_days"] == "13"
+        assert result.entities["start_date"] == "2026-10-10"
+        assert result.entities["end_date"] == "2026-10-22"
+
+    def test_complete_trip_logistics_requests_are_preserved(self, classifier):
+        result = classifier.classify(
+            "Plan a trip with car hire, airport transfers, departure and arrival "
+            "airports, hotel location and distance from the airport, and Jamaica "
+            "online entry form guidance."
+        )
+
+        assert result.entities["car_hire_requested"] == "true"
+        assert result.entities["airport_transfer_requested"] == "true"
+        assert result.entities["entry_form_guidance_requested"] == "true"
+        assert result.entities["airport_details_requested"] == "true"
+        assert result.entities["hotel_airport_distance_requested"] == "true"
 
     def test_extracts_full_new_york_holiday_details(self, classifier):
         result = classifier.classify(

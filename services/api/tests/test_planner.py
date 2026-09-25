@@ -147,6 +147,7 @@ def test_exact_family_new_york_request_keeps_every_input_and_builds_seven_specif
     assert brief["start_date"] == "2026-10-10"
     assert brief["end_date"] == "2026-10-17"
     assert brief["duration_days"] == 7
+    assert brief["duration_nights"] == 7
     assert brief["travellers"] == {
         "adults": 2,
         "children": 2,

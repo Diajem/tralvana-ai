@@ -37,7 +37,6 @@ class AccommodationIntelligenceService:
         nights = request.nights
         if trip:
             destination = trip.get("destination") or destination
-            nights = trip.get("duration_days") or nights
 
         if config.accommodation_provider_mode != "MOCK":
             # Validate before any Duffel Stays call is made (T-039,
@@ -162,7 +161,11 @@ class AccommodationIntelligenceService:
             check_in_date=entities.get("start_date"),
             accommodation_type=entities.get("accommodation_type"),
             budget_style=entities.get("budget_style") or prefs.get("budget_style", "balanced"),
-            nights=(trip or {}).get("duration_days", 7),
+            nights=int(
+                entities.get("duration_nights")
+                or (trip or {}).get("duration_days")
+                or 7
+            ),
             adults=adults,
             children=int(entities.get("children") or travellers.get("children") or 0),
             child_ages=[

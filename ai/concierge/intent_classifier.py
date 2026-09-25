@@ -57,6 +57,7 @@ _NUMBER_WORDS = {
 # the current visa rules can actually understand.
 _KNOWN_NATIONALITIES = {
     "american",
+    "austrian",
     "british",
     "canadian",
     "emirati",
@@ -960,6 +961,8 @@ class IntentClassifier:
             local_areas.append("Ocho Rios")
         if local_areas:
             entities["local_areas"] = ",".join(local_areas)
+        if "jamaica" in text and entities.get("destination") != "Jamaica":
+            entities["destination_region"] = "Jamaica"
 
         if (
             entities.get("accommodation_location_preference")
@@ -1043,7 +1046,7 @@ class IntentClassifier:
         month_pattern = "|".join(months)
         duration_matches = list(re.finditer(
             rf"\b(a|an|\d{{1,2}}|{'|'.join(_NUMBER_WORDS)})\s*(?:-\s*)?"
-            r"(days?|weeks?)\b",
+            r"(days?|weeks?|nights?)\b",
             text,
         ))
         duration_matches = [
@@ -1092,7 +1095,11 @@ class IntentClassifier:
                 )
                 if unit.startswith("week"):
                     duration *= 7
-                durations.append(duration)
+                if unit.startswith("night"):
+                    entities["duration_nights"] = str(duration)
+                    durations.append(duration + 1)
+                else:
+                    durations.append(duration)
             entities["duration_days"] = str(durations[-1])
             if len(set(durations)) > 1:
                 entities["duration_conflict"] = (
@@ -1122,9 +1129,13 @@ class IntentClassifier:
                         f"{end_day} {end_month} {end_year or year}", "%d %B %Y"
                     ).date()
                     if end > start:
+                        range_nights = (end - start).days
                         entities["start_date"] = start.isoformat()
                         entities["end_date"] = end.isoformat()
-                        entities["duration_days"] = str((end - start).days)
+                        entities["duration_nights"] = str(range_nights)
+                        supplied_days = int(entities.get("duration_days") or 0)
+                        if supplied_days not in {range_nights, range_nights + 1}:
+                            entities["duration_days"] = str(range_nights)
                         entities["date_hint"] = range_match.group(0)
                 except ValueError:
                     pass
@@ -1159,13 +1170,21 @@ class IntentClassifier:
                             "%d %B %Y",
                         ).date()
                         if end > start:
+                            range_nights = (end - start).days
                             entities["end_date"] = end.isoformat()
-                            entities["duration_days"] = str((end - start).days)
+                            entities["duration_nights"] = str(range_nights)
+                            supplied_days = int(entities.get("duration_days") or 0)
+                            if supplied_days not in {range_nights, range_nights + 1}:
+                                entities["duration_days"] = str(range_nights)
                             entities["date_hint"] = (
                                 f"{outbound_match.group(0)} to {return_match.group(0)}"
                             )
                     elif entities.get("duration_days"):
-                        end = start + timedelta(days=int(entities["duration_days"]))
+                        stay_length = int(
+                            entities.get("duration_nights")
+                            or entities["duration_days"]
+                        )
+                        end = start + timedelta(days=stay_length)
                         entities["end_date"] = end.isoformat()
                 except ValueError:
                     pass
@@ -1204,7 +1223,11 @@ class IntentClassifier:
                     ).date()
                     entities["start_date"] = start.isoformat()
                     if entities.get("duration_days"):
-                        end = start + timedelta(days=int(entities["duration_days"]))
+                        stay_length = int(
+                            entities.get("duration_nights")
+                            or entities["duration_days"]
+                        )
+                        end = start + timedelta(days=stay_length)
                         entities["end_date"] = end.isoformat()
                 except ValueError:
                     pass
@@ -1226,7 +1249,10 @@ class IntentClassifier:
                     entities["date_hint"] = single_date_match.group(0)
                     if entities.get("duration_days"):
                         end = start + timedelta(
-                            days=int(entities["duration_days"])
+                            days=int(
+                                entities.get("duration_nights")
+                                or entities["duration_days"]
+                            )
                         )
                         entities["end_date"] = end.isoformat()
                 except ValueError:
@@ -1394,6 +1420,27 @@ class IntentClassifier:
             text,
         ):
             entities["baggage_information_requested"] = "true"
+
+        if re.search(r"\b(?:car hire|hire (?:a )?car|rental car|car rental)\b", text):
+            entities["car_hire_requested"] = "true"
+        if re.search(
+            r"\b(?:airport transfers?|transfer (?:to|from) (?:the )?airport)\b",
+            text,
+        ):
+            entities["airport_transfer_requested"] = "true"
+        if re.search(
+            r"\b(?:online )?(?:entry|immigration|customs) forms?\b"
+            r"|\bentry form guidance\b",
+            text,
+        ):
+            entities["entry_form_guidance_requested"] = "true"
+        if re.search(r"\bdeparture and arrival airports?\b", text):
+            entities["airport_details_requested"] = "true"
+        if re.search(
+            r"\b(?:hotel|accommodation) (?:location and )?distance from (?:the )?airport\b",
+            text,
+        ):
+            entities["hotel_airport_distance_requested"] = "true"
 
         dining_match = re.search(
             rf"\bdine out(?:\s+as\s+(?:a\s+)?(?:couple|family))?\s+"

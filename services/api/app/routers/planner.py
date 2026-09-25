@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import calendar
+from datetime import date
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -266,6 +267,13 @@ async def _attach_viator_experiences(itinerary: Any) -> None:
     destination = str(brief.get("destination") or "").strip()
     if not destination:
         return
+    destination_region = str(brief.get("destination_region") or "").strip()
+    provider_destination = (
+        f"{destination}, {destination_region}"
+        if destination_region
+        and destination_region.casefold() not in destination.casefold()
+        else destination
+    )
 
     budget = brief.get("budget") or {}
     currency = str(budget.get("currency") or "GBP").upper()
@@ -273,7 +281,7 @@ async def _attach_viator_experiences(itinerary: Any) -> None:
         result = await asyncio.wait_for(
             asyncio.to_thread(
                 experience_discovery_service.search,
-                destination=destination,
+                destination=provider_destination,
                 start_date=brief.get("start_date"),
                 end_date=brief.get("end_date"),
                 currency=currency,
@@ -347,6 +355,15 @@ def _build_trip_brief(
         or timeframe.get("precision")
         or ("MONTH" if month else "UNSPECIFIED")
     )
+    duration_nights = entities.get("duration_nights")
+    if duration_nights is None and start_date and end_date:
+        try:
+            duration_nights = (
+                date.fromisoformat(str(end_date))
+                - date.fromisoformat(str(start_date))
+            ).days
+        except ValueError:
+            duration_nights = None
     if start_date and end_date:
         travel_period = f"{start_date} to {end_date}"
     elif entities.get("departure_day") and month:
@@ -478,6 +495,34 @@ def _build_trip_brief(
         for value in entities.get("dining_preferences", "").split(",")
         if value
     ]
+    destination_context = " ".join(
+        value
+        for value in (
+            destination,
+            entities.get("destination_region"),
+            entities.get("local_areas"),
+        )
+        if value
+    ).casefold()
+    entry_form_guidance = None
+    if (
+        entities.get("entry_form_guidance_requested") == "true"
+        and "jamaica" in destination_context
+    ):
+        entry_form_guidance = {
+            "form_name": "Electronic Immigration and Customs Declaration (C5)",
+            "required": True,
+            "official_url": "https://www.enterjamaica.gov.jm/",
+            "cost": "Free",
+            "completion_window": "Up to 30 days before travel",
+            "per_traveller": True,
+            "children_included": True,
+            "advice": (
+                "Complete one form for every traveller, including each child. "
+                "Recheck the official requirement shortly before departure."
+            ),
+            "source": "Jamaica PICA and Jamaica Customs Agency",
+        }
 
     return {
         "origin": entities.get("origin") or trip.get("origin") or "",
@@ -488,6 +533,9 @@ def _build_trip_brief(
         "destination_region": entities.get("destination_region"),
         "local_areas": local_areas,
         "duration_days": int(duration_days),
+        "duration_nights": (
+            int(duration_nights) if duration_nights is not None else int(duration_days)
+        ),
         "start_date": start_date,
         "end_date": end_date,
         "month": int(month) if month else None,
@@ -525,6 +573,20 @@ def _build_trip_brief(
         "dining_preferences": dining_preferences,
         "baggage_information_requested": (
             entities.get("baggage_information_requested") == "true"
+        ),
+        "car_hire_requested": entities.get("car_hire_requested") == "true",
+        "airport_transfer_requested": (
+            entities.get("airport_transfer_requested") == "true"
+        ),
+        "entry_form_guidance_requested": (
+            entities.get("entry_form_guidance_requested") == "true"
+        ),
+        "entry_form_guidance": entry_form_guidance,
+        "airport_details_requested": (
+            entities.get("airport_details_requested") == "true"
+        ),
+        "hotel_airport_distance_requested": (
+            entities.get("hotel_airport_distance_requested") == "true"
         ),
         "accessibility_needs": accessibility_needs,
         "dietary_requirements": dietary_requirements,
