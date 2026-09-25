@@ -179,6 +179,10 @@ async def flight_search_diagnostic(
                 "currency",
                 "stops",
                 "baggage_included",
+                "recommendation_type",
+                "reasoning",
+                "risks",
+                "assumptions",
             )
             if key in first
         }
