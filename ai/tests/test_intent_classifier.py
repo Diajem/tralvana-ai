@@ -600,3 +600,9 @@ class TestEntityExtraction:
         result = classifier.classify("The children are aged 7 and 7.")
         assert result.entities["minor_ages"] == "7,7"
         assert result.entities["children"] == "2"
+
+    def test_explicit_flexible_budget_is_preserved(self, classifier):
+        result = classifier.classify(
+            "Plan a family trip to Jamaica. The budget is flexible: do not pause to ask for a budget."
+        )
+        assert result.entities["budget_flexible"] == "true"

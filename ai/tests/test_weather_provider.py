@@ -78,6 +78,12 @@ class TestMockWeatherProvider:
         result = provider.month("Jamaica", 9)
         assert "hurricane" in result["hazards"]
 
+    def test_ocho_rios_uses_jamaica_profile(self):
+        result = MockWeatherProvider().month("Ocho Rios, Jamaica", 10)
+        assert result["matched"] is True
+        assert result["season"] == "HURRICANE_SEASON"
+        assert "hurricane" in result["hazards"]
+
     def test_jamaica_dry_season_no_hurricane_hazard(self):
         provider = MockWeatherProvider()
         result = provider.month("Jamaica", 2)

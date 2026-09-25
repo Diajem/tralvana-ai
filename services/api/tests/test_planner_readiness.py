@@ -74,6 +74,24 @@ def test_clarification_turns_keep_the_trip_and_reach_search_readiness(client):
     assert third["itinerary"]["trip_brief"]["nationalities"] == ["British"]
 
 
+def test_explicit_flexible_budget_does_not_trigger_a_budget_question(client):
+    body = client.post(
+        "/planner/plan",
+        json={
+            "message": (
+                "Plan a trip from Vienna to Ocho Rios, Jamaica from 10 October 2026 "
+                "to 22 October 2026 for 2 Austrian adults and 2 Austrian children "
+                "aged 7 and 10. The budget is flexible; do not pause to ask for a budget."
+            )
+        },
+    ).json()
+
+    readiness = body["planning_readiness"]
+    assert readiness["stage"] == "SEARCH_READY"
+    assert readiness["next_question"] is None
+    assert "Total budget and currency" not in readiness["missing_recommended"]
+
+
 def test_signed_in_profile_defaults_are_used_without_overwriting_trip_facts(client):
     profile = client.post(
         "/traveller/profile",

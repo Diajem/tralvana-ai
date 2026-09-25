@@ -339,6 +339,7 @@ class FlightIntelligence:
             "recommended_agents": ["flight_agent"],
             "summary": self._summary(origin, destination, ranked),
             "results_count": len(ranked),
+            "inventory_status": "AVAILABLE" if ranked else "EMPTY",
             **source,
         }
 

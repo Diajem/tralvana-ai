@@ -165,6 +165,7 @@ class EventIntelligence:
             "next_actions": next_actions,
             "recommended_agents": ["experience_agent"],
             "summary": summary,
+            "inventory_status": "AVAILABLE" if ranked else "EMPTY",
             "filter_summary": {
                 "provider_result_count": len(raw),
                 "excluded_outside_travel_dates": excluded_outside_dates,

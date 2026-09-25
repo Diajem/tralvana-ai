@@ -108,7 +108,11 @@ def assess_trip_readiness(
         )
 
     recommended_checks = [
-        ("budget", "Total budget and currency", bool(entities.get("budget_amount"))),
+        (
+            "budget",
+            "Total budget and currency",
+            bool(entities.get("budget_amount")) or entities.get("budget_flexible") == "true",
+        ),
         ("interests", "Interests and must-do activities", bool(entities.get("interests") or entities.get("requested_activities"))),
         ("accommodation", "Hotel, room or location preferences", bool(entities.get("accommodation_preference"))),
         ("dietary", "Dietary requirements and allergies", bool(entities.get("dietary_requirements"))),
@@ -215,7 +219,7 @@ def _next_question(
             "What passport nationality does each traveller hold? Please mention any mixed nationalities.",
             ["nationalities"],
         )
-    if not entities.get("budget_amount"):
+    if not entities.get("budget_amount") and entities.get("budget_flexible") != "true":
         return (
             "What approximate total budget and currency should I plan around?",
             ["budget_amount", "budget_currency"],

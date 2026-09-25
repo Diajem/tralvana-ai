@@ -206,6 +206,31 @@ class TestMarketWideSearch:
         assert len(result.data) == 1
         assert result.data[0]["_market_provider_name"] == "inventory"
         assert len(result.source_metadata["providers_succeeded"]) == 2
+        assert result.source_metadata["providers_empty"] == ["empty"]
+
+    def test_all_reachable_but_empty_suppliers_are_not_reported_as_available_inventory(self):
+        class _EmptyProvider(_MarketProvider):
+            def execute(self, request):
+                self.calls += 1
+                return ProviderResult(
+                    provider_name=self.provider_name,
+                    capability=Capability.FLIGHTS,
+                    status=ProviderStatus.AVAILABLE,
+                    data=[],
+                    confidence=1.0,
+                )
+
+        registry = ProviderRegistry()
+        registry.register(_EmptyProvider(name="one", priority=1))
+        registry.register(_EmptyProvider(name="two", priority=2))
+        result = _gateway(registry=registry).execute_market_search(
+            Capability.FLIGHTS, _req()
+        )
+
+        assert result.status == ProviderStatus.DEGRADED
+        assert result.data == []
+        assert result.source_metadata["mapped_result_count"] == 0
+        assert result.source_metadata["providers_empty"] == ["one", "two"]
 
     def test_partial_failure_keeps_other_supplier_inventory(self):
         registry = ProviderRegistry()

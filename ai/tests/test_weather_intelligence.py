@@ -79,6 +79,12 @@ class TestWeatherIntelligence:
         assert any("hurricane" in r.lower() for r in result["risks"])
         assert result["weather_status"] in ("ACCEPTABLE", "CHALLENGING", "NOT_RECOMMENDED")
 
+    def test_ocho_rios_october_never_falls_back_to_low_risk_unknown_weather(self):
+        result = WeatherIntelligence().analyse("Ocho Rios, Jamaica", 10)
+        assert result["season"] == "HURRICANE_SEASON"
+        assert result["natural_hazard_risk"] in {"HIGH", "SEVERE"}
+        assert result["weather_status"] in ("ACCEPTABLE", "CHALLENGING", "NOT_RECOMMENDED")
+
     def test_alternative_months_only_include_better_scoring_months(self):
         engine = WeatherIntelligence()
         result = engine.analyse("Japan", 7)

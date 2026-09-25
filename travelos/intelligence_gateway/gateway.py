@@ -217,6 +217,7 @@ class IntelligenceGateway:
         successful: list[dict[str, object]] = []
         successful_metadata: list[dict[str, object]] = []
         failed: list[str] = []
+        empty: list[str] = []
         assumptions: list[str] = []
         total_latency_ms = 0.0
 
@@ -243,6 +244,12 @@ class IntelligenceGateway:
                     f"{provider.provider_name} returned an invalid non-list market-search response"
                 )
                 continue
+
+            if not data:
+                empty.append(provider.provider_name)
+                warnings.append(
+                    f"{provider.provider_name} was reachable but returned no inventory"
+                )
 
             # Attach safe provenance to each candidate before normalisation so
             # ranking/explainability can identify the actual supplier selected.
@@ -277,7 +284,11 @@ class IntelligenceGateway:
         result = ProviderResult(
             provider_name="multi_provider" if len(successful) > 1 else str(successful[0]["provider_name"]),
             capability=capability,
-            status=ProviderStatus.DEGRADED if failed else ProviderStatus.AVAILABLE,
+            status=(
+                ProviderStatus.DEGRADED
+                if failed or (empty and len(empty) == len(successful))
+                else ProviderStatus.AVAILABLE
+            ),
             data=combined,
             confidence=min(1.0, max(0.0, len(successful) / len(eligible))),
             assumptions=list(dict.fromkeys(assumptions)),
@@ -291,6 +302,7 @@ class IntelligenceGateway:
                 "providers_queried": [p.provider_name for p in eligible],
                 "providers_succeeded": successful,
                 "providers_failed": failed,
+                "providers_empty": empty,
                 "mapped_result_count": len(combined),
                 "raw_result_count": sum(int(p["result_count"]) for p in successful),
             },

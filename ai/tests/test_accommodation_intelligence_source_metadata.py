@@ -120,3 +120,18 @@ class TestProviderIdsNeverLeakAsUnderscoreFields:
             assert "provider_property_id" in option
             assert option["provider_property_id"] is None
             assert "data_source" in option
+
+
+def test_empty_aggregated_response_is_explicitly_not_inventory():
+    class EmptyProvider(_ProviderStub):
+        def search(self, *args, **kwargs):
+            return []
+
+    provider_result = _result("multi_provider", raw_count=0)
+    provider_result.status = ProviderStatus.DEGRADED
+    result = AccommodationIntelligence(
+        provider=EmptyProvider(last_result=provider_result)
+    ).recommend(destination="Ocho Rios", check_in_date="2026-10-10", nights=12)
+    assert result["provider_status"] == "DEGRADED"
+    assert result["inventory_status"] == "EMPTY"
+    assert result["ranked_results_count"] == 0

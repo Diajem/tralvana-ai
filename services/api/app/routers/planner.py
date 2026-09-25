@@ -299,6 +299,10 @@ async def _attach_viator_experiences(itinerary: Any) -> None:
         return
 
     products = list(result.get("products") or [])
+    if not products:
+        if "viator_experiences" not in itinerary.modules_unavailable:
+            itinerary.modules_unavailable.append("viator_experiences")
+        return
     itinerary.transfer_recommendations = [
         product for product in products
         if product.get("service_type") == "TRANSFER"

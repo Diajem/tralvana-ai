@@ -112,3 +112,19 @@ class TestProviderOfferIdNeverLeaksAsUnderscoreField:
             assert "_provider_offer_id" not in option
             assert "provider_offer_id" in option  # present, just None for mock data
             assert option["provider_offer_id"] is None
+
+
+def test_empty_provider_response_is_explicitly_not_inventory():
+    class EmptyProvider(_ProviderStub):
+        def search(self, *args, **kwargs):
+            return []
+
+    result = FlightIntelligence(
+        provider=EmptyProvider(last_result=_result("duffel_flight_provider"))
+    ).recommend(
+        origin="Vienna", destination="Montego Bay", departure_date="2026-10-10",
+        return_date="2026-10-22",
+    )
+    assert result["provider_status"] == "AVAILABLE"
+    assert result["inventory_status"] == "EMPTY"
+    assert result["results_count"] == 0

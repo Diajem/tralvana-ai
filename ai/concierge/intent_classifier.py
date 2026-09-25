@@ -1391,6 +1391,13 @@ class IntentClassifier:
                 entities["budget_currency"] = currency
                 break
 
+        if re.search(
+            r"\b(?:budget is flexible|flexible budget|no (?:fixed|set) budget|"
+            r"do not (?:ask|pause|stop) (?:for|to ask for) (?:a |the )?budget)\b",
+            text,
+        ):
+            entities["budget_flexible"] = "true"
+
         negative_constraints: list[str] = []
         if re.search(r"\b(?:no alcohol|alcohol[- ]free|avoid alcohol)\b", text):
             negative_constraints.append("No alcohol")

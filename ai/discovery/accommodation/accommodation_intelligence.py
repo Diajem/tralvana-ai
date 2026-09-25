@@ -181,6 +181,7 @@ class AccommodationIntelligence:
             "raw_results_count": source.pop("raw_results_count"),
             "normalised_results_count": len(raw_candidates),
             "ranked_results_count": len(ranked),
+            "inventory_status": "AVAILABLE" if ranked else "EMPTY",
             **source,
         }
 

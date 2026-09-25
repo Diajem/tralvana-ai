@@ -623,7 +623,15 @@ def _normalise_nationalities(values: list[Any]) -> list[str]:
         cleaned = cleaned.removeprefix("Dual ").removeprefix("dual ")
         parts = re.split(r"\s*[-/]\s*", cleaned)
         expanded.extend(part for part in parts if part)
-    return _clean_list(expanded)
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for value in expanded:
+        key = re.sub(r"\s+", " ", value).strip().casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(value.strip())
+    return deduped
 
 
 def _dedupe_residency_documents(values: list[Any]) -> list[str]:

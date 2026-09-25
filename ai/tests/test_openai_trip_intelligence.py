@@ -311,6 +311,19 @@ def test_ai_entities_override_bad_regex_fragments_but_keep_proven_fields():
     assert merged.entities["budget_style"] == "balanced"
 
 
+def test_nationalities_are_deduplicated_case_insensitively():
+    rule = ClassifiedIntent(
+        intent=Intent.PLAN_TRIP,
+        confidence=0.95,
+        entities={"nationalities": "Austrian"},
+    )
+    ai = _florida_interpretation(nationalities=["austrian"]).to_classified_intent()
+
+    merged = merge_interpretations(rule, ai)
+
+    assert merged.entities["nationalities"] == "Austrian"
+
+
 def test_openai_is_used_for_plans_and_active_plan_refinements_not_greetings():
     assert should_use_openai_interpretation(
         rule_intent=Intent.PLAN_TRIP,
