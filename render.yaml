@@ -31,6 +31,14 @@ services:
         sync: false
       - key: VIATOR_PRODUCTION_API_KEY
         sync: false
+      - key: RATEHAWK_SANDBOX_KEY_ID
+        sync: false
+      - key: RATEHAWK_SANDBOX_API_KEY
+        sync: false
+      - key: RATEHAWK_PRODUCTION_KEY_ID
+        sync: false
+      - key: RATEHAWK_PRODUCTION_API_KEY
+        sync: false
       - key: TRALVANA_PROVIDER_ENVIRONMENT
         value: MOCK
       - key: TRALVANA_FLIGHT_PROVIDER_MODE
